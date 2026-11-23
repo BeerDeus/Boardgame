@@ -33,7 +33,7 @@
 /* Standees */
 .pfig { position: absolute; left: 0; top: 0; transform-style: preserve-3d; }
 .pshadow { position: absolute; left: -24px; top: -10px; width: 48px; height: 20px; border-radius: 50%; background: radial-gradient(rgba(0,0,0,.7), transparent 70%); transform: translateZ(.5px); }
-.pring { position: absolute; left: -30px; top: -14px; width: 60px; height: 28px; border-radius: 50%; border: 3px solid #ffd27a; box-shadow: 0 0 14px #ffd27a, inset 0 0 10px #ffd27a; transform: translateZ(.8px); opacity: 0; transition: opacity .25s; }
+.pring { position: absolute; left: -30px; top: -14px; width: 60px; height: 28px; border-radius: 50%; border: 3px solid var(--ring, #ffd27a); box-shadow: 0 0 14px var(--ring, #ffd27a), inset 0 0 10px var(--ring, #ffd27a); transform: translateZ(.8px); opacity: 0; transition: opacity .25s; }
 .pfig.sel .pring { opacity: 1; animation: ppulse 1.2s ease-in-out infinite; }
 .pstand { position: absolute; left: -26px; top: -84px; width: 52px; height: 84px; transform-origin: 50% 100%; transform-style: preserve-3d; transform: translateZ(var(--hop, 0px)) rotateZ(var(--yaw)) rotateX(var(--tilt)); }
 .paper-root.upright .pstand { transform: translateZ(var(--hop, 0px)) rotateZ(var(--yaw)) rotateX(-90deg); }
@@ -68,3 +68,6 @@
 .pm-in i { position: absolute; left: 2px; top: 0; width: 20px; height: 30px; background: #ffd27a; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); filter: drop-shadow(0 0 6px #ffd27a); animation: bob 1.6s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-8px); } }
 .ppoi.gone { transition: transform .35s, opacity .35s; transform: translateZ(2px) scale(0); opacity: 0; }
+/* Plaque de nom (socle) */
+.pplate { position: absolute; left: 0; top: 10px; transform: translateX(-50%) translateZ(1px); white-space: nowrap; font: 600 9px 'Cinzel', Georgia, serif; color: #f2e2b8; background: #14100d; border: 1px solid var(--c); border-bottom-width: 2px; padding: 1px 6px; border-radius: 3px; pointer-events: none; }
+.pfig.faded .pplate { opacity: .3; }

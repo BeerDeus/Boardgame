@@ -21,12 +21,18 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
     ui.progress(0.05, 'Moteur…');
     const mod = await LOADERS[meta.id]();
     const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l) });
+    ui.progress(0.85, 'Portraits…');
+    try {
+      const [{ createBaker }, { STORY }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./core/story.js'), import('./core/portraits.js')]);
+      const baker = await createBaker(128);
+      const seen = new Set();
+      for (const c of [...STORY.heroes, ...STORY.cast]) { if (seen.has(c.kind)) continue; seen.add(c.kind); setPortrait(c.kind, await baker.portrait(c)); }
+      baker.dispose();
+    } catch (e) { console.warn('Portraits 3D indisponibles', e); }
     ui.progress(0.9, 'Scénario…');
     const dialogue = createDialogue(ui.root);
-    ui.engine = engine;
-    await runScenario({ engine, ui, dialogue, engineId: meta.id });
-    ui.progress(1, 'Prêt');
-    ui.loaded();
+    ui.engine = engine; window.__engine = engine;
+    await runScenario({ engine, ui, dialogue, engineId: meta.id, ready: () => { ui.progress(1, 'Prêt'); ui.loaded(); } });
     window.__engine = engine;
   } catch (e) {
     console.error(e); ui.error(`Erreur : ${e.message}`);

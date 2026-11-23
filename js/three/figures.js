@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { tween } from '../core/tween.js';
 
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0.05, flatShading: true, ...o });
 const SKIN = 0xd9b38c, STEEL = 0xa9afb9, WOOD = 0x6b4a2b, DARK = 0x1d1916;
@@ -14,8 +15,9 @@ const lathe = (pts, seg = 10) => new THREE.LatheGeometry(pts.map(([r, y]) => new
 
 function base(team) {
   const g = new THREE.Group();
-  g.add(mesh(new THREE.CylinderGeometry(0.17, 0.18, 0.05, 28), mat(0x1a1715, { roughness: 0.4 }), 0, 0.025));
-  g.add(mesh(new THREE.TorusGeometry(0.172, 0.012, 6, 32), mat(team, { metalness: 0.5, roughness: 0.35 }), 0, 0.05, 0, Math.PI / 2));
+  g.add(mesh(new THREE.CylinderGeometry(0.17, 0.18, 0.05, 32), mat(team.clone().multiplyScalar(0.35), { roughness: 0.45 }), 0, 0.025));
+  g.add(mesh(new THREE.CylinderGeometry(0.163, 0.163, 0.008, 32), mat(team, { roughness: 0.4 }), 0, 0.052));
+  g.add(mesh(new THREE.TorusGeometry(0.168, 0.01, 6, 40), mat(0xc9a45c, { metalness: 0.7, roughness: 0.3 }), 0, 0.054, 0, Math.PI / 2));
   return g;
 }
 
@@ -170,44 +172,114 @@ export function applyFinish(fig, finish) {
   }
 }
 
-// ---------- GLB ----------
+// ---------- GLB : personnages KayKit (CC0, Kay Lousberg) + créatures ----------
 const gltfCache = {};
-const GLB = { fox: { url: 'assets/models/Fox.glb', height: 0.32, idle: 'Survey', move: 'Run' }, wolf: { url: 'assets/models/Fox.glb', height: 0.32, idle: 'Survey', move: 'Run', tint: 0x8a8580 }, horse: { url: 'assets/models/Horse.glb', height: 0.6, idle: null, move: 'horse_A_' } };
-export function preloadGLB() { return Promise.all([...new Set(Object.values(GLB).map(d => d.url))].map(u => (gltfCache[u] ||= new GLTFLoader().loadAsync(u)).catch(() => null))); }
+const KK = 'assets/models/kaykit/';
+const KAY = { idle: 'Idle', move: 'Walking_A', attack: '1H_Melee_Attack_Chop', hit: 'Hit_A', death: 'Death_A', talk: 'Interact', cheer: 'Cheer', sit: 'Sit_Floor_Idle', spawn: 'Spawn_Ground_Skeletons', cast: 'Spellcast_Shoot' };
+const HEROW = ['1H_Crossbow', '2H_Crossbow', 'Throwable'];
+export const GLB = {
+  knight:    { url: KK + 'Knight.glb', height: 0.62, anims: KAY, hide: ['1H_Sword_Offhand', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '2H_Sword'] },
+  mage:      { url: KK + 'Mage.glb', height: 0.62, anims: { ...KAY, attack: 'Spellcast_Shoot' }, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
+  barbarian: { url: KK + 'Barbarian.glb', height: 0.64, anims: { ...KAY, attack: '2H_Melee_Attack_Chop' }, hide: ['1H_Axe_Offhand', 'Barbarian_Round_Shield', '1H_Axe', 'Mug'] },
+  rogue:     { url: KK + 'Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, hide: HEROW },
+  npc:       { url: KK + 'Mage.glb', height: 0.56, anims: KAY, tint: 0xc9a27a, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
+  child:     { url: KK + 'Rogue.glb', height: 0.42, anims: KAY, tint: 0xf2d6a8, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
+  ferryman:  { url: KK + 'Rogue_Hooded.glb', height: 0.63, anims: KAY, tint: 0x8796a4, hide: [...HEROW, 'Knife', 'Knife_Offhand'] },
+  skeleton:  { url: KK + 'Skeleton_Minion.glb', height: 0.58, anims: KAY, weapons: { r: 'Skeleton_Blade' } },
+  skelwarrior: { url: KK + 'Skeleton_Warrior.glb', height: 0.62, anims: KAY, weapons: { r: 'Skeleton_Axe', l: 'Skeleton_Shield_Small_A' } },
+  skelrogue: { url: KK + 'Skeleton_Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, weapons: { r: 'Skeleton_Blade', l: 'Skeleton_Blade' } },
+  sonneur:   { url: KK + 'Skeleton_Mage.glb', height: 0.86, anims: { ...KAY, attack: 'Spellcast_Shoot' }, tint: 0xffb3a0, weapons: { r: 'Skeleton_Staff' } },
+  fox:   { url: 'assets/models/Fox.glb', height: 0.32, anims: { idle: 'Survey', move: 'Run', attack: 'Run' } },
+  wolf:  { url: 'assets/models/Fox.glb', height: 0.32, anims: { idle: 'Survey', move: 'Run', attack: 'Run' }, tint: 0x8a8580 },
+  horse: { url: 'assets/models/Horse.glb', height: 0.6, anims: { move: 'horse_A_' } },
+};
+const load = url => (gltfCache[url] ||= new GLTFLoader().loadAsync(url));
+export function preloadGLB(kinds) {
+  const urls = new Set();
+  for (const [k, d] of Object.entries(GLB)) if (!kinds || kinds.includes(k)) { urls.add(d.url); for (const w of Object.values(d.weapons || {})) urls.add(KK + w + '.glb'); }
+  return Promise.all([...urls].map(u => load(u).catch(() => null)));
+}
 
 async function buildGLB(kind) {
-  const def = GLB[kind], gltf = await (gltfCache[def.url] ||= new GLTFLoader().loadAsync(def.url));
+  const def = GLB[kind], gltf = await load(def.url);
   const obj = SkeletonUtils.clone(gltf.scene);
+  // masquer les accessoires inutiles (boucliers/armes alternatives…)
+  const drop = []; obj.traverse(o => { if (def.hide?.includes(o.name)) drop.push(o); }); drop.forEach(o => o.removeFromParent());
+  // armes attachées aux os des mains
+  for (const [side, w] of Object.entries(def.weapons || {})) {
+    const slot = obj.getObjectByName(`handslot.${side}`); const wg = await load(KK + w + '.glb').catch(() => null);
+    if (slot && wg) slot.add(wg.scene.clone());
+  }
   const box = new THREE.Box3().setFromObject(obj), size = box.getSize(new THREE.Vector3());
   const s = def.height / size.y; obj.scale.setScalar(s);
   const box2 = new THREE.Box3().setFromObject(obj); obj.position.y -= box2.min.y - 0.05;
   const c = box2.getCenter(new THREE.Vector3()); obj.position.x -= c.x; obj.position.z -= c.z;
-  // orientation : la tête vers +Z
   const wrap = new THREE.Group(); wrap.add(obj);
-  if (kind === 'wolf') wrap.rotation.y = 0; if (kind === 'horse') wrap.rotation.y = 0;
   obj.traverse(m => {
     if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.material = m.material.clone(); if (def.tint) m.material.color?.multiply(new THREE.Color(def.tint)); m.frustumCulled = false; }
   });
   const mixer = new THREE.AnimationMixer(obj), actions = {};
   for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
-  return { obj: wrap, mixer, actions, def };
+  return { obj: wrap, mixer, actions, def, busy: 0, current: null };
 }
 
-/** Crée une figurine complète : socle + corps + hitbox invisible généreuse (tap mobile) */
+/** Joue une animation par rôle (idle, move, attack, hit, death, talk, cheer, sit, spawn, cast). Promise résolue à la fin (one-shot). */
+export function playAnim(fig, key, { loop = false, fade = 0.18 } = {}) {
+  const a = fig.userData.anim; if (!a) return Promise.resolve(false);
+  const name = a.def.anims?.[key], act = name && a.actions[name];
+  if (!act) return Promise.resolve(false);
+  const prev = a.current;
+  act.reset(); act.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1); act.clampWhenFinished = !loop;
+  act.enabled = true; act.setEffectiveWeight(1); act.fadeIn(prev ? fade : 0).play();
+  if (prev && prev !== act) prev.fadeOut(fade);
+  a.current = act; if (loop) a.idleKey = key;
+  if (loop) { a.mixer.update(0.001); return Promise.resolve(true); }
+  a.busy++;
+  const dur = act.getClip().duration;
+  tween({ duration: dur + 0.1 }); // garde le rendu actif pendant l'anim (rendu à la demande)
+  return new Promise(res => {
+    const f = e => { if (e.action === act) { a.mixer.removeEventListener('finished', f); a.busy--; res(true); } };
+    a.mixer.addEventListener('finished', f);
+  });
+}
+export const hasAnim = (fig, key) => !!fig.userData.anim?.actions[fig.userData.anim.def.anims?.[key]];
+
+// ---------- Socle : couleur propre au personnage + bandeau avec le nom ----------
+function nameBand(name, color, r) {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 64; const g = c.getContext('2d');
+  const col = new THREE.Color(color);
+  g.fillStyle = '#14100d'; g.fillRect(0, 0, 1024, 64);
+  g.fillStyle = `#${col.getHexString()}`; g.fillRect(0, 0, 1024, 5); g.fillRect(0, 59, 1024, 5);
+  g.fillStyle = '#f2e2b8'; g.font = '600 36px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const label = name.toUpperCase();
+  for (const x of [256, 768]) g.fillText(label, x, 34);
+  g.fillStyle = `#${col.getHexString()}`; for (const x of [0, 512, 1024]) { g.beginPath(); g.arc(x, 32, 7, 0, Math.PI * 2); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = THREE.RepeatWrapping;
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.046, 48, 1, true), new THREE.MeshStandardMaterial({ map: t, roughness: 0.5 }));
+  m.position.y = 0.026; m.rotation.y = Math.PI; return m;
+}
+
+/** Crée une figurine complète : socle coloré + nom + corps + hitbox invisible généreuse (tap mobile) */
 export async function makeFigure(data) {
-  const root = new THREE.Group(), team = new THREE.Color(data.color);
+  const root = new THREE.Group(), team = new THREE.Color(data.base || data.color);
   const inner = new THREE.Group(); root.add(inner);
-  inner.add(base(team));
+  const big = data.kind === 'sonneur' ? 1.35 : 1;
+  const b = base(team); b.scale.set(1.12 * big, 1, 1.12 * big); inner.add(b);
   let anim = null;
-  if (GLB[data.kind]) { anim = await buildGLB(data.kind); inner.add(anim.obj); if (anim.def.idle && anim.actions[anim.def.idle]) anim.actions[anim.def.idle].play(); }
-  else { const body = (BUILD[data.kind] || BUILD.npc)(team); body.position.y = 0.05; inner.add(body); inner.userData.orb = body.userData.orb; }
-  if (!anim) mergeFigure(inner); else mergeFigure(inner.children[0]);
-  const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.9, 8), new THREE.MeshBasicMaterial({ visible: false }));
-  hit.position.y = 0.45; hit.userData.figureId = data.id; root.add(hit);
-  // matériaux propres à la figurine (flash de dégâts)
+  if (GLB[data.kind]) {
+    anim = await buildGLB(data.kind); inner.add(anim.obj);
+    const k = data.idle || 'idle';
+    const act = anim.actions[anim.def.anims?.[k]];
+    if (act) { act.play(); anim.current = act; anim.idleKey = k; anim.mixer.update(0.01); }
+  } else { const body = (BUILD[data.kind] || BUILD.npc)(team); body.position.y = 0.05; inner.add(body); inner.userData.orb = body.userData.orb; }
+  mergeFigure(anim ? b : inner);
+  if (data.name) inner.add(nameBand(data.name, team, 0.181 * 1.12 * big));
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.24 * big, 0.24 * big, 0.95 * big, 8), new THREE.MeshBasicMaterial({ visible: false }));
+  hit.position.y = 0.45 * big; hit.userData.figureId = data.id; root.add(hit);
   const mats = []; inner.traverse(m => { if (m.isMesh || m.isSkinnedMesh) { m.material = m.material.clone(); mats.push(m.material); } });
   if (inner.userData.orb) inner.traverse(m => { if (m.isMesh && m.material.emissiveIntensity > 2) inner.userData.orb = m; });
-  root.userData = { id: data.id, inner, hit, anim, mats };
+  root.userData = { id: data.id, inner, hit, anim, mats, height: (GLB[data.kind]?.height || 0.7) + 0.05 };
   return root;
 }
 

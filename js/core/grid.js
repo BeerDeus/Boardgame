@@ -13,6 +13,11 @@ const K = (q, r) => `${q},${r}`;
 
 /** Emplacements des figurines sur une tuile (jusqu'à 6) */
 function slotsFor(n, sx, sz) {
+  if (n > 6) { // au-delà : couronne extérieure + centre
+    const out = [{ x: 0, z: 0 }];
+    for (let i = 0; i < n - 1; i++) { const a = (i / (n - 1)) * Math.PI * 2; out.push({ x: Math.cos(a) * 1.35 * sx, z: Math.sin(a) * 1.35 * sz }); }
+    return out;
+  }
   const L = {
     1: [[0, 0]], 2: [[-1, 0], [1, 0]], 3: [[-1, 0.7], [1, 0.7], [0, -0.9]],
     4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]],

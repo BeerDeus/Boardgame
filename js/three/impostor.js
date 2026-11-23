@@ -17,7 +17,7 @@ export async function createBaker(res = 128, N = 8) {
   cam.position.set(0, 0.5 + Math.sin(pitch) * d, Math.cos(pitch) * d); cam.lookAt(0, 0.5, 0);
   const cache = new Map();
   async function bake(data, finish = 'painted') {
-    const k = `${data.kind}|${data.color}|${finish}`;
+    const k = `${data.kind}|${data.color}|${data.base}|${finish}`;
     if (cache.has(k)) return cache.get(k);
     const p = (async () => {
       const f = await makeFigure(data);
@@ -34,5 +34,18 @@ export async function createBaker(res = 128, N = 8) {
     })();
     cache.set(k, p); return p;
   }
-  return { bake, N, dispose: () => r.dispose() };
+  /** Portrait (gros plan visage) rendu depuis le modèle 3D */
+  async function portrait(data, size = 160) {
+    const f = await makeFigure({ ...data, name: '' });
+    f.userData.anim?.mixer.update(0.3);
+    const box = new THREE.Box3().setFromObject(f.userData.inner), h = box.max.y;
+    const pc = new THREE.PerspectiveCamera(24, 1, 0.05, 20), ty = h * (data.kind === 'fox' || data.kind === 'horse' ? 0.6 : 0.74), d = h * 1.05;
+    pc.position.set(d * 0.32, ty + d * 0.12, d); pc.lookAt(0, ty, 0);
+    f.rotation.y = 0.15; scene.add(f);
+    r.setSize(size, size); r.render(scene, pc);
+    const url = r.domElement.toDataURL('image/png');
+    scene.remove(f); r.setSize(W, H);
+    return url;
+  }
+  return { bake, portrait, N, dispose: () => r.dispose() };
 }

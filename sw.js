@@ -1,5 +1,5 @@
 // Service worker : jeu jouable hors-ligne (PWA). Incrémenter VERSION à chaque déploiement.
-const VERSION = 'grimoire-1795469260';
+const VERSION = 'grimoire-1795471660';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -18,6 +18,20 @@ const PRECACHE = [
 "assets/icons/maskable-512.png",
 "assets/models/Fox.glb",
 "assets/models/Horse.glb",
+"assets/models/kaykit/Barbarian.glb",
+"assets/models/kaykit/Knight.glb",
+"assets/models/kaykit/LICENSE.txt",
+"assets/models/kaykit/Mage.glb",
+"assets/models/kaykit/Rogue.glb",
+"assets/models/kaykit/Rogue_Hooded.glb",
+"assets/models/kaykit/Skeleton_Axe.glb",
+"assets/models/kaykit/Skeleton_Blade.glb",
+"assets/models/kaykit/Skeleton_Mage.glb",
+"assets/models/kaykit/Skeleton_Minion.glb",
+"assets/models/kaykit/Skeleton_Rogue.glb",
+"assets/models/kaykit/Skeleton_Shield_Small_A.glb",
+"assets/models/kaykit/Skeleton_Staff.glb",
+"assets/models/kaykit/Skeleton_Warrior.glb",
 "assets/textures/brown_mud_leaves_01.jpg",
 "assets/textures/burned_ground_01.jpg",
 "assets/textures/dark_rock.jpg",
@@ -39,6 +53,7 @@ const PRECACHE = [
 "js/core/gestures.js",
 "js/core/grid.js",
 "js/core/mapgen.js",
+"js/core/portraits.js",
 "js/core/scenario.js",
 "js/core/settings.js",
 "js/core/sfx.js",

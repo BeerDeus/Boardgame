@@ -100,7 +100,7 @@ export async function createEngine(container, { onProgress }) {
   const occRm = (key, id) => { const a = occ.get(key); if (a && a.indexOf(id) >= 0) a.splice(a.indexOf(id), 1); };
   async function addFigure(data, key, { spawn = false } = {}) {
     const el = h('div', 'pfig'); el.dataset.fig = data.id;
-    el.innerHTML = `<div class="pshadow"></div><div class="pring"></div><div class="pstand"><div class="pin2"><div class="pimp"></div><div class="pcard" style="--c:${data.color}">${figureSVG(data.kind, data.color)}</div><div class="pbase" style="--c:${data.color}"></div></div></div>`;
+    el.innerHTML = `<div class="pshadow"></div><div class="pring"></div><div class="pstand"><div class="pin2"><div class="pimp"></div><div class="pcard" style="--c:${data.color}">${figureSVG(data.kind, data.color)}</div><div class="pbase" style="--c:${data.color}"></div></div></div><div class="pplate" style="--c:${data.base || data.color}">${data.name}</div>`;
     boardEl.append(el);
     const f = { id: data.id, el, st: el.querySelector('.pstand'), imp: el.querySelector('.pimp'), key, x: 0, y: 0, hop: 0, data, face: 0, frame: -1 };
     if (data.kind === 'monk') el.classList.add('big'); if (data.kind === 'child' || data.kind === 'fox') el.classList.add('small');
@@ -239,6 +239,7 @@ export async function createEngine(container, { onProgress }) {
     setShadows() {}, setResolution() {},
     supports: { shadows: false, resolution: false, aa: false, postfx: false },
     applySettings(g2) { gfx = g2; dirty = true; },
+    setRingColor(hex) { root.style.setProperty('--ring', '#' + hex.toString(16).padStart(6, '0')); },
     async setFinish(fn) { finish = fn; for (const f of figs.values()) bakeFig(f); },
     shake(a) { shake = a * 250; },
     screenPos(id) { const f = figs.get(id); if (!f) return null; const r = f.st.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.25 }; },

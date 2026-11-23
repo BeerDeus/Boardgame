@@ -2,7 +2,7 @@
 // surbrillances, POI, caméra cinématique. Implémente l'API moteur commune.
 import * as THREE from 'three';
 import { tween, ease, cancelTweens, nearestAngle, wait } from '../core/tween.js';
-import { makeFigure, flash, preloadGLB, applyFinish } from './figures.js';
+import { makeFigure, flash, preloadGLB, applyFinish, playAnim, hasAnim } from './figures.js';
 import { settings } from '../core/settings.js';
 import { iconTexture, ringTexture, radialTexture } from './textures.js';
 
@@ -89,17 +89,29 @@ export class Board3D {
     f.position.copy(this.slotPos(key, ids.length - 1, ids.length));
     f.rotation.y = (Math.random() - 0.5) * 0.6;
     this.arrange(key, data.id);
+    f.userData.restIdle = data.idle || 'idle';
     if (spawn) {
       const y0 = f.position.y; f.scale.setScalar(0.01);
       this.dust(f.position.clone(), 10, 0.5, 0x2a2420);
+      const rise = hasAnim(f, 'spawn') ? playAnim(f, 'spawn') : null;
       await tween({ duration: 0.6, ease: ease.outBack, update: k => { f.scale.setScalar(Math.max(0.01, k * this.o.figScale)); f.position.y = y0 + (1 - k) * -0.2; } });
+      if (rise) { await rise; playAnim(f, f.userData.restIdle, { loop: true }); }
     }
+  }
+  /** animation ponctuelle (talk, cheer, cast…) ou nouvelle pose de repos (loop) */
+  async animate(id, key, { loop = false } = {}) {
+    const f = this.figs.get(id); if (!f) return;
+    if (loop) { f.userData.restIdle = key; return playAnim(f, key, { loop: true }); }
+    await playAnim(f, key); playAnim(f, f.userData.restIdle, { loop: true });
   }
   async removeFigure(id, { animate = true } = {}) {
     const f = this.figs.get(id); if (!f) return;
     const key = f.userData.key; this.occRemove(key, id); this.figs.delete(id);
     if (this.ring.parent === f) this.setSelected(null);
-    if (animate) {
+    if (animate && hasAnim(f, 'death')) {
+      await playAnim(f, 'death');
+      await tween({ duration: 0.5, update: k => { f.position.y -= 0.004; f.scale.setScalar(Math.max(0.01, (1 - k) * this.o.figScale)); } });
+    } else if (animate) {
       const inner = f.userData.inner;
       await tween({ duration: 0.45, ease: ease.inQuad, update: k => { inner.rotation.x = -k * Math.PI / 2; inner.position.y = k * 0.02; } });
       await tween({ duration: 0.35, update: k => f.scale.setScalar(Math.max(0.01, (1 - k) * this.o.figScale)) });
@@ -107,13 +119,14 @@ export class Board3D {
     this.root.remove(f); this.arrange(key);
   }
   async hop(f, to, h = 0.22) {
+    const walker = hasAnim(f, 'move'); if (walker) h = 0.05;
     const from = f.position.clone(), dx = to.x - from.x, dz = to.z - from.z, d = Math.hypot(dx, dz);
     const yaw0 = f.rotation.y, yaw1 = d > 0.01 ? nearestAngle(yaw0, Math.atan2(dx, dz)) : yaw0;
     const inner = f.userData.inner;
     await tween({ duration: 0.24 + d * 0.06, ease: ease.inOutSine, update: k => {
       f.position.lerpVectors(from, to, k); f.position.y += Math.sin(Math.PI * k) * h * this.o.figScale;
       f.rotation.y = yaw0 + (yaw1 - yaw0) * Math.min(1, k * 3);
-      inner.rotation.x = Math.sin(Math.PI * k) * 0.12;
+      if (!walker) inner.rotation.x = Math.sin(Math.PI * k) * 0.12;
     } });
     tween({ duration: 0.16, ease: ease.outQuad, update: k => inner.scale.set(1 + Math.sin(Math.PI * k) * 0.08, 1 - Math.sin(Math.PI * k) * 0.12, 1 + Math.sin(Math.PI * k) * 0.08) });
     this.dust(to.clone(), 4, 0.18);
@@ -126,31 +139,37 @@ export class Board3D {
     this.occPush(last, id); this.arrange(last, id); f.userData.key = last;
     if (follow) { this.s.rig.follow = f; this.s.rig.k = 5; }
     (this.moving ||= new Set()).add(id);
-    const a = f.userData.anim; let act = null;
-    if (a?.def.move && a.actions[a.def.move]) { act = a.actions[a.def.move]; act.reset().fadeIn(0.15).play(); if (a.def.idle) a.actions[a.def.idle]?.fadeOut(0.15); }
+    const walker = hasAnim(f, 'move'); if (walker) playAnim(f, 'move', { loop: true });
     for (let i = 1; i < path.length; i++) {
       const t = this.tiles.get(path[i]);
       const to = i === path.length - 1 ? this.slotPos(last, this.occ.get(last).indexOf(id), this.occ.get(last).length) : new THREE.Vector3(t.cell.x, t.topY, t.cell.z);
       await this.hop(f, to);
     }
-    if (act) { act.fadeOut(0.2); if (a.def.idle) a.actions[a.def.idle]?.reset().fadeIn(0.2).play(); }
+    if (walker) playAnim(f, hasAnim(f, f.userData.restIdle) ? f.userData.restIdle : 'idle', { loop: true });
     if (this.s.rig.follow === f) this.s.rig.follow = null;
     this.moving.delete(id); this.s.invalidate();
   }
   async bump(id, targetId) {
     const f = this.figs.get(id); if (!f) return;
     const tg = targetId && this.figs.get(targetId);
-    if (!tg) { const y = f.position.y; await tween({ duration: 0.3, update: k => (f.position.y = y + Math.sin(Math.PI * k) * 0.15) }); return; }
+    if (!tg) {
+      if (hasAnim(f, 'cheer')) { await this.animate(id, 'cheer'); return; }
+      const y = f.position.y; await tween({ duration: 0.3, update: k => (f.position.y = y + Math.sin(Math.PI * k) * 0.15) }); return;
+    }
     const from = f.position.clone(), dir = tg.position.clone().sub(from); dir.y = 0;
     f.rotation.y = nearestAngle(f.rotation.y, Math.atan2(dir.x, dir.z));
     tg.rotation.y = nearestAngle(tg.rotation.y, Math.atan2(-dir.x, -dir.z));
     const reach = from.clone().addScaledVector(dir, Math.min(0.75, 0.25 / Math.max(0.01, dir.length()) * 2));
+    const atk = hasAnim(f, 'attack') ? this.animate(id, 'attack') : null;
+    if (atk) await new Promise(r => setTimeout(r, 380));
     await tween({ duration: 0.14, ease: ease.inQuad, update: k => f.position.lerpVectors(from, reach, k) });
     flash(tg); this.s.rig.shake(0.05); this.dust(tg.position.clone(), 6, 0.25, 0x5a1a12);
+    if (hasAnim(tg, 'hit')) this.animate(targetId, 'hit');
     const tp = tg.position.clone(), kb = tp.clone().addScaledVector(dir.normalize(), 0.06);
     tween({ duration: 0.25, update: k => tg.position.lerpVectors(kb, tp, k) });
     await tween({ duration: 0.25, ease: ease.outCubic, update: k => f.position.lerpVectors(reach, from, k) });
   }
+  setRingColor(hex) { this.ring.material.color.setHex(hex); }
   setSelected(id) {
     const f = id && this.figs.get(id);
     if (!f) { this.ring.visible = false; this.ring.removeFromParent(); return; }
@@ -215,7 +234,7 @@ export class Board3D {
     const tok = t.poi; t.poi = null;
     tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, 1 - k)) }).then(() => this.root.remove(tok));
   }
-  screenPos(id) { const f = this.figs.get(id); if (!f) return null; return this.s.toScreen(f.position.clone().add(new THREE.Vector3(0, 0.75 * this.o.figScale, 0))); }
+  screenPos(id) { const f = this.figs.get(id); if (!f) return null; return this.s.toScreen(f.position.clone().add(new THREE.Vector3(0, (f.userData.height || 0.75) * this.o.figScale, 0))); }
   setFinish(fin) { this.finish = fin; for (const f of this.figs.values()) applyFinish(f, fin); this.s.invalidate(); }
   nudge({ dx = 0, dy = 0, zoom = 0, rot = 0 }) { const r = this.s.rig; r.follow = null; if (dx || dy) r.pan(dx, dy); if (zoom) r.wheel(zoom); if (rot) r.goal.yaw += rot; }
   shake(a) { this.s.rig.shake(a); }
@@ -256,7 +275,8 @@ export class Board3D {
     const p = 0.62 + Math.sin(t * 3.2) * 0.18; this.reachMat.opacity = p; this.exploreMat.opacity = p;
     if (this.ring.visible) { const s = 1 + Math.sin(t * 4) * 0.06; this.ring.scale.set(s, s, s); this.ring.rotation.z += dt * 0.6; }
     for (const f of this.figs.values()) {
-      if (this.s.gfx.idleAnim || this.moving?.has(f.userData.id)) f.userData.anim?.mixer.update(dt);
+      const an = f.userData.anim;
+      if (an && (this.s.gfx.idleAnim || an.busy > 0 || this.moving?.has(f.userData.id))) an.mixer.update(dt);
       const orb = f.userData.inner.userData.orb; if (orb) orb.material.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6;
     }
     for (const tl of this.tiles.values()) if (tl.poi?.visible) tl.poi.rotation.y += dt * 0.8;

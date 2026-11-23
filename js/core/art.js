@@ -1,3 +1,4 @@
+import { portraits } from './portraits.js';
 // Illustrations SVG "bateau" : portraits, standees (moteur papier), icônes de carte.
 const skin = '#d9b38c', steel = '#a9afb9', steelD = '#5b616b', dark = '#1b1714';
 
@@ -98,10 +99,13 @@ const BODIES = {
     <circle cx="86" cy="60" r="1.8" fill="${dark}"/>`,
 };
 
+const ALIAS = { barbarian: 'knight', skeleton: 'ghoul', skelwarrior: 'ghoul', skelrogue: 'ghoul', sonneur: 'monk' };
 export const KIND_LABEL = { knight: 'Chevalier', mage: 'Mage', rogue: 'Voleuse', cleric: 'Prêtre', npc: 'PNJ', ghoul: 'Goule', wolf: 'Loup', fox: 'Renard', horse: 'Destrier', child: 'Enfant', ferryman: 'Passeur', monk: 'Moine' };
 const PORTRAIT_BOX = { knight: '24 8 52 52', mage: '22 4 56 56', rogue: '24 24 52 52', cleric: '24 24 52 52', npc: '18 28 52 52', ghoul: '6 42 50 50', wolf: '56 38 44 44', fox: '56 46 44 44', horse: '56 36 44 44', child: '28 44 44 44', ferryman: '24 26 52 52', monk: '22 24 56 56' };
 
 export function figureSVG(kind, color, { portrait = false } = {}) {
+  if (portrait && portraits[kind]) return `<img src="${portraits[kind]}" alt="" draggable="false">`;
+  kind = ALIAS[kind] || kind;
   const body = (BODIES[kind] || BODIES.npc)(color);
   const vb = portrait ? PORTRAIT_BOX[kind] || PORTRAIT_BOX.npc : '0 0 100 160';
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid ${portrait ? 'slice' : 'meet'}">${body}</svg>`;

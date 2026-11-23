@@ -54,6 +54,9 @@ export function createUI({ title, subtitle }) {
   const reload = h('div', 'reload-bar', `<span>Ce réglage s'applique au rechargement.</span><button class="btn small">Recharger</button>`);
   reload.querySelector('button').onclick = () => location.reload(); root.append(reload);
   const journalFull = h('div', 'help-overlay journal-full'); root.append(journalFull);
+  const turnHud = h('div', 'turnhud'); turnHud.hidden = true; root.append(turnHud);
+  const banner = h('div', 'turn-banner'); root.append(banner);
+  const modal = h('div', 'cmodal'); root.append(modal);
   journalFull.addEventListener('click', e => { if (e.target === journalFull || e.target.dataset.close != null) journalFull.classList.remove('open'); });
   let journalData = [], invData = [];
 
@@ -74,7 +77,7 @@ export function createUI({ title, subtitle }) {
         <div><b>Double-tap</b><span>Zoom sur le point touché</span></div>
         <div><b>Appui long</b><span>Infos de la tuile</span></div>
         <div><b>Souris</b><span>Gauche : pan · Droit/Shift : orbite · Molette : zoom</span></div>
-        <div><b>Clavier</b><span>ZQSD/flèches : vue · E/R : rotation · +/- : zoom · 1-2 : héros · Espace : centrer · J : journal · M : menu · Entrée : dialogue</span></div>
+        <div><b>Clavier</b><span>ZQSD/flèches : vue · E/R : rotation · +/- : zoom · 1-4 : voir un héros · Espace : héros actif · T : fin du tour · J : journal · M : menu · Entrée : dialogue</span></div>
         <div><b>Jeu</b><span>Ennemi : tap pour attaquer · PNJ : tap pour parler · ✦ : fouiller</span></div>
         <div><b>Dés D100</b><span>Lancez vos 2 d10 (dizaines + unités) et saisissez-les · 00 + 0 = 100 · clavier : 2 chiffres puis Entrée · V = virtuel</span></div>
       </div>
@@ -120,15 +123,16 @@ export function createUI({ title, subtitle }) {
       party.innerHTML = '';
       for (const f of list) {
         const pips = f.max ? `<div class="hp">${Array.from({ length: f.max }, (_, i) => `<i class="${i < f.hp ? 'on' : ''}"></i>`).join('')}</div>` : '';
-        const b = h('button', 'portrait' + (f.ko ? ' ko' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? '<em>♞</em>' : ''}</div><span>${f.name}</span>${pips}`);
+        const b = h('button', 'portrait' + (f.ko ? ' ko' : '') + (f.turn ? ' turn' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? '<em>♞</em>' : ''}</div><span>${f.name}</span>${pips}`);
         b.dataset.id = f.id; b.onclick = () => onPick(f.id); party.append(b);
+        b.style.setProperty('--hc', f.color);
       }
     },
     setClock(t, night) { const c = top.querySelector('.clock'); c.hidden = false; c.innerHTML = `${night ? '☾' : '☀'} ${t}`; c.classList.toggle('night', night); },
-    setJournal(list) {
+    setJournal(list, goal) {
       journalData = list;
       const act = list.filter(q => !q.done);
-      journal.innerHTML = `<b>Objectifs</b>${act.map(q => `<div class="q"><span>${q.title}</span><small>${q.hint}</small></div>`).join('') || '<div class="q"><span>—</span></div>'}`;
+      journal.innerHTML = `<b>Objectifs</b>${goal ? `<div class="q goal"><span>⚑ ${goal}</span></div>` : ''}${act.map(q => `<div class="q"><span>${q.title}</span><small>${q.hint}</small></div>`).join('') || '<div class="q"><span>—</span></div>'}`;
       journal.hidden = !list.length;
     },
     setInventory(items, onUse) {
@@ -147,7 +151,7 @@ export function createUI({ title, subtitle }) {
     },
     setActions(list) {
       actions.innerHTML = '';
-      for (const a of list) { const b = h('button', 'act' + (a.disabled ? ' disabled' : ''), `<span>${a.icon}</span><small>${a.label}</small>`); if (!a.disabled) b.onclick = a.action; actions.append(b); }
+      for (const a of list) { const b = h('button', 'act' + (a.disabled ? ' disabled' : '') + (a.primary ? ' primary' : '') + (a.pulse ? ' pulse' : ''), `<span>${a.icon}</span><small>${a.label}</small>`); if (!a.disabled) b.onclick = a.action; actions.append(b); }
     },
     setBusy(v) { root.classList.toggle('busy', v); },
     /**
@@ -219,6 +223,81 @@ export function createUI({ title, subtitle }) {
       end.querySelector('[data-r]').onclick = onReplay; end.classList.add('open');
     },
     reloadPrompt() { reload.classList.add('open'); },
+    /** HUD du tour : manche, héros actif, déplacement/action utilisés, piste du glas */
+    setTurnHUD({ round, hero, used, glas, glasMax, night }) {
+      if (!hero) return;
+      turnHud.hidden = false;
+      turnHud.style.setProperty('--hc', hero.color);
+      turnHud.innerHTML = `<div class="th-who"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
+        <div><b>${hero.name}</b><small>Manche ${round}${night ? ' · ☾' : ''}</small></div></div>
+        <div class="th-pips"><i class="${used.move ? 'used' : ''}" title="Déplacement">👣</i><i class="${used.action ? 'used' : ''}" title="Action">✋</i></div>
+        <div class="th-glas" title="Glas">${Array.from({ length: glasMax }, (_, i) => `<em class="${i < glas ? 'on' : ''}${i === glasMax - 1 ? ' last' : ''}"></em>`).join('')}<span>${glas}/${glasMax}</span></div>`;
+    },
+    setGlas(glas, max, delta) { if (delta > 0) { turnHud.classList.remove('toll'); void turnHud.offsetWidth; turnHud.classList.add('toll'); } },
+    /** Grand bandeau animé (nouvelle manche, tour d'un héros, phase des ténèbres) */
+    turnBanner({ title, subtitle = '', color = '#c9a45c', kind = null, dark = false }) {
+      return new Promise(res => {
+        banner.className = 'turn-banner' + (dark ? ' dark' : '');
+        banner.style.setProperty('--bc', color);
+        banner.innerHTML = `<div class="tb-band">${kind ? `<div class="pimg tb-p" style="--c:${color}">${figureSVG(kind, color, { portrait: true })}</div>` : ''}<div><h2>${title}</h2><small>${subtitle}</small></div></div>`;
+        void banner.offsetWidth; banner.classList.add('show'); sfx.ui();
+        const done = () => { banner.classList.remove('show'); banner.classList.add('hide'); setTimeout(res, 350); };
+        const t = setTimeout(done, 1500); banner.onclick = () => { clearTimeout(t); done(); };
+      });
+    },
+    /** Fenêtre de confirmation (parler, attaquer…) */
+    confirm({ title, text = '', portrait = null, ok = 'Oui', cancel = 'Annuler', danger = false }) {
+      return new Promise(res => {
+        modal.innerHTML = `<div class="cm-card ${danger ? 'danger' : ''}">${portrait ? `<div class="pimg big cm-p" style="--c:${portrait.color}">${figureSVG(portrait.kind, portrait.color, { portrait: true })}</div>` : ''}
+          <div class="cm-body"><h3>${title}</h3><p>${text}</p><div class="cm-btns"><button class="btn" data-no>${cancel}</button><button class="btn accent" data-yes>${ok}</button></div></div></div>`;
+        modal.classList.add('open');
+        const close = v => { modal.classList.remove('open'); keyHandler = null; res(v); };
+        modal.querySelector('[data-yes]').onclick = () => close(true);
+        modal.querySelector('[data-no]').onclick = () => close(false);
+        modal.onclick = e => { if (e.target === modal) close(false); };
+        keyHandler = e => { if (e.key === 'Enter') close(true); if (e.key === 'Escape') close(false); };
+      });
+    },
+    /** Panneau de lieu : toutes les activités disponibles, faisables dans la même interaction */
+    locationPanel({ title, desc, hero, list, run }) {
+      return new Promise(res => {
+        let count = 0, busy = false; const doneHere = new Set();
+        const render = () => {
+          const acts = list().map(a => (doneHere.has(a.id) && !a.disabled ? { ...a, disabled: 'Déjà fait pendant cette interaction' } : a));
+          modal.innerHTML = `<div class="lp-card"><div class="lp-head"><h3>${title}</h3><small>Interaction de ${hero.name} · faites tout ce qui est possible ici</small></div><p class="lp-desc">${desc || ''}</p>
+            <div class="lp-list">${acts.map((a, i) => `<button class="lp-act" data-i="${i}" ${a.disabled ? 'disabled' : ''}><span class="lp-ic">${a.icon}</span><span><b>${a.label}</b><small>${a.disabled || a.desc || ''}</small></span></button>`).join('') || '<p class="muted">Plus rien à faire ici.</p>'}</div>
+            <div class="cm-btns"><button class="btn ${count ? 'accent' : ''}" data-close>${count ? 'Terminer l\'interaction' : 'Annuler'}</button></div></div>`;
+          modal.querySelectorAll('[data-i]').forEach(b => b.onclick = async () => {
+            if (busy) return; busy = true; modal.classList.add('running');
+            modal.classList.remove('open');
+            const a = acts[+b.dataset.i]; await run(a); count++; doneHere.add(a.id);
+            busy = false; modal.classList.remove('running'); render(); modal.classList.add('open');
+          });
+          modal.querySelector('[data-close]').onclick = () => { modal.classList.remove('open'); res(count); };
+        };
+        render(); modal.classList.add('open');
+      });
+    },
+    /** Choix de la compagnie (1 à 4 héros) et de la difficulté */
+    partySelect({ heroes, difficulties }) {
+      return new Promise(res => {
+        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal';
+        const render = () => {
+          modal.innerHTML = `<div class="ps-card"><h2>Composez votre compagnie</h2><p class="muted">Jeu coopératif : chaque joueur incarne un ou plusieurs héros. 1 à 4 héros.</p>
+            <div class="ps-list">${heroes.map(hh => `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
+              <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
+              <b>${hh.name}</b><small>${hh.role}</small>
+              <span class="ps-stats">PV ${hh.hp} · ${hh.combatName} ${hh.skills.combat} · Dépl. ${hh.move}</span>
+              <span class="ps-talent">${hh.talent}</span></button>`).join('')}</div>
+            <div class="ps-foot"><div class="segs">${Object.entries(difficulties).map(([k, v]) => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)} · ${v} glas</button>`).join('')}</div>
+            <button class="btn accent" data-go ${sel.size ? '' : 'disabled'}>Commencer (${sel.size} héros)</button></div></div>`;
+          modal.querySelectorAll('[data-h]').forEach(b => b.onclick = () => { const id = b.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
+          modal.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { diff = b.dataset.d; render(); });
+          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open'); res({ party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff }); };
+        };
+        render(); modal.classList.add('open', 'wide');
+      }).finally?.(() => modal.classList.remove('wide')) ?? null;
+    },
     setActive(id) { for (const b of party.children) b.classList.toggle('active', b.dataset.id === id); },
     buildMenu(sections) {
       drawer.innerHTML = '<div class="drawer-head"><b>Menu de test</b><button class="btn round small" data-close>✕</button></div>';
@@ -266,6 +345,7 @@ export function createUI({ title, subtitle }) {
     if (k === 'j') ui.openJournal();
     if (k === 'f') toggleFullscreen();
     if (k === ' ') { e.preventDefault(); ui.onKey?.focus(); }
+    if (k === 't') ui.onKey?.endTurn?.();
     if (/^[1-4]$/.test(k)) ui.onKey?.select(+k - 1);
   });
   window.addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
