@@ -5,8 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0908">
   <title>Grimoire · Moteurs de plateau</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/hub.css">
 </head>
 <body>
@@ -14,7 +16,7 @@
   <main>
     <header>
       <h1>Grimoire <span>· moteurs de plateau</span></h1>
-      <p>4 prototypes d'affichage pour une app compagnon narrative. Même scénario de test partout : comparez la fluidité, la lisibilité et l'ambiance.</p>
+      <p>4 moteurs d'affichage, <b>un même scénario complet</b> : « La Cloche de Saint-Ombre ». Comparez fluidité, lisibilité et ambiance — la progression est sauvegardée par moteur. Installable (PWA) et jouable hors-ligne.</p>
     </header>
     <section class="cards" id="cards"></section>
     <footer>
@@ -62,6 +64,7 @@
     document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');
     document.getElementById('creditsClose').onclick = () => cr.classList.remove('open');
     cr.onclick = e => { if (e.target === cr) cr.classList.remove('open'); };
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   </script>
 </body>
 </html>

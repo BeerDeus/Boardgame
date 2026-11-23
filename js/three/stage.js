@@ -1,21 +1,28 @@
-// Scène Three.js commune : renderer, éclairage, HDRI, brouillard, particules, boucle, picking.
+// Scène Three.js commune : renderer, éclairage, HDRI, jour/nuit, torches, particules, picking
+// + optimisations : rendu à la demande, ambiance à FPS réduit au repos, limite FPS,
+//   résolution dynamique, ombres recalculées seulement quand quelque chose bouge.
 import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
-import { updateTweens, tween, ease } from '../core/tween.js';
+import { updateTweens, tweensActive, tween, ease } from '../core/tween.js';
 import { Gestures } from '../core/gestures.js';
+import { settings } from '../core/settings.js';
 import { CameraRig } from './rig.js';
-import { radialTexture } from './textures.js';
+import { radialTexture, setMaxAniso } from './textures.js';
 
 export const TOD = {
   dusk: { env: 'dark_autumn_forest', envInt: 0.55, bgInt: 0.5, blur: 0.4, exposure: 1.05, sun: 0xffb27a, sunInt: 2.6, sunPos: [-6, 7, 4], sky: 0x8090b0, ground: 0x2a2018, hemi: 0.45, fog: 0x2a2622, fogD: 0.035, part: 0xffa040, torch: 1.0 },
   night: { env: 'clarens_night_02', envInt: 0.28, bgInt: 0.9, blur: 0.3, exposure: 1.15, sun: 0x8fa4ff, sunInt: 1.0, sunPos: [5, 9, -3], sky: 0x2a3a5c, ground: 0x0c0c12, hemi: 0.35, fog: 0x0a0e16, fogD: 0.045, part: 0xb8ff6a, torch: 1.8 },
 };
+const SHADOW = { off: 0, low: 1024, high: 2048, ultra: 4096 };
 
 export async function createStage(container, o = {}) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  let gfx = settings.gfx;
+  setMaxAniso(gfx.aniso);
+  const renderer = new THREE.WebGLRenderer({ antialias: gfx.aa, powerPreference: 'high-performance', stencil: false });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.enabled = gfx.shadows !== 'off'; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+  setMaxAniso(Math.min(gfx.aniso, renderer.capabilities.getMaxAnisotropy()));
   container.append(renderer.domElement);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(o.fov || 40, 1, 0.1, 300);
@@ -23,7 +30,7 @@ export async function createStage(container, o = {}) {
 
   const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.5);
   const sun = new THREE.DirectionalLight(0xffffff, 2);
-  sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
+  sun.castShadow = gfx.shadows !== 'off'; sun.shadow.mapSize.setScalar(SHADOW[gfx.shadows] || 1024); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
   scene.add(hemi, sun, sun.target);
   scene.fog = new THREE.FogExp2(0x222222, 0.03);
 
@@ -31,9 +38,13 @@ export async function createStage(container, o = {}) {
   const envCache = {};
   const loadEnv = async name => envCache[name] ||= new HDRLoader().loadAsync(`assets/hdri/${name}.hdr`).then(t => { const e = pmrem.fromEquirectangular(t).texture; t.dispose(); return e; });
 
+  let dynScale = 1, forceFrames = 4, shadowFrames = 4;
   const stage = {
-    THREE, renderer, scene, camera, rig, sun, hemi, updates: new Set(), torches: [], composer: null, res: 1, tod: 'dusk',
-    onTap: null, onLongPress: null, onFps: null,
+    THREE, renderer, scene, camera, rig, sun, hemi, updates: new Set(), torches: [], composer: null, tod: 'dusk', torchBoost: 1,
+    onTap: null, onLongPress: null, onFps: null, onSettings: null,
+    get gfx() { return gfx; },
+    /** demande N images (ex. après un changement d'état sans tween) */
+    invalidate(n = 2, shadows = true) { forceFrames = Math.max(forceFrames, n); if (shadows) shadowFrames = Math.max(shadowFrames, n); },
     fitShadow(b, pad = 1.5) {
       const s = sun.shadow.camera, w = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) / 2 + pad;
       s.left = -w; s.right = w; s.top = w; s.bottom = -w; s.near = 0.5; s.far = 60; s.updateProjectionMatrix();
@@ -41,7 +52,7 @@ export async function createStage(container, o = {}) {
     async setTimeOfDay(name, instant = false) {
       const p = TOD[name]; stage.tod = name;
       const env = await loadEnv(p.env);
-      const from = { e: renderer.toneMappingExposure, s: sun.intensity, h: hemi.intensity, ei: scene.environmentIntensity ?? 1, f: scene.fog.density, bi: scene.backgroundIntensity };
+      const from = { e: renderer.toneMappingExposure, s: sun.intensity, h: hemi.intensity, ei: scene.environmentIntensity ?? 1, f: scene.fog.density, bi: scene.backgroundIntensity ?? 1 };
       const cs = sun.color.clone(), ch = hemi.color.clone(), cg = hemi.groundColor.clone(), cf = scene.fog.color.clone();
       const ts = new THREE.Color(p.sun), th = new THREE.Color(p.sky), tg = new THREE.Color(p.ground), tf = new THREE.Color(p.fog);
       const sp0 = sun.position.clone(), sp1 = new THREE.Vector3(...p.sunPos);
@@ -49,70 +60,99 @@ export async function createStage(container, o = {}) {
       const swapBg = () => { scene.background = o.background === false ? null : env; scene.backgroundBlurriness = p.blur; };
       if (instant || !scene.background) swapBg();
       if (stage.particles) stage.particles.material.color.set(p.part);
-      await tween({ duration: instant ? 0.0001 : 1.2, ease: ease.inOutSine, update: k => {
+      await tween({ duration: instant ? 0.0001 : 1.4, ease: ease.inOutSine, update: k => {
         if (k > 0.5 && !instant) swapBg();
         renderer.toneMappingExposure = from.e + (p.exposure - from.e) * k;
         sun.intensity = from.s + (p.sunInt - from.s) * k; hemi.intensity = from.h + (p.hemi - from.h) * k;
-        scene.environmentIntensity = from.ei + (p.envInt - from.ei) * k; scene.backgroundIntensity = (from.bi ?? p.bgInt) + (p.bgInt - (from.bi ?? p.bgInt)) * k;
+        scene.environmentIntensity = from.ei + (p.envInt - from.ei) * k; scene.backgroundIntensity = from.bi + (p.bgInt - from.bi) * k;
         scene.fog.density = from.f + (p.fogD - from.f) * k;
         sun.color.lerpColors(cs, ts, k); hemi.color.lerpColors(ch, th, k); hemi.groundColor.lerpColors(cg, tg, k); scene.fog.color.lerpColors(cf, tf, k);
-        sun.position.lerpVectors(sp0, sp1, k);
-        stage.torchBoost = 1 + (p.torch - 1) * k;
+        sun.position.lerpVectors(sp0, sp1, k); stage.torchBoost = 1 + (p.torch - 1) * k;
+        stage.applyTorches(0);
       } });
+      stage.invalidate(3);
     },
     addTorch(pos, color = 0xff8a3a, power = 2.2) {
       const light = new THREE.PointLight(color, power, 3.2, 1.8);
       light.position.copy(pos); light.userData.base = power; scene.add(light); stage.torches.push(light);
       const fl = new THREE.Sprite(new THREE.SpriteMaterial({ map: radialTexture('#ffcf7a', '#ff6a1a'), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
       fl.position.copy(pos); fl.scale.setScalar(0.22); scene.add(fl);
-      light.userData.flame = fl; return light;
+      light.userData.flame = fl; stage.invalidate(); return light;
     },
-    setParticles(v) { if (stage.particles) stage.particles.visible = v; },
-    setShadows(v) { sun.castShadow = v; renderer.shadowMap.enabled = v; scene.traverse(m => { if (m.material) [].concat(m.material).forEach(x => (x.needsUpdate = true)); }); },
-    setResolution(r) { stage.res = r; resize(); },
+    applyTorches(t) {
+      for (const l of stage.torches) {
+        const f = gfx.lightFx ? 0.82 + Math.sin(t * 11 + l.id) * 0.08 + Math.sin(t * 23 + l.id * 3) * 0.06 + Math.random() * 0.06 : 0.9;
+        l.intensity = l.userData.base * f * stage.torchBoost; l.userData.flame.scale.setScalar(0.2 * f);
+      }
+    },
+    setParticles(v) { if (stage.particles) stage.particles.visible = v && gfx.particles > 0; stage.invalidate(); },
+    setShadows(v) { stage.apply({ ...gfx, shadows: v ? (gfx.shadows === 'off' ? 'high' : gfx.shadows) : 'off' }); },
+    setResolution(r) { stage.apply({ ...gfx, res: r }); },
+    /** applique un jeu de paramètres graphiques à chaud */
+    apply(next) {
+      const prev = gfx; gfx = next;
+      if (prev.shadows !== next.shadows) {
+        const on = next.shadows !== 'off';
+        if (on) { sun.shadow.mapSize.setScalar(SHADOW[next.shadows]); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+        if (renderer.shadowMap.enabled !== on) { renderer.shadowMap.enabled = on; scene.traverse(m => { if (m.material) [].concat(m.material).forEach(x => (x.needsUpdate = true)); }); }
+        sun.castShadow = on;
+      }
+      if (stage.particles) { stage.particles.geometry.setDrawRange(0, Math.round(stage.particles.userData.base * next.particles)); stage.particles.visible = next.particles > 0; }
+      if (!next.dynRes) dynScale = 1;
+      resize(); stage.onSettings?.(next); stage.invalidate(4);
+    },
     pick(x, y, objects) {
-      const r = renderer.domElement.getBoundingClientRect();
-      const ray = new THREE.Raycaster();
+      const r = renderer.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
       return ray.intersectObjects(objects, true)[0] || null;
     },
     groundAt(x, y, h = 0) {
-      const r = renderer.domElement.getBoundingClientRect(); const ray = new THREE.Raycaster();
+      const r = renderer.domElement.getBoundingClientRect(), ray = new THREE.Raycaster();
       ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
       return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -h), new THREE.Vector3());
     },
-    createParticles(b, count = 180) {
+    toScreen(v3) {
+      const r = renderer.domElement.getBoundingClientRect(), p = v3.clone().project(camera);
+      return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+    },
+    createParticles(b, base = 180) {
+      const count = Math.round(base * 1.5);
       const g = new THREE.BufferGeometry(), pos = new Float32Array(count * 3), ph = new Float32Array(count);
       const W = b.maxX - b.minX + 2, D = b.maxZ - b.minZ + 2;
       for (let i = 0; i < count; i++) { pos[i * 3] = b.minX - 1 + Math.random() * W; pos[i * 3 + 1] = Math.random() * 2.5; pos[i * 3 + 2] = b.minZ - 1 + Math.random() * D; ph[i] = Math.random() * 10; }
       g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      g.setDrawRange(0, Math.round(base * gfx.particles));
       const m = new THREE.PointsMaterial({ size: 0.05, map: radialTexture('#ffffff', '#ffffff'), color: TOD[stage.tod].part, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
-      const p = new THREE.Points(g, m); p.frustumCulled = false; scene.add(p); stage.particles = p;
+      const p = new THREE.Points(g, m); p.frustumCulled = false; p.userData.base = base; p.visible = gfx.particles > 0; scene.add(p); stage.particles = p;
       stage.updates.add((dt, t) => {
         if (!p.visible) return;
-        for (let i = 0; i < count; i++) {
+        const n = g.drawRange.count;
+        for (let i = 0; i < n; i++) {
           pos[i * 3 + 1] += dt * (0.12 + (ph[i] % 1) * 0.15);
           pos[i * 3] += Math.sin(t * 0.7 + ph[i]) * dt * 0.08;
           if (pos[i * 3 + 1] > 2.6) pos[i * 3 + 1] = 0;
         }
-        g.attributes.position.needsUpdate = true;
-        m.opacity = 0.65 + Math.sin(t * 3) * 0.15;
+        g.attributes.position.needsUpdate = true; m.opacity = 0.65 + Math.sin(t * 3) * 0.15;
       });
     },
+    /** l'ambiance (particules, flammes, anims idle) demande-t-elle des images au repos ? */
+    get ambientWanted() { return gfx.ambientFps > 0 && ((stage.particles?.visible) || (gfx.lightFx && stage.torches.length) || gfx.idleAnim); },
+    get dynScale() { return dynScale; },
   };
-  stage.torchBoost = 1;
 
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * stage.res);
+    const pr = Math.min(window.devicePixelRatio || 1, gfx.maxPR) * gfx.res * dynScale;
+    renderer.setPixelRatio(Math.max(0.35, pr));
     renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
     stage.composer?.setPixelRatio(renderer.getPixelRatio()); stage.composer?.setSize(w, h);
-    stage.onResize?.(w, h);
+    stage.onResize?.(w, h); stage.invalidate(2, false);
   }
+  stage.resize = resize;
   new ResizeObserver(resize).observe(container); resize();
 
-  // Gestes -> caméra / picking
   stage.gestures = new Gestures(renderer.domElement, {
+    onDown: () => stage.invalidate(2, false),
     onPanStart: () => rig.panStart(), onPan: (dx, dy) => rig.pan(dx, dy), onPanEnd: (vx, vy) => rig.panEnd(vx, vy),
     onPinch: p => rig.pinch(p), onPinchEnd: () => rig.pinchEnd(), onWheel: d => rig.wheel(d),
     onOrbit: (dx, dy) => rig.orbit(dx, dy), onOrbitEnd: () => rig.orbitEnd(),
@@ -120,20 +160,34 @@ export async function createStage(container, o = {}) {
     onDoubleTap: (x, y) => { const p = stage.groundAt(x, y); if (p) rig.flyTo({ x: p.x, z: p.z, dist: rig.goal.dist * 0.55 }, 6); },
   });
 
-  // Boucle
-  const timer = new THREE.Timer(); let frames = 0, acc = 0;
+  // ------------------------------------------------------------ boucle optimisée
+  const timer = new THREE.Timer();
+  let lastRender = 0, lastUpdate = 0, frames = 0, acc = 0, slow = 0, fast = 0, ema = 16;
   renderer.setAnimationLoop(time => {
     timer.update(time);
-    const dt = Math.min(timer.getDelta(), 0.05), t = timer.getElapsed();
+    const dt = Math.min(timer.getDelta(), 0.05);
+    const tw = tweensActive();
     updateTweens(dt);
-    for (const f of stage.updates) f(dt, t);
-    for (const l of stage.torches) {
-      const f = 0.82 + Math.sin(t * 11 + l.id) * 0.08 + Math.sin(t * 23 + l.id * 3) * 0.06 + Math.random() * 0.06;
-      l.intensity = l.userData.base * f * stage.torchBoost; l.userData.flame.scale.setScalar(0.2 * f);
+    const moving = rig.update(dt);
+    if (document.body.classList.contains('narrating') || document.hidden) return; // plein écran narratif : GPU au repos
+    const active = tw || moving || forceFrames > 0;
+    const interval = active ? (gfx.fpsCap ? 1000 / gfx.fpsCap : 0) : stage.ambientWanted ? 1000 / gfx.ambientFps : Infinity;
+    if (time - lastRender < interval - 2) return;
+    const rdt = Math.min((time - (lastUpdate || time)) / 1000, 0.1); lastUpdate = time;
+    const t = timer.getElapsed();
+    for (const f of stage.updates) f(rdt, t);
+    stage.applyTorches(t);
+    if (renderer.shadowMap.enabled && (tw || shadowFrames > 0 || (!active && gfx.idleAnim))) renderer.shadowMap.needsUpdate = true;
+    if (stage.composer) stage.composer.render(rdt); else renderer.render(scene, camera);
+    // résolution dynamique : seulement mesurée pendant l'activité continue
+    if (active && lastRender && gfx.dynRes) {
+      const frameMs = time - lastRender, target = 1000 / (gfx.fpsCap || 60);
+      ema = ema * 0.9 + frameMs * 0.1;
+      if (ema > target * 1.3) { if (++slow > 40 && dynScale > 0.55) { dynScale = Math.max(0.55, dynScale - 0.1); slow = 0; resize(); } } else slow = 0;
+      if (ema < target * 1.08) { if (++fast > 240 && dynScale < 1) { dynScale = Math.min(1, dynScale + 0.05); fast = 0; resize(); } } else fast = 0;
     }
-    rig.update(dt);
-    if (stage.composer) stage.composer.render(dt); else renderer.render(scene, camera);
-    frames++; acc += dt; if (acc > 0.5) { stage.onFps?.(Math.round(frames / acc)); frames = 0; acc = 0; }
+    lastRender = time; forceFrames = Math.max(0, forceFrames - 1); shadowFrames = Math.max(0, shadowFrames - 1);
+    frames++; acc += rdt; if (acc > 0.5) { stage.onFps?.(Math.round(frames / acc)); frames = 0; acc = 0; }
   });
   return stage;
 }

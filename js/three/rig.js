@@ -60,6 +60,7 @@ export class CameraRig {
   shake(a = 0.06) { this.shakeAmp = Math.max(this.shakeAmp, a); }
   update(dt) {
     const c = this.cur, g = this.goal;
+    const before = c.x + c.z * 3.1 + c.dist * 7.3 + c.yaw * 11.7 + c.pitch * 13.1 + c.y * 5.3 + this.curShift * 17;
     if (!this.dragging && (this.vel.x || this.vel.z)) {
       g.x += this.vel.x * dt; g.z += this.vel.z * dt; c.x += this.vel.x * dt; c.z += this.vel.z * dt;
       const f = Math.exp(-4.5 * dt); this.vel.x *= f; this.vel.z *= f;
@@ -84,5 +85,8 @@ export class CameraRig {
     const W = this.el.clientWidth, H = this.el.clientHeight;
     if (Math.abs(this.curShift) > 0.002) this.camera.setViewOffset(W, H, 0, this.curShift * H, W, H);
     else if (this.camera.view?.enabled) this.camera.clearViewOffset();
+    const after = c.x + c.z * 3.1 + c.dist * 7.3 + c.yaw * 11.7 + c.pitch * 13.1 + c.y * 5.3 + this.curShift * 17;
+    this.moving = this.dragging || !!this.follow || this.shakeAmp > 0.001 || Math.abs(after - before) > 1e-5;
+    return this.moving;
   }
 }

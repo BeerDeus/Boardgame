@@ -8,11 +8,11 @@ import { TERRAINS } from '../core/terrains.js';
 import { terrainTex, tileBackTexture, loadTex, frameTexture, setMaxAniso } from '../three/textures.js';
 import { buildProps, rectSampler } from '../three/props.js';
 import { tween, ease, rng, hashStr } from '../core/tween.js';
+import { settings } from '../core/settings.js';
 
 export async function createEngine(container, { onProgress }) {
-  const grid = squareGrid({ cols: 7, rows: 5, size: 1, gap: 0.05 });
+  const grid = squareGrid({ cols: 8, rows: 5, size: 1, gap: 0.05 });
   const stage = await createStage(container, { fov: 40, rig: { minDist: 2.4, maxDist: 11, pitchNear: 0.5, pitchFar: 1.2, bounds: grid.bounds } });
-  setMaxAniso(stage.renderer.capabilities.getMaxAnisotropy());
   onProgress(0.15, 'Textures…');
   await Promise.all([...Object.keys(TERRAINS).map(t => terrainTex(t)), stage.setTimeOfDay('dusk', true)]);
   onProgress(0.5, 'Table…');
@@ -50,12 +50,12 @@ export async function createEngine(container, { onProgress }) {
 
   let board;
   board = new Board3D(stage, grid, {
-    figScale: 1, focusDist: 4.2, homeDist: 8.5, cineDist: 2.6, overlayTex: frameTexture(1),
+    figScale: 1, focusDist: 4.2, homeDist: 9.5, cineDist: 2.6, overlayTex: frameTexture(1),
     createTile(cell, data) {
       const g = new THREE.Group();
       const mesh = new THREE.Mesh(tileGeo, [side, side, matFor(data.terrain), back, side, side]);
       mesh.position.y = TH / 2; mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh);
-      const props = buildProps(data.terrain, rng(hashStr(data.key)), rectSampler(S, S, 0.6, 0.6), 1);
+      const props = buildProps(data.terrain, rng(hashStr(data.key)), rectSampler(S, S, 0.6, 0.6), 1, settings.gfx.props);
       if (props) { props.position.y = TH; g.add(props); }
       const overlay = new THREE.Mesh(overlayGeo, board.reachMat); overlay.position.y = TH + 0.004; g.add(overlay);
       if (data.terrain === 'village') {

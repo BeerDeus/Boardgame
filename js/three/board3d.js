@@ -2,7 +2,8 @@
 // surbrillances, POI, caméra cinématique. Implémente l'API moteur commune.
 import * as THREE from 'three';
 import { tween, ease, cancelTweens, nearestAngle, wait } from '../core/tween.js';
-import { makeFigure, flash, preloadGLB } from './figures.js';
+import { makeFigure, flash, preloadGLB, applyFinish } from './figures.js';
+import { settings } from '../core/settings.js';
 import { iconTexture, ringTexture, radialTexture } from './textures.js';
 
 const V = () => new THREE.Vector3();
@@ -14,10 +15,9 @@ export class Board3D {
     this.tiles = new Map(); this.figs = new Map(); this.occ = new Map();
     this.root = new THREE.Group(); stage.scene.add(this.root);
     this.supports = { shadows: true };
-    this.menu = [{ title: 'Figurines', items: [
-      { type: 'seg', label: 'Taille', value: 1, options: [{ label: 'S', value: 0.8 }, { label: 'M', value: 1 }, { label: 'L', value: 1.25 }], onChange: v => this.setFigScale(v * (this.o.baseFigScale ?? 1)) },
-    ] }];
-    this.o.baseFigScale = this.o.figScale;
+    this.menu = [];
+    this.o.baseFigScale = this.o.figScale; this.finish = settings.finish; this.marks = new Map();
+    this.supports.postfx = !!o.postfx; this.supports.aa = true;
     this.reachMat = new THREE.MeshBasicMaterial({ color: 0xf0c060, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
     this.exploreMat = new THREE.MeshBasicMaterial({ color: 0x6fb3ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
     this.ring = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ map: ringTexture(), color: 0xffd27a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
@@ -82,6 +82,7 @@ export class Board3D {
   async addFigure(data, key, { spawn = false } = {}) {
     const f = await makeFigure(data);
     f.scale.setScalar(this.o.figScale); f.userData.key = key; f.userData.data = data;
+    if (this.finish !== 'painted') applyFinish(f, this.finish);
     this.figs.set(data.id, f); this.root.add(f);
     this.occPush(key, data.id);
     const ids = this.occ.get(key);
@@ -124,6 +125,7 @@ export class Board3D {
     this.occRemove(path[0], id); this.arrange(path[0]);
     this.occPush(last, id); this.arrange(last, id); f.userData.key = last;
     if (follow) { this.s.rig.follow = f; this.s.rig.k = 5; }
+    (this.moving ||= new Set()).add(id);
     const a = f.userData.anim; let act = null;
     if (a?.def.move && a.actions[a.def.move]) { act = a.actions[a.def.move]; act.reset().fadeIn(0.15).play(); if (a.def.idle) a.actions[a.def.idle]?.fadeOut(0.15); }
     for (let i = 1; i < path.length; i++) {
@@ -133,6 +135,7 @@ export class Board3D {
     }
     if (act) { act.fadeOut(0.2); if (a.def.idle) a.actions[a.def.idle]?.reset().fadeIn(0.2).play(); }
     if (this.s.rig.follow === f) this.s.rig.follow = null;
+    this.moving.delete(id); this.s.invalidate();
   }
   async bump(id, targetId) {
     const f = this.figs.get(id); if (!f) return;
@@ -190,9 +193,33 @@ export class Board3D {
       .then(() => { if (target >= 1) mats.forEach(m => { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; }); });
   }
   setFigScale(s) {
-    this.o.figScale = s;
+    s *= this.o.baseFigScale; this.o.figScale = s;
     for (const f of this.figs.values()) { const s0 = f.scale.x; tween({ duration: 0.3, ease: ease.outBack, update: k => f.scale.setScalar(s0 + (s - s0) * k) }); }
   }
+
+  // ---------- marqueurs de quête / POI dynamiques ----------
+  mark(key, on) {
+    const t = this.tiles.get(key); if (!t) return;
+    if (!on) { const m = this.marks.get(key); if (m) { this.root.remove(m); this.marks.delete(key); this.s.invalidate(); } return; }
+    if (this.marks.has(key)) return;
+    const g = new THREE.Group();
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), new THREE.MeshBasicMaterial({ color: 0xffd27a }));
+    gem.scale.y = 1.7; g.add(gem);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.6, 4, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.35, depthWrite: false }));
+    beam.position.y = -0.38; g.add(beam);
+    g.position.set(t.cell.x, Math.max(t.topY, 0.1) + 0.85 * this.o.baseFigScale, t.cell.z); g.userData.base = g.position.y;
+    this.root.add(g); this.marks.set(key, g); this.s.invalidate();
+  }
+  setPoi(key, poi) {
+    const t = this.tiles.get(key); if (!t?.poi || poi) return;
+    const tok = t.poi; t.poi = null;
+    tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, 1 - k)) }).then(() => this.root.remove(tok));
+  }
+  screenPos(id) { const f = this.figs.get(id); if (!f) return null; return this.s.toScreen(f.position.clone().add(new THREE.Vector3(0, 0.75 * this.o.figScale, 0))); }
+  setFinish(fin) { this.finish = fin; for (const f of this.figs.values()) applyFinish(f, fin); this.s.invalidate(); }
+  nudge({ dx = 0, dy = 0, zoom = 0, rot = 0 }) { const r = this.s.rig; r.follow = null; if (dx || dy) r.pan(dx, dy); if (zoom) r.wheel(zoom); if (rot) r.goal.yaw += rot; }
+  shake(a) { this.s.rig.shake(a); }
+  applySettings(gfx) { this.s.apply(gfx); }
 
   // ---------- ambiance / perf ----------
   setTimeOfDay(v) { return this.s.setTimeOfDay(v); }
@@ -229,9 +256,10 @@ export class Board3D {
     const p = 0.62 + Math.sin(t * 3.2) * 0.18; this.reachMat.opacity = p; this.exploreMat.opacity = p;
     if (this.ring.visible) { const s = 1 + Math.sin(t * 4) * 0.06; this.ring.scale.set(s, s, s); this.ring.rotation.z += dt * 0.6; }
     for (const f of this.figs.values()) {
-      f.userData.anim?.mixer.update(dt);
+      if (this.s.gfx.idleAnim || this.moving?.has(f.userData.id)) f.userData.anim?.mixer.update(dt);
       const orb = f.userData.inner.userData.orb; if (orb) orb.material.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6;
     }
     for (const tl of this.tiles.values()) if (tl.poi?.visible) tl.poi.rotation.y += dt * 0.8;
+    for (const m of this.marks.values()) { m.position.y = m.userData.base + Math.sin(t * 2.4) * 0.05; m.rotation.y += dt * 1.5; }
   }
 }

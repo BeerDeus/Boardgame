@@ -4,18 +4,24 @@ import { squareGrid } from '../core/grid.js';
 import { TERRAINS, texUrl } from '../core/terrains.js';
 import { Gestures } from '../core/gestures.js';
 import { figureSVG, tileIconsSVG } from '../core/art.js';
-import { tween, ease, updateTweens, damp, dampAngle, nearestAngle, clamp, lerp, rng, hashStr, cancelTweens } from '../core/tween.js';
+import { tween, ease, updateTweens, tweensActive, damp, dampAngle, nearestAngle, clamp, lerp, rng, hashStr, cancelTweens } from '../core/tween.js';
+import { settings } from '../core/settings.js';
 
 const TS = 150; // taille d'une tuile en px
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 
 export async function createEngine(container, { onProgress }) {
   await new Promise(res => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/paper.css'; l.onload = l.onerror = res; document.head.append(l); });
-  const grid = squareGrid({ cols: 7, rows: 5, size: 1, gap: 0.04 });
+  const grid = squareGrid({ cols: 8, rows: 5, size: 1, gap: 0.04 });
+  let gfx = settings.gfx, finish = settings.finish;
   onProgress(0.3, 'Illustrations…');
   await Promise.all(Object.values(TERRAINS).map(t => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = texUrl(t.tex); })));
 
-  const root = h('div', 'paper-root');
+  // Pré-rendu des figurines 3D (WebGL utilisé une seule fois, puis libéré)
+  onProgress(0.45, 'Pré-rendu des figurines 3D…');
+  let baker = null;
+  try { baker = await (await import('../three/impostor.js')).createBaker(gfx.impostorRes); } catch (e) { console.warn('Impostors indisponibles, standees SVG', e); }
+  const root = h('div', 'paper-root' + (baker ? '' : ' mode-card'));
   root.innerHTML = `<div class="paper-bg"></div><div class="paper-cam"><div class="paper-board"></div></div><canvas class="paper-fx"></canvas><div class="paper-tint"></div>`;
   container.append(root);
   const cam = root.querySelector('.paper-cam'), boardEl = root.querySelector('.paper-board'), fx = root.querySelector('.paper-fx'), tint = root.querySelector('.paper-tint');
@@ -94,12 +100,19 @@ export async function createEngine(container, { onProgress }) {
   const occRm = (key, id) => { const a = occ.get(key); if (a && a.indexOf(id) >= 0) a.splice(a.indexOf(id), 1); };
   async function addFigure(data, key, { spawn = false } = {}) {
     const el = h('div', 'pfig'); el.dataset.fig = data.id;
-    el.innerHTML = `<div class="pshadow"></div><div class="pring"></div><div class="pstand"><div class="pin2"><div class="pcard" style="--c:${data.color}">${figureSVG(data.kind, data.color)}</div><div class="pbase" style="--c:${data.color}"></div></div></div>`;
+    el.innerHTML = `<div class="pshadow"></div><div class="pring"></div><div class="pstand"><div class="pin2"><div class="pimp"></div><div class="pcard" style="--c:${data.color}">${figureSVG(data.kind, data.color)}</div><div class="pbase" style="--c:${data.color}"></div></div></div>`;
     boardEl.append(el);
-    const f = { id: data.id, el, st: el.querySelector('.pstand'), key, x: 0, y: 0, hop: 0, data };
+    const f = { id: data.id, el, st: el.querySelector('.pstand'), imp: el.querySelector('.pimp'), key, x: 0, y: 0, hop: 0, data, face: 0, frame: -1 };
+    if (data.kind === 'monk') el.classList.add('big'); if (data.kind === 'child' || data.kind === 'fox') el.classList.add('small');
+    bakeFig(f);
     figs.set(data.id, f); occPush(key, data.id);
     const ids = occ.get(key); Object.assign(f, slotPos(key, ids.length - 1, ids.length)); place(f); arrange(key, data.id);
     if (spawn) { el.classList.add('spawn'); await new Promise(r => setTimeout(r, 600)); el.classList.remove('spawn'); }
+  }
+  async function bakeFig(f) {
+    if (!baker) return;
+    const sh = await baker.bake(f.data, finish);
+    f.sheet = sh; f.imp.style.backgroundImage = `url(${sh.url})`; f.imp.style.backgroundSize = `${sh.N * 100}% 100%`; f.frame = -1; dirty = true;
   }
   async function removeFigure(id) {
     const f = figs.get(id); if (!f) return; occRm(f.key, id); figs.delete(id);
@@ -108,6 +121,7 @@ export async function createEngine(container, { onProgress }) {
   async function hop(f, to) {
     const fr = { x: f.x, y: f.y }, d = Math.hypot(to.x - fr.x, to.y - fr.y);
     if (to.x !== fr.x) f.st.classList.toggle('flip', to.x < fr.x);
+    if (d > 1) f.face = Math.atan2(to.x - fr.x, to.y - fr.y);
     await tween({ duration: 0.26 + d / TS * 0.08, ease: ease.inOutSine, update: kk => { f.x = lerp(fr.x, to.x, kk); f.y = lerp(fr.y, to.y, kk); f.hop = Math.sin(Math.PI * kk) * 28; place(f); } });
     f.st.classList.remove('land'); void f.st.offsetWidth; f.st.classList.add('land');
   }
@@ -126,6 +140,7 @@ export async function createEngine(container, { onProgress }) {
     const f = figs.get(id); if (!f) return; const t = targetId && figs.get(targetId);
     if (!t) { await tween({ duration: 0.3, update: kk => { f.hop = Math.sin(Math.PI * kk) * 18; place(f); } }); return; }
     const fr = { x: f.x, y: f.y }, to = { x: lerp(f.x, t.x, 0.6), y: lerp(f.y, t.y, 0.6) };
+    f.face = Math.atan2(t.x - f.x, t.y - f.y); t.face = f.face + Math.PI;
     await tween({ duration: 0.14, ease: ease.inQuad, update: kk => { f.x = lerp(fr.x, to.x, kk); f.y = lerp(fr.y, to.y, kk); place(f); } });
     t.el.classList.remove('hit'); void t.el.offsetWidth; t.el.classList.add('hit'); shake = 8;
     await tween({ duration: 0.25, update: kk => { f.x = lerp(to.x, fr.x, kk); f.y = lerp(to.y, fr.y, kk); place(f); } });
@@ -141,6 +156,8 @@ export async function createEngine(container, { onProgress }) {
     for (const [id, f] of figs) f.el.classList.toggle('faded', !ids.includes(id));
     for (const [id, f] of figs) if (ids.includes(id) && id !== focus) f.st.classList.toggle('flip', f.x > F.x);
     if (F) F.st.classList.toggle('flip', ids.map(i => figs.get(i)).some(o => o && o !== F && o.x < F.x));
+    const O = ids.map(i => figs.get(i)).find(o => o && o !== F);
+    if (O) { F.face = Math.atan2(O.x - F.x, O.y - F.y) * 0.6; O.face = Math.atan2(F.x - O.x, F.y - O.y) * 0.6; }
     tiltOverride = 1.12; C.shiftGoal = 0.07;
     flyTo({ x: F.x, y: F.y, zoom: 2.0 }, 3.5);
   }
@@ -151,16 +168,21 @@ export async function createEngine(container, { onProgress }) {
   }
 
   // ---------- particules 2D ----------
-  const ctx = fx.getContext('2d'); let partsOn = true; const parts = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), s: 0.5 + Math.random() * 1.8, v: 0.02 + Math.random() * 0.05, p: Math.random() * 6 }));
+  const ctx = fx.getContext('2d'); let partsOn = true; const parts = Array.from({ length: 105 }, () => ({ x: Math.random(), y: Math.random(), s: 0.5 + Math.random() * 1.8, v: 0.02 + Math.random() * 0.05, p: Math.random() * 6 }));
   let partColor = '255,160,64';
   function resizeFx() { const r = Math.min(devicePixelRatio, 2); fx.width = root.clientWidth * r; fx.height = root.clientHeight * r; ctx.setTransform(r, 0, 0, r, 0, 0); }
   new ResizeObserver(resizeFx).observe(root); resizeFx();
 
   // ---------- boucle ----------
-  let last = performance.now(), frames = 0, acc = 0;
+  let last = performance.now(), frames = 0, acc = 0, lastCam = '', lastDraw = 0, lastFx = 0, dirty = true;
   function frame(now) {
+    requestAnimationFrame(frame);
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const tw = tweensActive();
     updateTweens(dt);
+    if (document.body.classList.contains('narrating')) return;
+    const cap = gfx.fpsCap ? 1000 / gfx.fpsCap : 0;
+    if (now - lastDraw < cap - 2) return;
     if (!dragging && (vel.x || vel.y)) { G.x += vel.x * dt; G.y += vel.y * dt; C.x += vel.x * dt; C.y += vel.y * dt; const f = Math.exp(-4.5 * dt); vel.x *= f; vel.y *= f; if (Math.hypot(vel.x, vel.y) < 2) vel = { x: 0, y: 0 }; }
     if (follow) { G.x = follow.x; G.y = follow.y; }
     clampG();
@@ -170,26 +192,44 @@ export async function createEngine(container, { onProgress }) {
     k = damp(k, 10, 0.8, dt);
     const sx = shake ? (Math.random() - 0.5) * shake : 0, sy = shake ? (Math.random() - 0.5) * shake : 0; shake *= Math.exp(-10 * dt); if (shake < 0.3) shake = 0;
     const H = root.clientHeight;
-    cam.style.transform = `translate3d(${sx}px, ${sy - C.shift * H}px, 0) rotateX(${C.tilt}rad) rotateZ(${C.yaw}rad) scale(${C.zoom}) translate3d(${-C.x}px, ${-C.y}px, 0)`;
-    cam.style.setProperty('--yaw', `${-C.yaw}rad`); cam.style.setProperty('--tilt', `${-C.tilt}rad`);
-    // particules
-    const W = root.clientWidth; ctx.clearRect(0, 0, W, H);
-    if (partsOn) {
+    const tr = `translate3d(${sx.toFixed(1)}px, ${(sy - C.shift * H).toFixed(1)}px, 0) rotateX(${C.tilt.toFixed(4)}rad) rotateZ(${C.yaw.toFixed(4)}rad) scale(${C.zoom.toFixed(4)}) translate3d(${(-C.x).toFixed(1)}px, ${(-C.y).toFixed(1)}px, 0)`;
+    const camMoved = tr !== lastCam;
+    if (camMoved) {
+      cam.style.transform = tr; lastCam = tr;
+      cam.style.setProperty('--yaw', `${(-C.yaw).toFixed(4)}rad`); cam.style.setProperty('--tilt', `${(-C.tilt).toFixed(4)}rad`);
+    }
+    // choix de l'angle de chaque figurine (impostor 8 directions)
+    if (camMoved || tw || dirty) {
+      for (const f of figs.values()) {
+        if (!f.sheet) continue;
+        const N = f.sheet.N, idx = ((Math.round(((f.face + C.yaw) / (Math.PI * 2)) * N) % N) + N) % N;
+        if (idx !== f.frame) { f.frame = idx; f.imp.style.backgroundPosition = `${(idx / (N - 1)) * 100}% 0`; }
+      }
+      dirty = false;
+    }
+    lastDraw = now;
+    // particules : cadence d'ambiance réduite au repos
+    const W = root.clientWidth, active = tw || camMoved;
+    const fxInt = gfx.ambientFps ? 1000 / (active ? Math.max(gfx.ambientFps, 30) : gfx.ambientFps) : Infinity;
+    if (now - lastFx >= fxInt - 2 || (!partsOn && lastFx >= 0)) { lastFx = partsOn ? now : -1; ctx.clearRect(0, 0, W, H); }
+    else return countFps(dt);
+    if (partsOn && gfx.particles > 0) {
       ctx.globalCompositeOperation = 'lighter';
-      for (const p of parts) {
-        p.y -= p.v * dt; p.x += Math.sin(now / 1000 + p.p) * 0.002 * dt * 10; if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+      const n = Math.round(parts.length * gfx.particles / 1.5);
+      for (let i = 0; i < n; i++) { const p = parts[i];
+        p.y -= p.v * dt * 2; p.x += Math.sin(now / 1000 + p.p) * 0.002 * dt * 10; if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
         const a = 0.35 + Math.sin(now / 300 + p.p) * 0.25;
         ctx.fillStyle = `rgba(${partColor},${a})`; ctx.beginPath(); ctx.arc(p.x * W, p.y * H, p.s, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalCompositeOperation = 'source-over';
     }
-    frames++; acc += dt; if (acc > 0.5) { engine.onFps?.(Math.round(frames / acc)); frames = 0; acc = 0; }
-    requestAnimationFrame(frame);
+    countFps(dt);
   }
+  function countFps(dt) { frames++; acc += dt; if (acc > 0.5) { engine.onFps?.(Math.round(frames / acc)); frames = 0; acc = 0; } }
   requestAnimationFrame(frame);
 
   const engine = {
-    grid, supports: { shadows: false, resolution: false },
+    grid,
     addTile, revealTile, highlight, addFigure, removeFigure, moveFigure, bump, setSelected, cinematic, endCinematic,
     focusTile(key) { const c = grid.get(key); flyTo({ x: c.x * TS, y: c.z * TS, zoom: Math.max(G.zoom, 1.1) }); },
     focusFigure(id, { soft = false } = {}) { const f = figs.get(id); if (f) flyTo({ x: f.x, y: f.y, zoom: soft ? null : 1.5 }); },
@@ -197,8 +237,22 @@ export async function createEngine(container, { onProgress }) {
     setTimeOfDay(v) { root.classList.toggle('night', v === 'night'); partColor = v === 'night' ? '190,255,120' : '255,160,64'; },
     setParticles(v) { partsOn = v; },
     setShadows() {}, setResolution() {},
+    supports: { shadows: false, resolution: false, aa: false, postfx: false },
+    applySettings(g2) { gfx = g2; dirty = true; },
+    async setFinish(fn) { finish = fn; for (const f of figs.values()) bakeFig(f); },
+    shake(a) { shake = a * 250; },
+    screenPos(id) { const f = figs.get(id); if (!f) return null; const r = f.st.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height * 0.25 }; },
+    nudge({ dx = 0, dy = 0, zoom = 0, rot = 0 }) { follow = null; if (dx || dy) { const d = screenToBoard(dx, dy); G.x -= d.x; G.y -= d.y; C.x -= d.x; C.y -= d.y; clampG(); } if (zoom) G.zoom = clamp(G.zoom * Math.exp(-zoom * 0.0012), lim.minZoom, lim.maxZoom); if (rot) G.yaw += rot; },
+    mark(key, on) {
+      const t = tiles.get(key); if (!t) return;
+      let m = t.el.querySelector('.pmark');
+      if (!on) { m?.remove(); return; }
+      if (!m) { m = h('div', 'pmark', '<div class="pm-in"><i></i></div>'); t.el.append(m); }
+    },
+    setPoi(key, poi) { if (!poi) tiles.get(key)?.el.querySelector('.ppoi')?.classList.add('gone'); },
     menu: [{ title: 'Papier', items: [
-      { type: 'toggle', label: 'Standees face caméra', value: true, onChange: v => root.classList.toggle('upright', !v) },
+      ...(baker ? [{ type: 'seg', label: 'Figurines', value: '3d', options: [{ label: '3D', value: '3d' }, { label: 'Standees', value: 'card' }], onChange: v => root.classList.toggle('mode-card', v === 'card') }] : []),
+      { type: 'toggle', label: 'Face caméra', value: true, onChange: v => root.classList.toggle('upright', !v) },
       { type: 'toggle', label: 'Grain papier', value: true, onChange: v => root.classList.toggle('nograin', !v) },
     ] }],
   };

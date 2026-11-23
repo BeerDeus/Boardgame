@@ -7,6 +7,7 @@ export const TERRAINS = {
   swamp:   { tex: 'brown_mud_leaves_01', label: 'Marais', tint: '#4f4a33', names: ['Marais de Brume', 'Tourbière aux Noyés', 'Fange Sombre'] },
   ruins:   { tex: 'monastery_stone_floor', label: 'Ruines', tint: '#8b8478', names: ['Abbaye Effondrée', 'Ruines de Saint-Ombre'] },
   burned:  { tex: 'burned_ground_01', label: 'Terres brûlées', tint: '#3b302a', names: ['Champs Calcinés', 'Cendres du Roi'] },
+  crypt:   { tex: 'mossy_brick_floor', label: 'Crypte', tint: '#4a4440', names: ['Crypte'] },
   snow:    { tex: 'snow_02', label: 'Neiges', tint: '#d9dde2', names: ['Pic Gelé', 'Col des Âmes'] },
 };
 export const texUrl = name => `assets/textures/${name}.jpg`;

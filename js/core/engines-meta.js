@@ -22,10 +22,10 @@ export const ENGINES = [
     cons: ['Post-process coûteux sur vieux mobiles (désactivable)', 'Hex un peu plus dur à lire pour les néophytes'],
   },
   {
-    id: 'paper', letter: 'D', title: 'Carte & standees', subtitle: 'Pop-up papier · DOM/CSS 3D',
-    bg: 'assets/bg/painting4.jpg', tech: 'CSS 3D transforms · zéro WebGL',
-    pitch: 'Une carte illustrée façon livre-jeu, des personnages en standees de carton qui restent face à la caméra. Ultra léger, fonctionne partout.',
-    pros: ['Le plus léger / meilleure autonomie', 'Pipeline d\'art 2D simple (illustrations)', 'Démarrage instantané'],
-    cons: ['Pas de vraie 3D (pas d\'ombres réelles)', 'Moins spectaculaire'],
+    id: 'paper', letter: 'D', title: 'Carte illustrée', subtitle: 'DOM/CSS 3D · figurines pré-rendues',
+    bg: 'assets/bg/painting4.jpg', tech: 'CSS 3D · impostors 3D 8 angles',
+    pitch: 'Une carte illustrée façon livre-jeu. Les vraies figurines 3D sont pré-rendues sous 8 angles au chargement : rendu 3D, coût d\'une page web.',
+    pros: ['Le plus léger / meilleure autonomie', 'Mêmes figurines 3D que A/B/C', 'Tourne sur les plus vieux téléphones'],
+    cons: ['Pas d\'ombres ni de lumière dynamique', 'Angles de vue limités (8 directions)'],
   },
 ];

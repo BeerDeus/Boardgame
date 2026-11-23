@@ -14,8 +14,9 @@ import { TERRAINS } from '../core/terrains.js';
 import { terrainTex, tileBackTexture, loadTex, radialTexture, setMaxAniso } from '../three/textures.js';
 import { buildProps, hexSampler } from '../three/props.js';
 import { tween, ease, rng, hashStr } from '../core/tween.js';
+import { settings } from '../core/settings.js';
 
-const HEIGHT = { snow: 0.6, rock: 0.52, forest: 0.34, ruins: 0.4, village: 0.3, plains: 0.26, burned: 0.24, swamp: 0.16 };
+const HEIGHT = { crypt: 0.2, snow: 0.6, rock: 0.52, forest: 0.34, ruins: 0.4, village: 0.3, plains: 0.26, burned: 0.24, swamp: 0.16 };
 const WATER = 0.04, FOGY = 0.1;
 
 function hexFrameTexture() {
@@ -30,7 +31,6 @@ export async function createEngine(container, { onProgress }) {
   const R = 0.62;
   const grid = hexGrid({ radius: 3, size: R, gap: 0.035 });
   const stage = await createStage(container, { fov: 35, rig: { minDist: 2.4, maxDist: 11, pitchNear: 0.5, pitchFar: 1.1, bounds: grid.bounds } });
-  setMaxAniso(stage.renderer.capabilities.getMaxAnisotropy());
   onProgress(0.15, 'Textures…');
   await Promise.all([...Object.keys(TERRAINS).map(t => terrainTex(t)), stage.setTimeOfDay('dusk', true)]);
   onProgress(0.45, 'Île…');
@@ -54,7 +54,7 @@ export async function createEngine(container, { onProgress }) {
 
   let board;
   board = new Board3D(stage, grid, {
-    figScale: 0.95, focusDist: 4, homeDist: 8.5, cineDist: 2.6, overlayTex: hexFrameTexture(),
+    figScale: 0.95, focusDist: 4, postfx: true, homeDist: 8.5, cineDist: 2.6, overlayTex: hexFrameTexture(),
     createTile(cell, data) {
       const h = (HEIGHT[data.terrain] || 0.3) + rng(hashStr(data.key))() * 0.05;
       const g = new THREE.Group();
@@ -62,7 +62,7 @@ export async function createEngine(container, { onProgress }) {
       const depth = h + 0.7;
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 1.02, depth, 6, 1), [side, matFor(data.terrain), side]);
       mesh.position.y = h - depth / 2; mesh.castShadow = true; mesh.receiveShadow = true; col.add(mesh);
-      const props = buildProps(data.terrain, rng(hashStr(data.key)), hexSampler(R, R * 0.42), 0.95);
+      const props = buildProps(data.terrain, rng(hashStr(data.key)), hexSampler(R, R * 0.42), 0.95, settings.gfx.props);
       if (props) { props.position.y = h; col.add(props); }
       const overlay = new THREE.Mesh(overlayGeo, board.reachMat); overlay.position.y = h + 0.004; col.add(overlay);
       const fog = new THREE.Sprite(new THREE.SpriteMaterial({ map: fogTex, transparent: true, depthWrite: false, opacity: 0.55, color: 0x9aa0b0 }));
@@ -89,7 +89,7 @@ export async function createEngine(container, { onProgress }) {
 
   // Post-process tilt-shift
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: 4 }));
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: settings.gfx.aa ? 4 : 0 }));
   composer.addPass(new RenderPass(scene, camera));
   const hT = new ShaderPass(HorizontalTiltShiftShader), vT = new ShaderPass(VerticalTiltShiftShader);
   composer.addPass(hT); composer.addPass(vT); composer.addPass(new OutputPass());
@@ -97,10 +97,10 @@ export async function createEngine(container, { onProgress }) {
   stage.onResize = (w, hh) => { hT.uniforms.h.value = blur / w; vT.uniforms.v.value = blur / hh; hT.uniforms.r.value = vT.uniforms.r.value = 0.55; };
   stage.onResize(container.clientWidth, container.clientHeight);
   const setTilt = v => { stage.composer = v ? composer : null; if (v) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(container.clientWidth, container.clientHeight); } };
-  setTilt(true);
+  setTilt(settings.gfx.postfx);
+  stage.onSettings = gfx => setTilt(gfx.postfx);
 
   board.menu.push({ title: 'Diorama', items: [
-    { type: 'toggle', label: 'Effet maquette (tilt-shift)', value: true, onChange: setTilt },
     { type: 'seg', label: 'Flou', value: 2.2, options: [{ label: 'Léger', value: 1.2 }, { label: 'Moyen', value: 2.2 }, { label: 'Fort', value: 3.5 }], onChange: v => { blur = v; stage.onResize(container.clientWidth, container.clientHeight); } },
     { type: 'toggle', label: 'Rotation par crans de 60°', value: false, onChange: v => (stage.rig.o.snapYaw = v ? Math.PI / 3 : 0) },
   ] });

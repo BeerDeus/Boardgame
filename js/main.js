@@ -23,7 +23,8 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
     const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l) });
     ui.progress(0.9, 'Scénario…');
     const dialogue = createDialogue(ui.root);
-    await runScenario({ engine, ui, dialogue });
+    ui.engine = engine;
+    await runScenario({ engine, ui, dialogue, engineId: meta.id });
     ui.progress(1, 'Prêt');
     ui.loaded();
     window.__engine = engine;
@@ -31,3 +32,5 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
     console.error(e); ui.error(`Erreur : ${e.message}`);
   }
 })();
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -54,7 +54,7 @@ const P = {
 const RECIPE = {
   village: [['house', 3], ['well', 1], ['bush', 1]], forest: [['pine', 6], ['rock', 1], ['bush', 1]], plains: [['bush', 3], ['rock', 2]],
   rock: [['rock', 7], ['dead', 1]], swamp: [['dead', 2], ['reed', 5], ['mush', 3]], ruins: [['pillar', 4], ['tomb', 3], ['rock', 1]],
-  burned: [['deadB', 4], ['rock', 2]], snow: [['snowpine', 6], ['rockS', 1]],
+  burned: [['deadB', 4], ['rock', 2]], snow: [['snowpine', 6], ['rockS', 1]], crypt: [['tomb', 4], ['pillar', 3], ['rock', 1]],
 };
 
 /** sampler(R) -> {x,z} | null ; scale = échelle des décors */

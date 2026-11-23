@@ -63,6 +63,31 @@ const BODIES = {
     <circle cx="25" cy="64" r="2.8" fill="#ff3a2a"/><circle cx="35" cy="64" r="2.8" fill="#ff3a2a"/>
     <path d="M22 73 l3 4 l3 -4 l3 4 l3 -4 l3 4" stroke="#e8e0c8" fill="none" stroke-width="1.6"/>
     <path d="M40 70 q10 -6 22 -2 M44 80 q10 -4 20 0 M44 90 q10 -4 20 0" stroke="${shade(c, 0.6)}" fill="none" stroke-width="2"/>`,
+  child: c => `
+    <rect x="42" y="118" width="7" height="32" fill="#4a3b2c"/><rect x="52" y="118" width="7" height="32" fill="#4a3b2c"/>
+    <path d="M36 84 Q50 76 64 84 L62 122 L38 122Z" fill="${c}"/>
+    <circle cx="50" cy="70" r="13" fill="${skin}"/><path d="M37 66 Q50 48 63 66 Q56 58 37 68Z" fill="#7a4a22"/>
+    <circle cx="45" cy="71" r="1.6" fill="${dark}"/><circle cx="55" cy="71" r="1.6" fill="${dark}"/>
+    <path d="M66 96 L80 80" stroke="#6b4a2b" stroke-width="4" stroke-linecap="round"/><path d="M76 76 l8 2 l-3 8z" fill="#9aa0a8"/>`,
+  ferryman: c => `
+    <path d="M50 50 Q80 66 76 154 L24 154 Q20 66 50 50Z" fill="${c}"/>
+    <path d="M30 58 Q50 14 70 58 Q66 74 50 76 Q34 74 30 58Z" fill="${shade(c, 0.7)}"/>
+    <path d="M38 58 Q50 44 62 58 Q58 68 50 70 Q42 68 38 58Z" fill="#0d0b0a"/>
+    <circle cx="45" cy="60" r="1.6" fill="#9fe0d0"/><circle cx="55" cy="60" r="1.6" fill="#9fe0d0"/>
+    <rect x="80" y="8" width="3.5" height="148" fill="#4a3324"/>
+    <path d="M14 96 l-4 0 l0 -8 l12 0 l0 8z" fill="#2a2420"/><rect x="11" y="96" width="10" height="14" fill="#ffcf6a" stroke="#2a2420"/><path d="M16 88 L30 80" stroke="#2a2420" stroke-width="2"/>`,
+  monk: c => `
+    <path d="M50 46 Q84 60 82 156 L18 156 Q16 60 50 46Z" fill="${c}"/>
+    <path d="M28 56 Q50 6 72 56 Q68 76 50 78 Q32 76 28 56Z" fill="${shade(c, 0.8)}"/>
+    <path d="M37 56 Q50 38 63 56 Q60 68 50 70 Q40 68 37 56Z" fill="#a8b49a"/>
+    <circle cx="44" cy="58" r="2.6" fill="#ff3a2a"/><circle cx="56" cy="58" r="2.6" fill="#ff3a2a"/>
+    <path d="M42 66 q8 5 16 0" stroke="#3a2a22" fill="none" stroke-width="1.6"/>
+    <path d="M50 78 v60" stroke="#8a6d3b" stroke-width="2"/><path d="M62 92 l10 0 l4 18 l-18 0z" fill="#8a6d3b" stroke="#c9a45c"/>
+    <path d="M20 96 L6 128 M80 96 L94 128" stroke="#a8b49a" stroke-width="5" stroke-linecap="round"/>`,
+  fox: c => `
+    <path d="M14 104 Q30 84 60 88 L76 74 L80 60 L86 72 L94 76 L88 86 L78 90 L72 108 L74 150 L66 150 L62 116 L40 116 L36 150 L28 150 L28 116 Q16 116 14 104Z" fill="#b5652e"/>
+    <path d="M14 104 Q-2 108 4 128 Q10 116 22 110Z" fill="#b5652e"/><path d="M4 128 Q2 120 8 118" stroke="#f2ead8" stroke-width="5"/>
+    <circle cx="84" cy="74" r="2" fill="#ffb02a"/><path d="M78 62 L80 50 L84 64Z" fill="#7a3f1a"/>`,
   wolf: c => `
     <path d="M14 96 Q30 74 62 78 L78 66 L84 56 L90 70 L96 76 L90 84 L80 86 L74 104 L76 150 L68 150 L64 112 L40 112 L36 150 L28 150 L28 112 Q16 112 14 96Z" fill="${c}"/>
     <path d="M14 96 Q4 104 2 120 Q10 108 20 104Z" fill="${c}"/>
@@ -73,8 +98,8 @@ const BODIES = {
     <circle cx="86" cy="60" r="1.8" fill="${dark}"/>`,
 };
 
-export const KIND_LABEL = { knight: 'Chevalier', mage: 'Mage', rogue: 'Voleuse', cleric: 'Prêtre', npc: 'PNJ', ghoul: 'Goule', wolf: 'Renard', horse: 'Destrier' };
-const PORTRAIT_BOX = { knight: '24 8 52 52', mage: '22 4 56 56', rogue: '24 24 52 52', cleric: '24 24 52 52', npc: '18 28 52 52', ghoul: '6 42 50 50', wolf: '56 38 44 44', horse: '56 36 44 44' };
+export const KIND_LABEL = { knight: 'Chevalier', mage: 'Mage', rogue: 'Voleuse', cleric: 'Prêtre', npc: 'PNJ', ghoul: 'Goule', wolf: 'Loup', fox: 'Renard', horse: 'Destrier', child: 'Enfant', ferryman: 'Passeur', monk: 'Moine' };
+const PORTRAIT_BOX = { knight: '24 8 52 52', mage: '22 4 56 56', rogue: '24 24 52 52', cleric: '24 24 52 52', npc: '18 28 52 52', ghoul: '6 42 50 50', wolf: '56 38 44 44', fox: '56 46 44 44', horse: '56 36 44 44', child: '28 44 44 44', ferryman: '24 26 52 52', monk: '22 24 56 56' };
 
 export function figureSVG(kind, color, { portrait = false } = {}) {
   const body = (BODIES[kind] || BODIES.npc)(color);
@@ -99,7 +124,7 @@ const ICON = {
 const TERRAIN_ICONS = {
   village: [['house', 2], ['house', 1], ['bush', 1]], forest: [['pine', 7], ['bush', 1]], plains: [['bush', 3], ['rock', 1]],
   rock: [['rock', 5], ['dead', 1]], swamp: [['dead', 2], ['reed', 4], ['mush', 2]], ruins: [['pillar', 3], ['tomb', 3]],
-  burned: [['dead', 4], ['rock', 2]], snow: [['snowpine', 5], ['rock', 1]],
+  burned: [['dead', 4], ['rock', 2]], snow: [['snowpine', 5], ['rock', 1]], crypt: [['tomb', 4], ['pillar', 2]],
 };
 /** SVG d'icônes réparties en bordure de tuile (le centre reste libre pour les figurines) */
 export function tileIconsSVG(terrain, rand, w = 100, h = 100) {

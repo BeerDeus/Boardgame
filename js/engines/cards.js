@@ -9,12 +9,12 @@ import { cardFaceTexture, tileBackTexture, loadTex, frameTexture, setMaxAniso, l
 import { texUrl } from '../core/terrains.js';
 import { buildProps } from '../three/props.js';
 import { tween, ease, rng, hashStr } from '../core/tween.js';
+import { settings } from '../core/settings.js';
 
 export async function createEngine(container, { onProgress }) {
   const W = 2.1, H = 1.4;
-  const grid = rectGrid({ cols: 5, rows: 4, w: W, h: H, gap: 0.12 });
-  const stage = await createStage(container, { fov: 32, rig: { minDist: 3.2, maxDist: 16, pitchNear: 0.78, pitchFar: 1.38, bounds: grid.bounds } });
-  setMaxAniso(stage.renderer.capabilities.getMaxAnisotropy());
+  const grid = rectGrid({ cols: 6, rows: 4, w: W, h: H, gap: 0.12 });
+  const stage = await createStage(container, { fov: 32, rig: { minDist: 3.2, maxDist: 18, pitchNear: 0.78, pitchFar: 1.38, bounds: grid.bounds } });
   onProgress(0.15, 'Impression des cartes…');
   await Promise.all([...Object.values(TERRAINS).map(t => loadImage(texUrl(t.tex))), stage.setTimeOfDay('dusk', true), document.fonts?.load('600 30px Cinzel').catch(() => {})]);
   onProgress(0.5, 'Table…');
@@ -49,14 +49,14 @@ export async function createEngine(container, { onProgress }) {
 
   let board;
   board = new Board3D(stage, grid, {
-    figScale: 1.25, focusDist: 5, homeDist: 12.5, cineDist: 3.3, poiScale: 1.6, overlayTex: frameTexture(W / H),
+    figScale: 1.25, focusDist: 5, homeDist: 14, cineDist: 3.3, poiScale: 1.6, overlayTex: frameTexture(W / H),
     createTile(cell, data) {
       const g = new THREE.Group();
       const face = new THREE.MeshStandardMaterial({ roughness: 0.8, color: 0x777777 });
       cardFaceTexture(data.terrain, data.name, data.label).then(t => { face.map = t; face.color.set(0xffffff); face.needsUpdate = true; });
       const mesh = new THREE.Mesh(cardGeo, [edge, edge, face, back, edge, edge]);
       mesh.position.y = TH / 2; mesh.castShadow = true; mesh.receiveShadow = true; g.add(mesh);
-      const props = buildProps(data.terrain, rng(hashStr(data.key)), sampler, 1.15, 1.1);
+      const props = buildProps(data.terrain, rng(hashStr(data.key)), sampler, 1.15, 1.1 * settings.gfx.props);
       if (props) { props.position.y = TH; g.add(props); }
       const overlay = new THREE.Mesh(overlayGeo, board.reachMat); overlay.position.y = TH + 0.004; g.add(overlay);
       return {
