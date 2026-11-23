@@ -1,5 +1,9 @@
-// Service worker : jeu jouable hors-ligne (PWA). Incrémenter VERSION à chaque déploiement.
-const VERSION = 'grimoire-1795471660';
+// Service worker — mises à jour automatiques, jeu jouable hors-ligne.
+//  • Code (HTML/JS/CSS/manifest) : RÉSEAU D'ABORD (revalidé à chaque chargement), cache seulement hors-ligne.
+//  • Assets lourds (modèles, textures, HDRI, polices) : cache d'abord + rafraîchissement en arrière-plan.
+//  • Le navigateur vérifie sw.js à chaque visite (updateViaCache: 'none') ; nouvelle version = activée
+//    immédiatement et la page se recharge toute seule. Aucune réinstallation nécessaire.
+const VERSION = 'grimoire-1795473692';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -54,6 +58,7 @@ const PRECACHE = [
 "js/core/grid.js",
 "js/core/mapgen.js",
 "js/core/portraits.js",
+"js/core/pwa.js",
 "js/core/scenario.js",
 "js/core/settings.js",
 "js/core/sfx.js",
@@ -94,19 +99,37 @@ const PRECACHE = [
 "vendor/three/examples/jsm/utils/SkeletonUtils.js"
 ];
 
+const CODE = /\.(html|js|mjs|css|webmanifest|json)$|\/$/;
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
+  // pré-cache tolérant : un fichier manquant ne bloque plus l'installation
+  e.waitUntil(caches.open(VERSION).then(c => Promise.allSettled(PRECACHE.map(u => c.add(new Request(u, { cache: 'reload' }))))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// stale-while-revalidate : réponse instantanée depuis le cache, mise à jour en arrière-plan
+self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
+
 self.addEventListener('fetch', e => {
-  const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
-  e.respondWith(caches.open(VERSION).then(async c => {
-    const hit = await c.match(req, { ignoreSearch: req.mode === 'navigate' });
-    const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()); return r; }).catch(() => hit);
-    return hit || net;
-  }));
+  const req = e.request, url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin) return;
+  const isCode = req.mode === 'navigate' || CODE.test(url.pathname);
+  e.respondWith(isCode ? networkFirst(req) : staleWhileRevalidate(req));
 });
+
+async function networkFirst(req) {
+  const c = await caches.open(VERSION);
+  try {
+    const r = await fetch(req, { cache: 'no-cache' }); // revalidation serveur (ETag/304)
+    if (r.ok) c.put(req, r.clone());
+    return r;
+  } catch {
+    return (await c.match(req, { ignoreSearch: true })) || Response.error();
+  }
+}
+async function staleWhileRevalidate(req) {
+  const c = await caches.open(VERSION);
+  const hit = await c.match(req);
+  const net = fetch(req).then(r => { if (r.ok) c.put(req, r.clone()); return r; }).catch(() => hit);
+  return hit || net;
+}

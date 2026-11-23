@@ -8,10 +8,13 @@ AddType model/gltf-binary .glb
 AddType application/octet-stream .hdr
 
 <IfModule mod_headers.c>
-  # Le service worker et le manifest ne doivent jamais être mis en cache par le serveur/CDN
-  <FilesMatch "^(sw\.js|manifest\.webmanifest)$">
+  # Service worker : jamais en cache (sinon les mises à jour ne sont pas détectées)
+  <FilesMatch "^sw\.js$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Service-Worker-Allowed "/"
+  </FilesMatch>
+  # Code : toujours revalidé auprès du serveur (ETag → 304 si inchangé, donc léger)
+  <FilesMatch "\.(html|js|css|webmanifest|json)$">
+    Header set Cache-Control "no-cache"
   </FilesMatch>
   # Assets lourds : cache long (le SW gère les mises à jour)
   <FilesMatch "\.(jpg|png|hdr|glb|woff2)$">

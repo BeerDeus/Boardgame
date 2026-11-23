@@ -72,9 +72,9 @@
     const say = (t, ok) => { st.textContent = t; st.className = 'pwa-status ' + (ok ? 'ok' : 'ko'); };
     if (!window.isSecureContext) say('⚠ PWA indisponible : le site doit être servi en HTTPS', false);
     else if (!('serviceWorker' in navigator)) say('⚠ Navigateur sans service worker', false);
-    else navigator.serviceWorker.register('sw.js').then(async r => {
-      await navigator.serviceWorker.ready; say('✓ Jouable hors-ligne', true);
-    }).catch(e => say('⚠ Service worker : ' + e.message, false));
+    else import('./js/core/pwa.js').then(({ registerPWA, consumeUpdatedFlag }) => {
+      registerPWA({ onStatus: (s, e) => s === 'ready' ? say(consumeUpdatedFlag() ? '✓ Mis à jour · jouable hors-ligne' : '✓ À jour · jouable hors-ligne', true) : say('⚠ Service worker : ' + e?.message, false) });
+    });
     const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
     let deferred = null;
     addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; ib.hidden = false; });

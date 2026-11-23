@@ -7,7 +7,8 @@ Site 100 % statique, **PWA installable et jouable hors-ligne**, prêt pour Capac
 
 - **Hostinger** : déploiement Git de cette branche à la racine (`index.html` = hub).
 - **Local** : `python3 -m http.server 8000` → http://localhost:8000
-- **Avant chaque déploiement** : `python3 tools/build-sw.py` (met à jour le cache hors-ligne + version).
+- **Mises à jour automatiques** : le code (HTML/JS/CSS) est toujours récupéré en réseau d'abord ; une nouvelle version est détectée à l'ouverture (et toutes les 15 min), activée et la page se recharge seule (« ✓ Nouvelle version installée »). Pas besoin de réinstaller la PWA ni de vider le cache. Hors-ligne, la dernière version en cache est utilisée.
+- Recommandé avant un déploiement (facultatif) : `python3 tools/build-sw.py` — met à jour la liste des fichiers disponibles hors-ligne et purge les anciens caches.
 - **Capacitor (plus tard)** : `webDir` = racine du dépôt, rien à builder.
 
 ## Le scénario — Chapitre I « Le Glas de Saint-Ombre » (coopératif, 1 à 4 héros)

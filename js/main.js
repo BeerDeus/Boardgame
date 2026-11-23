@@ -39,4 +39,7 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
   }
 })();
 
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+import('./core/pwa.js').then(({ registerPWA, consumeUpdatedFlag }) => {
+  registerPWA();
+  if (consumeUpdatedFlag()) setTimeout(() => ui.toast('✓ Nouvelle version installée', 2600), 1500);
+});
