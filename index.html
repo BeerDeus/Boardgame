@@ -20,6 +20,8 @@
     </header>
     <section class="cards" id="cards"></section>
     <footer>
+      <button class="btn" id="installBtn" hidden>⬇ Installer l'app</button>
+      <span id="pwaStatus" class="pwa-status"></span>
       <button class="link" id="creditsBtn">Crédits & licences</button>
       <span>Astuce : en plein écran + paysage sur mobile. Menu ☰ en jeu = options de test.</span>
     </footer>
@@ -64,7 +66,23 @@
     document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');
     document.getElementById('creditsClose').onclick = () => cr.classList.remove('open');
     cr.onclick = e => { if (e.target === cr) cr.classList.remove('open'); };
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+    // ---- PWA : enregistrement, état hors-ligne, bouton d'installation
+    const st = document.getElementById('pwaStatus'), ib = document.getElementById('installBtn');
+    const say = (t, ok) => { st.textContent = t; st.className = 'pwa-status ' + (ok ? 'ok' : 'ko'); };
+    if (!window.isSecureContext) say('⚠ PWA indisponible : le site doit être servi en HTTPS', false);
+    else if (!('serviceWorker' in navigator)) say('⚠ Navigateur sans service worker', false);
+    else navigator.serviceWorker.register('sw.js').then(async r => {
+      await navigator.serviceWorker.ready; say('✓ Jouable hors-ligne', true);
+    }).catch(e => say('⚠ Service worker : ' + e.message, false));
+    const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
+    let deferred = null;
+    addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; ib.hidden = false; });
+    ib.onclick = async () => {
+      if (deferred) { deferred.prompt(); await deferred.userChoice; deferred = null; ib.hidden = true; }
+      else alert('iPhone / iPad : bouton Partager ⎋ puis « Sur l\'écran d\'accueil ».');
+    };
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone) ib.hidden = false;
+    if (standalone) say('✓ App installée', true);
   </script>
 </body>
 </html>

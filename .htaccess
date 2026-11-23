@@ -1,0 +1,25 @@
+# Hostinger (LiteSpeed/Apache) — configuration PWA
+
+# Types MIME corrects
+AddType application/manifest+json .webmanifest
+AddType text/javascript .js .mjs
+AddType font/woff2 .woff2
+AddType model/gltf-binary .glb
+AddType application/octet-stream .hdr
+
+<IfModule mod_headers.c>
+  # Le service worker et le manifest ne doivent jamais être mis en cache par le serveur/CDN
+  <FilesMatch "^(sw\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Service-Worker-Allowed "/"
+  </FilesMatch>
+  # Assets lourds : cache long (le SW gère les mises à jour)
+  <FilesMatch "\.(jpg|png|hdr|glb|woff2)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
+
+# Une PWA exige HTTPS. Activez le SSL dans hPanel puis décommentez :
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

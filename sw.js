@@ -1,5 +1,5 @@
 // Service worker : jeu jouable hors-ligne (PWA). Incrémenter VERSION à chaque déploiement.
-const VERSION = 'grimoire-1795463206';
+const VERSION = 'grimoire-1795468956';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",

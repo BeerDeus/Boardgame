@@ -51,3 +51,6 @@ footer { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-si
   .card { scroll-snap-align: center; }
   .rotate-hint { display: block; position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: var(--gold); font-family: var(--head); font-size: 13px; }
 }
+
+.pwa-status { font-size: 13px; } .pwa-status.ok { color: #8fc46a; } .pwa-status.ko { color: #ff8a7a; }
+#installBtn { padding: 6px 12px; font-size: 13px; }
