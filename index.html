@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0908">
+  <title>Grimoire · Moteurs de plateau</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/hub.css">
+</head>
+<body>
+  <div class="bg" id="bg"></div>
+  <main>
+    <header>
+      <h1>Grimoire <span>· moteurs de plateau</span></h1>
+      <p>4 prototypes d'affichage pour une app compagnon narrative. Même scénario de test partout : comparez la fluidité, la lisibilité et l'ambiance.</p>
+    </header>
+    <section class="cards" id="cards"></section>
+    <footer>
+      <button class="link" id="creditsBtn">Crédits & licences</button>
+      <span>Astuce : en plein écran + paysage sur mobile. Menu ☰ en jeu = options de test.</span>
+    </footer>
+  </main>
+  <div class="credits" id="credits">
+    <div class="credits-card">
+      <h2>Crédits</h2>
+      <ul>
+        <li>Textures de terrain & HDRI : <b>Poly Haven</b> (CC0)</li>
+        <li>Peintures de fond (domaine public, via Wikimedia Commons) : C. D. Friedrich – <i>L'Abbaye dans une forêt de chênes</i> ; J. Martin – <i>The Bard</i> ; A. Böcklin – <i>L'Île des morts</i> ; G. Doré – <i>L'Enfer</i></li>
+        <li>Modèle « Fox » : Khronos glTF Sample Assets (PixelMannen CC0, rig/anim tomkranis CC-BY 4.0)</li>
+        <li>Modèle « Horse » : exemples three.js (MIT)</li>
+        <li>Moteur 3D : <b>three.js</b> r187 (MIT) · Figurines, décors et illustrations SVG : procéduraux</li>
+      </ul>
+      <button class="btn" id="creditsClose">Fermer</button>
+    </div>
+  </div>
+  <div class="rotate-hint">Tournez l'appareil en paysage ⟲</div>
+  <script type="module">
+    import { ENGINES } from './js/core/engines-meta.js';
+    const wrap = document.getElementById('cards'), bg = document.getElementById('bg');
+    const setBg = url => { bg.style.opacity = 0; setTimeout(() => { bg.style.backgroundImage = `url('${url}')`; bg.style.opacity = 1; }, 250); };
+    setBg(ENGINES[0].bg);
+    for (const e of ENGINES) {
+      const a = document.createElement('a');
+      a.className = 'card'; a.href = `play.html?e=${e.id}`;
+      a.innerHTML = `
+        <div class="thumb" style="background-image:url('${e.bg}')"><b>${e.letter}</b></div>
+        <div class="body">
+          <h2>${e.title}</h2><h3>${e.subtitle}</h3>
+          <p class="pitch">${e.pitch}</p>
+          <ul class="pros">${e.pros.map(p => `<li>${p}</li>`).join('')}</ul>
+          <ul class="cons">${e.cons.map(p => `<li>${p}</li>`).join('')}</ul>
+          <div class="tech">${e.tech}</div>
+          <span class="go">Essayer ▸</span>
+        </div>`;
+      a.addEventListener('pointerenter', () => setBg(e.bg));
+      a.addEventListener('focus', () => setBg(e.bg));
+      wrap.append(a);
+    }
+    const cr = document.getElementById('credits');
+    document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');
+    document.getElementById('creditsClose').onclick = () => cr.classList.remove('open');
+    cr.onclick = e => { if (e.target === cr) cr.classList.remove('open'); };
+  </script>
+</body>
+</html>

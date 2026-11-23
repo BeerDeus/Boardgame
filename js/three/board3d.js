@@ -1,0 +1,237 @@
+// Plateau 3D générique : tuiles (via fabrique fournie par le moteur), figurines, déplacements,
+// surbrillances, POI, caméra cinématique. Implémente l'API moteur commune.
+import * as THREE from 'three';
+import { tween, ease, cancelTweens, nearestAngle, wait } from '../core/tween.js';
+import { makeFigure, flash, preloadGLB } from './figures.js';
+import { iconTexture, ringTexture, radialTexture } from './textures.js';
+
+const V = () => new THREE.Vector3();
+
+export class Board3D {
+  constructor(stage, grid, o) {
+    this.s = stage; this.grid = grid;
+    this.o = Object.assign({ figScale: 1, focusDist: 5, homeDist: 9, homeYaw: 0, cineDist: 2.2, cinePitch: 0.24, cineAngle: 1.05, poiScale: 1 }, o);
+    this.tiles = new Map(); this.figs = new Map(); this.occ = new Map();
+    this.root = new THREE.Group(); stage.scene.add(this.root);
+    this.supports = { shadows: true };
+    this.menu = [{ title: 'Figurines', items: [
+      { type: 'seg', label: 'Taille', value: 1, options: [{ label: 'S', value: 0.8 }, { label: 'M', value: 1 }, { label: 'L', value: 1.25 }], onChange: v => this.setFigScale(v * (this.o.baseFigScale ?? 1)) },
+    ] }];
+    this.o.baseFigScale = this.o.figScale;
+    this.reachMat = new THREE.MeshBasicMaterial({ color: 0xf0c060, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
+    this.exploreMat = new THREE.MeshBasicMaterial({ color: 0x6fb3ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
+    this.ring = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), new THREE.MeshBasicMaterial({ map: ringTexture(), color: 0xffd27a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.ring.rotation.x = -Math.PI / 2; this.ring.position.y = 0.012; this.ring.visible = false; this.ring.renderOrder = 2;
+    this.dustTex = radialTexture('rgba(200,190,170,0.9)', 'rgba(150,140,120,0.5)');
+    stage.onTap = (x, y) => this.tap(x, y);
+    stage.onLongPress = (x, y) => { const h = this.pickAt(x, y); if (h?.key) this.onLongPress?.(h.key); };
+    stage.onFps = n => this.onFps?.(n);
+    stage.updates.add((dt, t) => this.update(dt, t));
+  }
+  async preload() { await preloadGLB(); }
+
+  // ---------- tuiles ----------
+  addTile(data) {
+    const cell = this.grid.get(data.key);
+    const t = this.o.createTile(cell, data, this);
+    Object.assign(t, { data, cell, revealed: !!data.revealed });
+    t.group.position.set(cell.x, 0, cell.z);
+    t.hit.userData.tileKey = data.key;
+    t.overlay.visible = false; t.overlay.renderOrder = 1;
+    this.root.add(t.group); this.tiles.set(data.key, t);
+    if (data.poi) {
+      const r = 0.075 * this.o.poiScale, side = new THREE.MeshStandardMaterial({ color: 0x8a6d3b, metalness: 0.6, roughness: 0.35 });
+      const tok = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.03, 24), [side, new THREE.MeshStandardMaterial({ map: iconTexture(data.poi.icon), roughness: 0.5 }), side]);
+      tok.castShadow = true; tok.position.set(cell.x + t.poiPos.x, t.topY + 0.015, cell.z + t.poiPos.z);
+      tok.userData.poiKey = data.key; tok.visible = t.revealed; t.poi = tok; this.root.add(tok);
+    }
+    t.reveal(false, t.revealed);
+    return t;
+  }
+  async revealTile(key, { focus = true } = {}) {
+    const t = this.tiles.get(key); if (!t || t.revealed) return;
+    t.revealed = true;
+    if (focus) this.s.rig.flyTo({ x: t.cell.x, z: t.cell.z, dist: Math.min(this.s.rig.goal.dist, this.o.focusDist * 1.3) }, 5);
+    await t.reveal(true, true);
+    this.dust(new THREE.Vector3(t.cell.x, t.topY, t.cell.z), 8, this.grid.w * 0.5);
+    if (t.poi) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
+  }
+  highlight(reach, explore) {
+    const R = new Set(reach), E = new Set(explore);
+    for (const [k, t] of this.tiles) {
+      const m = R.has(k) ? this.reachMat : E.has(k) ? this.exploreMat : null;
+      t.overlay.visible = !!m; if (m) t.overlay.material = m;
+    }
+  }
+
+  // ---------- figurines ----------
+  slotPos(key, i, n) { const t = this.tiles.get(key), s = this.grid.slots(n)[i]; return new THREE.Vector3(t.cell.x + s.x, t.topY, t.cell.z + s.z); }
+  arrange(key, skip) {
+    const ids = this.occ.get(key) || [];
+    ids.forEach((id, i) => {
+      if (id === skip) return;
+      const f = this.figs.get(id); const from = f.position.clone(), to = this.slotPos(key, i, ids.length);
+      if (from.distanceTo(to) < 0.001) return;
+      cancelTweens(id);
+      tween({ tag: id, duration: 0.35, ease: ease.outCubic, update: k => f.position.lerpVectors(from, to, k) });
+    });
+  }
+  occPush(key, id) { if (!this.occ.has(key)) this.occ.set(key, []); this.occ.get(key).push(id); }
+  occRemove(key, id) { const a = this.occ.get(key); if (a) { const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); } }
+
+  async addFigure(data, key, { spawn = false } = {}) {
+    const f = await makeFigure(data);
+    f.scale.setScalar(this.o.figScale); f.userData.key = key; f.userData.data = data;
+    this.figs.set(data.id, f); this.root.add(f);
+    this.occPush(key, data.id);
+    const ids = this.occ.get(key);
+    f.position.copy(this.slotPos(key, ids.length - 1, ids.length));
+    f.rotation.y = (Math.random() - 0.5) * 0.6;
+    this.arrange(key, data.id);
+    if (spawn) {
+      const y0 = f.position.y; f.scale.setScalar(0.01);
+      this.dust(f.position.clone(), 10, 0.5, 0x2a2420);
+      await tween({ duration: 0.6, ease: ease.outBack, update: k => { f.scale.setScalar(Math.max(0.01, k * this.o.figScale)); f.position.y = y0 + (1 - k) * -0.2; } });
+    }
+  }
+  async removeFigure(id, { animate = true } = {}) {
+    const f = this.figs.get(id); if (!f) return;
+    const key = f.userData.key; this.occRemove(key, id); this.figs.delete(id);
+    if (this.ring.parent === f) this.setSelected(null);
+    if (animate) {
+      const inner = f.userData.inner;
+      await tween({ duration: 0.45, ease: ease.inQuad, update: k => { inner.rotation.x = -k * Math.PI / 2; inner.position.y = k * 0.02; } });
+      await tween({ duration: 0.35, update: k => f.scale.setScalar(Math.max(0.01, (1 - k) * this.o.figScale)) });
+    }
+    this.root.remove(f); this.arrange(key);
+  }
+  async hop(f, to, h = 0.22) {
+    const from = f.position.clone(), dx = to.x - from.x, dz = to.z - from.z, d = Math.hypot(dx, dz);
+    const yaw0 = f.rotation.y, yaw1 = d > 0.01 ? nearestAngle(yaw0, Math.atan2(dx, dz)) : yaw0;
+    const inner = f.userData.inner;
+    await tween({ duration: 0.24 + d * 0.06, ease: ease.inOutSine, update: k => {
+      f.position.lerpVectors(from, to, k); f.position.y += Math.sin(Math.PI * k) * h * this.o.figScale;
+      f.rotation.y = yaw0 + (yaw1 - yaw0) * Math.min(1, k * 3);
+      inner.rotation.x = Math.sin(Math.PI * k) * 0.12;
+    } });
+    tween({ duration: 0.16, ease: ease.outQuad, update: k => inner.scale.set(1 + Math.sin(Math.PI * k) * 0.08, 1 - Math.sin(Math.PI * k) * 0.12, 1 + Math.sin(Math.PI * k) * 0.08) });
+    this.dust(to.clone(), 4, 0.18);
+  }
+  async moveFigure(id, path, { follow = true } = {}) {
+    const f = this.figs.get(id); if (!f || path.length < 2) return;
+    cancelTweens(id);
+    const last = path[path.length - 1];
+    this.occRemove(path[0], id); this.arrange(path[0]);
+    this.occPush(last, id); this.arrange(last, id); f.userData.key = last;
+    if (follow) { this.s.rig.follow = f; this.s.rig.k = 5; }
+    const a = f.userData.anim; let act = null;
+    if (a?.def.move && a.actions[a.def.move]) { act = a.actions[a.def.move]; act.reset().fadeIn(0.15).play(); if (a.def.idle) a.actions[a.def.idle]?.fadeOut(0.15); }
+    for (let i = 1; i < path.length; i++) {
+      const t = this.tiles.get(path[i]);
+      const to = i === path.length - 1 ? this.slotPos(last, this.occ.get(last).indexOf(id), this.occ.get(last).length) : new THREE.Vector3(t.cell.x, t.topY, t.cell.z);
+      await this.hop(f, to);
+    }
+    if (act) { act.fadeOut(0.2); if (a.def.idle) a.actions[a.def.idle]?.reset().fadeIn(0.2).play(); }
+    if (this.s.rig.follow === f) this.s.rig.follow = null;
+  }
+  async bump(id, targetId) {
+    const f = this.figs.get(id); if (!f) return;
+    const tg = targetId && this.figs.get(targetId);
+    if (!tg) { const y = f.position.y; await tween({ duration: 0.3, update: k => (f.position.y = y + Math.sin(Math.PI * k) * 0.15) }); return; }
+    const from = f.position.clone(), dir = tg.position.clone().sub(from); dir.y = 0;
+    f.rotation.y = nearestAngle(f.rotation.y, Math.atan2(dir.x, dir.z));
+    tg.rotation.y = nearestAngle(tg.rotation.y, Math.atan2(-dir.x, -dir.z));
+    const reach = from.clone().addScaledVector(dir, Math.min(0.75, 0.25 / Math.max(0.01, dir.length()) * 2));
+    await tween({ duration: 0.14, ease: ease.inQuad, update: k => f.position.lerpVectors(from, reach, k) });
+    flash(tg); this.s.rig.shake(0.05); this.dust(tg.position.clone(), 6, 0.25, 0x5a1a12);
+    const tp = tg.position.clone(), kb = tp.clone().addScaledVector(dir.normalize(), 0.06);
+    tween({ duration: 0.25, update: k => tg.position.lerpVectors(kb, tp, k) });
+    await tween({ duration: 0.25, ease: ease.outCubic, update: k => f.position.lerpVectors(reach, from, k) });
+  }
+  setSelected(id) {
+    const f = id && this.figs.get(id);
+    if (!f) { this.ring.visible = false; this.ring.removeFromParent(); return; }
+    f.add(this.ring); this.ring.visible = true;
+  }
+
+  // ---------- caméra ----------
+  focusTile(key) { const t = this.tiles.get(key); if (t) this.s.rig.flyTo({ x: t.cell.x, z: t.cell.z, dist: Math.min(this.s.rig.goal.dist, this.o.focusDist * 1.4) }); }
+  focusFigure(id, { soft = false } = {}) { const f = this.figs.get(id); if (f) this.s.rig.flyTo({ x: f.position.x, z: f.position.z, dist: soft ? undefined : this.o.focusDist }); }
+  resetCamera(instant = false) { this.s.rig.pitchBias = 0; this.s.rig.flyTo({ x: 0, y: 0, z: 0, dist: this.o.homeDist, yaw: this.o.homeYaw }, 4); if (instant) this.s.rig.jump(); }
+  cinematic({ ids, focus }) {
+    const rig = this.s.rig;
+    if (!this.saved) this.saved = { ...rig.goal, bias: rig.pitchBias };
+    const fs = ids.map(i => this.figs.get(i)).filter(Boolean); const F = this.figs.get(focus); if (!F) return;
+    const other = fs.find(f => f !== F) || F;
+    const a = F.position, b = other.position, d = b.clone().sub(a); d.y = 0;
+    // les figurines se font face
+    if (d.length() > 0.01) {
+      for (const [x, y] of [[F, other], [other, F]]) { const v = y.position.clone().sub(x.position); const target = nearestAngle(x.rotation.y, Math.atan2(v.x, v.z)); const r0 = x.rotation.y; tween({ duration: 0.4, update: k => (x.rotation.y = r0 + (target - r0) * k) }); }
+    }
+    // caméra : par-dessus l'épaule de l'interlocuteur, cadrée sur celui qui parle
+    let yaw = d.length() > 0.01 ? Math.atan2(d.x, d.z) + this.o.cineAngle : rig.cur.yaw;
+    const mid = a.clone().lerp(b, 0.35);
+    // les autres figurines s'estompent pour ne pas masquer la scène
+    for (const [id, f] of this.figs) this.fade(f, ids.includes(id) ? 1 : 0.15);
+    rig.pitchOverride = this.o.cinePitch; rig.viewShift = 0.12;
+    rig.flyTo({ x: mid.x, y: a.y + 0.35 * this.o.figScale, z: mid.z, dist: this.o.cineDist, yaw }, 3.2);
+  }
+  endCinematic() {
+    const rig = this.s.rig; rig.pitchOverride = null; rig.viewShift = 0;
+    for (const f of this.figs.values()) this.fade(f, 1);
+    if (this.saved) { rig.pitchBias = this.saved.bias; rig.flyTo({ ...this.saved, y: 0 }, 3.2); this.saved = null; }
+  }
+
+  fade(f, target) {
+    const mats = f.userData.mats, from = mats[0]?.opacity ?? 1;
+    if (Math.abs(from - target) < 0.01) return;
+    mats.forEach(m => { if (!m.transparent) { m.transparent = true; m.needsUpdate = true; } });
+    tween({ duration: 0.4, update: k => mats.forEach(m => { m.opacity = from + (target - from) * k; m.depthWrite = m.opacity > 0.9; }) })
+      .then(() => { if (target >= 1) mats.forEach(m => { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; }); });
+  }
+  setFigScale(s) {
+    this.o.figScale = s;
+    for (const f of this.figs.values()) { const s0 = f.scale.x; tween({ duration: 0.3, ease: ease.outBack, update: k => f.scale.setScalar(s0 + (s - s0) * k) }); }
+  }
+
+  // ---------- ambiance / perf ----------
+  setTimeOfDay(v) { return this.s.setTimeOfDay(v); }
+  setParticles(v) { this.s.setParticles(v); }
+  setShadows(v) { this.s.setShadows(v); }
+  setResolution(v) { this.s.setResolution(v); }
+
+  // ---------- picking ----------
+  pickAt(x, y) {
+    const objs = [];
+    for (const f of this.figs.values()) objs.push(f.userData.hit);
+    for (const t of this.tiles.values()) { if (t.poi?.visible) objs.push(t.poi); objs.push(t.hit); }
+    const h = this.s.pick(x, y, objs); if (!h) return null;
+    let o = h.object; while (o && !o.userData.figureId && !o.userData.poiKey && !o.userData.tileKey) o = o.parent;
+    if (!o) return null;
+    if (o.userData.figureId) return { type: 'figure', id: o.userData.figureId, key: this.figs.get(o.userData.figureId)?.userData.key };
+    if (o.userData.poiKey) return { type: 'poi', key: o.userData.poiKey };
+    return { type: 'tile', key: o.userData.tileKey };
+  }
+  tap(x, y) { const h = this.pickAt(x, y) || { type: 'none' }; this.onTap?.(h); }
+
+  // ---------- effets ----------
+  dust(pos, n = 6, spread = 0.3, color = 0xbfb3a0) {
+    for (let i = 0; i < n; i++) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.dustTex, color, transparent: true, depthWrite: false, opacity: 0.55 }));
+      const a = (i / n) * Math.PI * 2 + Math.random(), p0 = pos.clone().add(new THREE.Vector3(0, 0.04, 0));
+      const p1 = p0.clone().add(new THREE.Vector3(Math.cos(a) * spread, 0.05 + Math.random() * 0.1, Math.sin(a) * spread));
+      this.root.add(s);
+      tween({ duration: 0.55 + Math.random() * 0.3, ease: ease.outCubic, update: k => { s.position.lerpVectors(p0, p1, k); s.scale.setScalar(0.08 + k * 0.25 * (spread + 0.3)); s.material.opacity = 0.55 * (1 - k); } })
+        .then(() => { this.root.remove(s); s.material.dispose(); });
+    }
+  }
+  update(dt, t) {
+    const p = 0.62 + Math.sin(t * 3.2) * 0.18; this.reachMat.opacity = p; this.exploreMat.opacity = p;
+    if (this.ring.visible) { const s = 1 + Math.sin(t * 4) * 0.06; this.ring.scale.set(s, s, s); this.ring.rotation.z += dt * 0.6; }
+    for (const f of this.figs.values()) {
+      f.userData.anim?.mixer.update(dt);
+      const orb = f.userData.inner.userData.orb; if (orb) orb.material.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6;
+    }
+    for (const tl of this.tiles.values()) if (tl.poi?.visible) tl.poi.rotation.y += dt * 0.8;
+  }
+}
