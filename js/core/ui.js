@@ -83,7 +83,12 @@ export function createUI({ title, subtitle }) {
     </div>`);
   root.append(help);
   // Orientation
-  root.append(h('div', 'rotate-overlay', `<div><div class="rot-icon">⟲</div>Tournez l'appareil en mode paysage</div>`));
+  const rot = h('div', 'rotate-overlay', `<div><div class="rot-icon">⟲</div>Tournez l'appareil en mode paysage<br><small>Rotation verrouillée ? Désactivez le verrou d'orientation.</small><br><button class="btn" data-anyway>Continuer quand même</button></div>`);
+  rot.querySelector('[data-anyway]').onclick = () => rot.classList.add('dismissed');
+  root.append(rot);
+  // App installée : on tente de verrouiller le paysage (Android/Chrome) sans jamais bloquer le lancement
+  const lockLandscape = () => screen.orientation?.lock?.('landscape').catch(() => {});
+  if (matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) { lockLandscape(); window.addEventListener('pointerdown', lockLandscape, { once: true }); }
 
   const openMenu = v => { drawer.classList.toggle('open', v); scrim.classList.toggle('open', v); };
   scrim.onclick = () => openMenu(false);
