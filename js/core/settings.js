@@ -41,7 +41,7 @@ const subs = new Set();
 export const settings = {
   preset: saved.preset || 'auto',
   custom: saved.custom || {},
-  volume: saved.volume ?? 0.7, music: saved.music ?? true, haptics: saved.haptics ?? true, dice: saved.dice || 'physical',
+  volume: saved.volume ?? 0.7, music: saved.music ?? true, haptics: saved.haptics ?? true, dice: saved.dice || 'physical', setup: saved.setup ?? true,
   finish: saved.finish || 'painted',
   detected,
   get tierName() { return this.preset === 'auto' ? detected.tier : this.preset; },
@@ -50,9 +50,9 @@ export const settings = {
   set(patch) {
     const before = this.gfx;
     if ('preset' in patch) { this.preset = patch.preset; this.custom = {}; }
-    for (const k of ['volume', 'music', 'haptics', 'finish', 'dice']) if (k in patch) this[k] = patch[k];
+    for (const k of ['volume', 'music', 'haptics', 'finish', 'dice', 'setup']) if (k in patch) this[k] = patch[k];
     if (patch.gfx) Object.assign(this.custom, patch.gfx);
-    try { localStorage.setItem(KEY, JSON.stringify({ preset: this.preset, custom: this.custom, volume: this.volume, music: this.music, haptics: this.haptics, finish: this.finish, dice: this.dice })); } catch {}
+    try { localStorage.setItem(KEY, JSON.stringify({ preset: this.preset, custom: this.custom, volume: this.volume, music: this.music, haptics: this.haptics, finish: this.finish, dice: this.dice, setup: this.setup })); } catch {}
     const after = this.gfx;
     const needReload = RELOAD_KEYS.some(k => before[k] !== after[k]);
     subs.forEach(f => f(this, { needReload }));

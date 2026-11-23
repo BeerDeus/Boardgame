@@ -1,5 +1,7 @@
 // HUD commun : barre du haut, menu de test, toasts, FPS, barre de groupe, aide, chargement.
 import { figureSVG } from './art.js';
+import { icon, ICON_NAMES } from './icons.js';
+const ic = n => (ICON_NAMES.includes(n) ? icon(n) : (n ?? ''));
 import { sfx } from './sfx.js';
 import { settings } from './settings.js';
 
@@ -16,14 +18,15 @@ export function createUI({ title, subtitle }) {
   // Barre du haut
   const top = h('div', 'topbar');
   top.innerHTML = `
-    <a class="btn round" href="index.html" title="Retour au hub" aria-label="Retour au hub">‹</a>
+    <a class="btn round" href="index.html" title="Retour au hub" aria-label="Retour au hub">${icon('back')}</a>
     <div class="title"><b>${title}</b><span>${subtitle || ''}</span></div>
     <div class="clock" hidden></div>
     <div class="spacer"></div>
     <div class="fps" hidden>-- fps</div>
-    <button class="btn round" data-act="help" title="Aide" aria-label="Aide">?</button>
-    <button class="btn round" data-act="fs" title="Plein écran" aria-label="Plein écran">⛶</button>
-    <button class="btn round accent" data-act="menu" title="Menu de test" aria-label="Menu de test">☰</button>`;
+    <button class="btn round" data-act="journal" title="Journal (J)" aria-label="Journal">${icon('journal')}</button>
+    <button class="btn round" data-act="help" title="Aide" aria-label="Aide">${icon('help')}</button>
+    <button class="btn round" data-act="fs" title="Plein écran" aria-label="Plein écran">${icon('fullscreen')}</button>
+    <button class="btn round accent" data-act="menu" title="Menu" aria-label="Menu">${icon('menu')}</button>`;
   root.append(top);
   const fpsEl = top.querySelector('.fps');
 
@@ -38,6 +41,7 @@ export function createUI({ title, subtitle }) {
   dice.innerHTML = `<div class="d100-card">
       <div class="d100-head"><b class="d100-label"></b><small class="d100-detail"></small></div>
       <div class="d100-target"></div>
+      <div class="d100-boost"><span>${icon('boost')} Boosts avant le jet</span><button data-bm>−</button><b class="bv">0</b><button data-bp>+</button><small class="bavail"></small></div>
       <div class="d100-main">
         <div class="d100-pads">
           <div class="pad-row"><span>Dizaines</span><div class="pad tens">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(t => `<button data-t="${t}">${t}0</button>`).join('')}</div></div>
@@ -45,7 +49,7 @@ export function createUI({ title, subtitle }) {
         </div>
         <div class="d100-show"><div class="d10 tens-die">?</div><div class="d10 units-die">?</div><div class="d100-total">—</div></div>
       </div>
-      <div class="d100-foot"><button class="btn ghost" data-virtual>🎲 Lancer pour moi</button><button class="btn accent" data-ok disabled>Valider</button></div>
+      <div class="d100-foot"><button class="btn ghost" data-virtual>${icon('dice')} Lancer pour moi</button><button class="btn accent" data-ok disabled>Valider</button></div>
       <div class="d100-res"></div>
     </div>`;
   root.append(dice);
@@ -100,6 +104,7 @@ export function createUI({ title, subtitle }) {
     if (act === 'menu') openMenu(!drawer.classList.contains('open'));
     if (act === 'help') help.classList.add('open');
     if (act === 'fs') toggleFullscreen();
+    if (act === 'journal') ui.openJournal();
   });
   help.addEventListener('click', e => { if (e.target === help || e.target.dataset.act === 'close-help') help.classList.remove('open'); });
 
@@ -123,7 +128,8 @@ export function createUI({ title, subtitle }) {
       party.innerHTML = '';
       for (const f of list) {
         const pips = f.max ? `<div class="hp">${Array.from({ length: f.max }, (_, i) => `<i class="${i < f.hp ? 'on' : ''}"></i>`).join('')}</div>` : '';
-        const b = h('button', 'portrait' + (f.ko ? ' ko' : '') + (f.turn ? ' turn' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? '<em>♞</em>' : ''}</div><span>${f.name}</span>${pips}`);
+        const boosts = f.boostMax ? `<div class="bst">${Array.from({ length: f.boostMax }, (_, i) => `<i class="${i < f.boost ? 'on' : ''}">${icon('boost')}</i>`).join('')}</div>` : '';
+        const b = h('button', 'portrait' + (f.ko ? ' ko' : '') + (f.turn ? ' turn' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? `<em>${icon('horse')}</em>` : ''}</div><span>${f.name}</span>${pips}${boosts}`);
         b.dataset.id = f.id; b.onclick = () => onPick(f.id); party.append(b);
         b.style.setProperty('--hc', f.color);
       }
@@ -132,39 +138,47 @@ export function createUI({ title, subtitle }) {
     setJournal(list, goal) {
       journalData = list;
       const act = list.filter(q => !q.done);
-      journal.innerHTML = `<b>Objectifs</b>${goal ? `<div class="q goal"><span>⚑ ${goal}</span></div>` : ''}${act.map(q => `<div class="q"><span>${q.title}</span><small>${q.hint}</small></div>`).join('') || '<div class="q"><span>—</span></div>'}`;
+      journal.innerHTML = `<b>Objectifs</b>${goal ? `<div class="q goal"><span>${icon('flag')} ${goal}</span></div>` : ''}${act.map(q => `<div class="q"><span>${q.title}</span><small>${q.hint}</small></div>`).join('') || '<div class="q"><span>—</span></div>'}`;
       journal.hidden = !list.length;
     },
     setInventory(items, onUse) {
       invData = items;
       inv.innerHTML = '';
       for (const it of items) {
-        const b = h('button', 'item' + (it.usable ? ' usable' : ''), `<span>${it.icon}</span>${it.n > 1 ? `<i>${it.n}</i>` : ''}`);
+        const b = h('button', 'item' + (it.usable ? ' usable' : ''), `<span>${ic(it.icon)}</span>${it.n > 1 ? `<i>${it.n}</i>` : ''}`);
         b.title = `${it.name} — ${it.desc}`; b.onclick = () => onUse(it.id); inv.append(b);
       }
     },
     openJournal() {
-      journalFull.innerHTML = `<div class="help-card"><h2>Journal</h2>${journalData.map(q => `<div class="jq ${q.done ? 'done' : ''}"><b>${q.done ? '✓' : '◆'} ${q.title}</b><span>${q.hint}</span></div>`).join('')}
-        <h2>Inventaire</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${i.icon} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b><span>${i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
+      journalFull.innerHTML = `<div class="help-card"><h2>Journal</h2>${journalData.map(q => `<div class="jq ${q.done ? 'done' : ''}"><b>${icon(q.done ? 'check' : 'flag')} ${q.title}</b><span>${q.hint}</span></div>`).join('')}
+        <h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b><span>${i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
         <button class="btn wide" data-close>Fermer</button></div>`;
       journalFull.classList.add('open');
     },
     setActions(list) {
       actions.innerHTML = '';
-      for (const a of list) { const b = h('button', 'act' + (a.disabled ? ' disabled' : '') + (a.primary ? ' primary' : '') + (a.pulse ? ' pulse' : ''), `<span>${a.icon}</span><small>${a.label}</small>`); if (!a.disabled) b.onclick = a.action; actions.append(b); }
+      for (const a of list) { const b = h('button', 'act' + (a.disabled ? ' disabled' : '') + (a.primary ? ' primary' : '') + (a.pulse ? ' pulse' : ''), `<span>${ic(a.icon)}</span><small>${a.label}</small>`); if (!a.disabled) b.onclick = a.action; actions.append(b); }
     },
     setBusy(v) { root.classList.toggle('busy', v); },
     /**
      * Jet D100 = dé des dizaines (00-90) + dé des unités (0-9) ; 00 + 0 = 100. Réussite si résultat ≤ chance.
      * Critique : ≤ chance / 5 · Maladresse : ≥ 96. Mode physique : le joueur saisit ses dés ; virtuel : tirage animé.
      */
-    rollD100({ chance, label, detail = '', color = '#c9a45c', enemy = false }) {
+    rollD100({ chance: base, label, detail = '', color = '#c9a45c', enemy = false, boosts = 0 }) {
       return new Promise(res => {
         const $ = q => dice.querySelector(q);
-        let t = null, u = null, done = false;
-        const crit = Math.max(1, Math.floor(chance / 5));
+        let t = null, u = null, done = false, spent = 0, chance = base, crit = 1;
         $('.d100-label').textContent = label; $('.d100-detail').textContent = detail;
-        $('.d100-target').innerHTML = `Réussite si <b>≤ ${chance}</b> <small>· critique ≤ ${crit} · maladresse ≥ 96</small>`;
+        dice.classList.toggle('noboost', !boosts);
+        const setTarget = () => {
+          chance = Math.min(95, base + spent * 10); crit = Math.max(1, Math.floor(chance / 5));
+          $('.d100-target').innerHTML = `Réussite si <b>≤ ${chance}</b>${spent ? ` <em>(+${spent * 10})</em>` : ''} <small>· critique ≤ ${crit} · maladresse ≥ 96</small>`;
+          $('.bv').textContent = spent; $('.bavail').textContent = `${boosts - spent} dispo`;
+          $('[data-bp]').disabled = spent >= boosts || t != null || chance >= 95; $('[data-bm]').disabled = spent <= 0 || t != null;
+        };
+        setTarget();
+        $('[data-bp]').onclick = e => { e.stopPropagation(); if (spent < boosts && t == null) { spent++; sfx.magic(); setTarget(); render(); } };
+        $('[data-bm]').onclick = e => { e.stopPropagation(); if (spent > 0 && t == null) { spent--; setTarget(); render(); } };
         dice.classList.toggle('enemy', enemy); dice.style.setProperty('--dc', color);
         dice.classList.toggle('virtual', settings.dice === 'virtual');
         $('.d100-res').innerHTML = ''; dice.classList.remove('resolved');
@@ -179,7 +193,7 @@ export function createUI({ title, subtitle }) {
         };
         const finish = () => {
           if (done) return; const v = value(); if (v == null) return; done = true; keyHandler = null;
-          const r = { roll: v, ok: v <= chance && v < 96, crit: v <= crit, fumble: v >= 96 };
+          const r = { roll: v, ok: v <= chance && v < 96, crit: v <= crit, fumble: v >= 96, spent };
           if (r.crit) r.ok = true;
           $('.d100-res').innerHTML = `<em class="${r.ok ? 'ok' : 'ko'}">${r.crit ? 'Réussite critique !' : r.fumble ? 'Maladresse !' : r.ok ? 'Réussite' : 'Échec'}</em>`;
           dice.classList.add('resolved'); sfx[r.ok ? 'success' : 'ui']();
@@ -188,7 +202,7 @@ export function createUI({ title, subtitle }) {
         dice.onclick = e => {
           if (done) return;
           const b = e.target.closest('button'); if (!b) return;
-          if (b.dataset.t != null) { t = +b.dataset.t; sfx.ui(); }
+          if (b.dataset.t != null) { t = +b.dataset.t; sfx.ui(); setTarget(); }
           else if (b.dataset.u != null) { u = +b.dataset.u; sfx.ui(); }
           else if (b.dataset.ok != null) return finish();
           else if (b.dataset.virtual != null) return virtualRoll();
@@ -209,7 +223,7 @@ export function createUI({ title, subtitle }) {
           else if (e.key.toLowerCase() === 'v') virtualRoll();
         };
         render(); dice.classList.add('open');
-        if (settings.dice === 'virtual') setTimeout(virtualRoll, 250);
+        if (settings.dice === 'virtual' && !boosts) setTimeout(virtualRoll, 250);
       });
     },
     floatText(pos, text, color = '#fff') {
@@ -217,21 +231,26 @@ export function createUI({ title, subtitle }) {
       const f = h('div', 'float', text); f.style.left = `${pos.x}px`; f.style.top = `${pos.y}px`; f.style.color = color;
       floats.append(f); setTimeout(() => f.remove(), 1400);
     },
-    endScreen({ title, subtitle, stats, onReplay }) {
-      end.innerHTML = `<div class="end-card"><h1>${title}</h1><h3>${subtitle}</h3><table>${stats.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
+    endScreen({ title, subtitle, stats, onReplay, xp = [] }) {
+      end.innerHTML = `<div class="end-card"><h1>${title}</h1><h3>${subtitle}</h3>
+        ${xp.length ? `<div class="xp-list">${xp.map(x => `<div class="xp" style="--c:${x.color}"><b>${x.name}</b><span>+${x.xp} XP</span><small>niv. ${x.level}${x.up ? ` <em>${icon('boost')} niveau supérieur !</em>` : ''}</small></div>`).join('')}</div>` : ''}
+        <table>${stats.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
         <div class="end-btns"><button class="btn accent" data-r>Rejouer</button><a class="btn" href="index.html">Autres moteurs</a></div></div>`;
       end.querySelector('[data-r]').onclick = onReplay; end.classList.add('open');
     },
     reloadPrompt() { reload.classList.add('open'); },
     /** HUD du tour : manche, héros actif, déplacement/action utilisés, piste du glas */
-    setTurnHUD({ round, hero, used, glas, glasMax, night }) {
+    setTurnHUD({ round, hero, used, glas, glasMax, night, boost = 0, boostMax = 5, order = [] }) {
       if (!hero) return;
       turnHud.hidden = false;
       turnHud.style.setProperty('--hc', hero.color);
+      const pip = (k, ic2, t) => `<i class="${used[k] ? 'used' : ''}" title="${t}">${icon(ic2)}</i>`;
       turnHud.innerHTML = `<div class="th-who"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
-        <div><b>${hero.name}</b><small>Manche ${round}${night ? ' · ☾' : ''}</small></div></div>
-        <div class="th-pips"><i class="${used.move ? 'used' : ''}" title="Déplacement">👣</i><i class="${used.action ? 'used' : ''}" title="Action">✋</i></div>
-        <div class="th-glas" title="Glas">${Array.from({ length: glasMax }, (_, i) => `<em class="${i < glas ? 'on' : ''}${i === glasMax - 1 ? ' last' : ''}"></em>`).join('')}<span>${glas}/${glasMax}</span></div>`;
+        <div><b>${hero.name}</b><small>Manche ${round} ${icon(night ? 'moon' : 'sun')}</small></div></div>
+        <div class="th-pips">${pip('move', 'move', 'Déplacement')}${pip('action', 'action', 'Action (lieu, PNJ, talent)')}${pip('attack', 'attack', 'Attaque')}</div>
+        <div class="th-boost" title="Boosts : +10 % par boost dépensé avant un jet">${icon('boost')}<b>${boost}</b><small>/${boostMax}</small></div>
+        <div class="th-glas" title="Glas">${icon('bell')}<span>${glas}/${glasMax}</span><div class="th-track">${Array.from({ length: glasMax }, (_, i) => `<em class="${i < glas ? 'on' : ''}"></em>`).join('')}</div></div>
+        ${order.length > 1 ? `<div class="th-order" title="Ordre de la manche">${order.map(o => o.dark ? `<span class="o dark ${o.done ? 'done' : ''}">${icon('skull')}</span>` : `<span class="o ${o.active ? 'act' : ''} ${o.done ? 'done' : ''}" style="--c:${o.color}">${o.name[0]}</span>`).join('')}</div>` : ''}`;
     },
     setGlas(glas, max, delta) { if (delta > 0) { turnHud.classList.remove('toll'); void turnHud.offsetWidth; turnHud.classList.add('toll'); } },
     /** Grand bandeau animé (nouvelle manche, tour d'un héros, phase des ténèbres) */
@@ -243,6 +262,29 @@ export function createUI({ title, subtitle }) {
         void banner.offsetWidth; banner.classList.add('show'); sfx.ui();
         const done = () => { banner.classList.remove('show'); banner.classList.add('hide'); setTimeout(res, 350); };
         const t = setTimeout(done, 1500); banner.onclick = () => { clearTimeout(t); done(); };
+      });
+    },
+    /** Consigne de mise en place pour la table physique (façon Destinies) */
+    setupPrompt({ title, items, note = '', mapView = null }) {
+      return new Promise(res => {
+        modal.innerHTML = `<div class="sp-card ${mapView ? 'with-map' : ''}"><div class="sp-head">${icon('map')}<h3>${title}</h3></div>
+          ${mapView ? `<div class="sp-map">${mapSVG(mapView)}<div class="sp-legend"><span class="lg new"></span> à poser <span class="lg old"></span> déjà sur la table <span class="lg here"></span> héros ${icon('flag')} N en haut</div></div>` : ''}
+          <div class="sp-list">${items.map(it => `<div class="sp-it">${it.portrait ? `<div class="pimg" style="--c:${it.portrait.color}">${figureSVG(it.portrait.kind, it.portrait.color, { portrait: true })}</div>` : `<span class="sp-ic">${ic(it.icon || 'map')}</span>`}
+            <div><b>${it.title}</b><small>${it.sub || ''}</small></div>${it.code ? `<em class="sp-code">${it.code}</em>` : ''}</div>`).join('')}</div>
+          ${note ? `<p class="muted">${note}</p>` : ''}<div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div>`;
+        modal.classList.add('open', 'setup'); sfx.ui();
+        const close = () => { modal.classList.remove('open', 'setup'); keyHandler = null; res(); };
+        modal.querySelector('[data-yes]').onclick = close;
+        keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      });
+    },
+    /** Carte d'action de monstre tirée (affichage bref) */
+    monsterCard({ title, card, desc, color = '#8a1c1c' }) {
+      return new Promise(res => {
+        const el = h('div', 'mcard', `<small>${title}</small><b>${card}</b><span>${desc}</span>`);
+        el.style.setProperty('--mc', color); root.append(el); sfx.ui();
+        requestAnimationFrame(() => el.classList.add('in'));
+        setTimeout(() => { el.classList.remove('in'); setTimeout(() => { el.remove(); res(); }, 300); }, 1700);
       });
     },
     /** Fenêtre de confirmation (parler, attaquer…) */
@@ -265,7 +307,7 @@ export function createUI({ title, subtitle }) {
         const render = () => {
           const acts = list().map(a => (doneHere.has(a.id) && !a.disabled ? { ...a, disabled: 'Déjà fait pendant cette interaction' } : a));
           modal.innerHTML = `<div class="lp-card"><div class="lp-head"><h3>${title}</h3><small>Interaction de ${hero.name} · faites tout ce qui est possible ici</small></div><p class="lp-desc">${desc || ''}</p>
-            <div class="lp-list">${acts.map((a, i) => `<button class="lp-act" data-i="${i}" ${a.disabled ? 'disabled' : ''}><span class="lp-ic">${a.icon}</span><span><b>${a.label}</b><small>${a.disabled || a.desc || ''}</small></span></button>`).join('') || '<p class="muted">Plus rien à faire ici.</p>'}</div>
+            <div class="lp-list">${acts.map((a, i) => `<button class="lp-act" data-i="${i}" ${a.disabled ? 'disabled' : ''}><span class="lp-ic">${ic(a.icon)}</span><span><b>${a.label}</b><small>${a.disabled || a.desc || ''}</small></span></button>`).join('') || '<p class="muted">Plus rien à faire ici.</p>'}</div>
             <div class="cm-btns"><button class="btn ${count ? 'accent' : ''}" data-close>${count ? 'Terminer l\'interaction' : 'Annuler'}</button></div></div>`;
           modal.querySelectorAll('[data-i]').forEach(b => b.onclick = async () => {
             if (busy) return; busy = true; modal.classList.add('running');
@@ -278,25 +320,46 @@ export function createUI({ title, subtitle }) {
         render(); modal.classList.add('open');
       });
     },
-    /** Choix de la compagnie (1 à 4 héros) et de la difficulté */
-    partySelect({ heroes, difficulties }) {
+    /** Montée de niveau : +5 % à une compétence ou un avantage de classe */
+    levelUp({ hero, skills, perks }) {
       return new Promise(res => {
-        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal';
+        modal.innerHTML = `<div class="lp-card lu-card" style="--c:${hero.color}"><div class="lu-head"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
+          <div><h3>${hero.name} — niveau supérieur !</h3><small>Choisissez 1 amélioration (définitive pour la campagne).</small></div></div>
+          <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
+          <h4>ou un avantage</h4><div class="lp-list">${perks.map(p2 => `<button class="lp-act" data-p="${p2.id}"><span class="lp-ic">${icon('boost')}</span><span><b>${p2.name}</b><small>${p2.desc}</small></span></button>`).join('')}</div></div>`;
+        modal.classList.add('open', 'wide');
+        modal.querySelectorAll('[data-k]').forEach(b2 => b2.onclick = () => { modal.classList.remove('open', 'wide'); sfx.success(); res({ skill: b2.dataset.k }); });
+        modal.querySelectorAll('[data-p]').forEach(b2 => b2.onclick = () => { modal.classList.remove('open', 'wide'); sfx.success(); res({ perk: b2.dataset.p }); });
+      });
+    },
+    /** Écran de campagne : étape, compagnie (1-4 héros), difficulté, ordre des tours */
+    partySelect({ steps, completed = [], heroes, glasBase, partyBonus, progress = {} }) {
+      return new Promise(res => {
+        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal', mode = 'fixed', step = steps[0].id;
         const render = () => {
-          modal.innerHTML = `<div class="ps-card"><h2>Composez votre compagnie</h2><p class="muted">Jeu coopératif : chaque joueur incarne un ou plusieurs héros. 1 à 4 héros.</p>
-            <div class="ps-list">${heroes.map(hh => `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
+          const n = sel.size, gmax = glasBase[diff] + (partyBonus[n] ?? 0);
+          modal.innerHTML = `<div class="ps-card">
+            <div class="ps-steps">${steps.map(s2 => `<button class="ps-step ${s2.id === step ? 'on' : ''} ${s2.soon ? 'soon' : ''} ${completed.includes(s2.id) ? 'done' : ''}" data-s="${s2.id}" ${s2.soon ? 'disabled' : ''}>
+              <small>${s2.num}</small><b>${s2.soon ? icon('lock') + ' ' : completed.includes(s2.id) ? icon('check') + ' ' : ''}${s2.title}</b>${s2.tag ? `<em>${s2.tag}</em>` : ''}</button>`).join('')}</div>
+            <h2>Composez votre compagnie</h2>
+            <div class="ps-list">${heroes.map(hh => { const pr = progress[hh.id]; return `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
-              <b>${hh.name}</b><small>${hh.role}</small>
-              <span class="ps-stats">PV ${hh.hp} · ${hh.combatName} ${hh.skills.combat} · Dépl. ${hh.move}</span>
-              <span class="ps-talent">${hh.talent}</span></button>`).join('')}</div>
-            <div class="ps-foot"><div class="segs">${Object.entries(difficulties).map(([k, v]) => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)} · ${v} glas</button>`).join('')}</div>
-            <button class="btn accent" data-go ${sel.size ? '' : 'disabled'}>Commencer (${sel.size} héros)</button></div></div>`;
-          modal.querySelectorAll('[data-h]').forEach(b => b.onclick = () => { const id = b.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
-          modal.querySelectorAll('[data-d]').forEach(b => b.onclick = () => { diff = b.dataset.d; render(); });
-          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open'); res({ party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff }); };
+              <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
+              <span class="ps-stats">${icon('heart')} ${hh.hp} · ${icon('attack')} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
+              <span class="ps-talent">${hh.talent}</span></button>`; }).join('')}</div>
+            <div class="ps-foot">
+              <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
+              <div class="segs">${[['fixed', 'Ordre fixe'], ['deck', 'Ordre aléatoire']].map(([k, l]) => `<button data-m="${k}" class="${k === mode ? 'on' : ''}">${l}</button>`).join('')}</div>
+              <span class="ps-sum">${icon('bell')} ${gmax} glas <small>(${n} héros : +${partyBonus[n] ?? 0})</small></span>
+              <button class="btn accent" data-go ${n ? '' : 'disabled'}>Commencer (${n} héros)</button></div></div>`;
+          modal.querySelectorAll('[data-h]').forEach(b2 => b2.onclick = () => { const id = b2.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
+          modal.querySelectorAll('[data-d]').forEach(b2 => b2.onclick = () => { diff = b2.dataset.d; render(); });
+          modal.querySelectorAll('[data-m]').forEach(b2 => b2.onclick = () => { mode = b2.dataset.m; render(); });
+          modal.querySelectorAll('[data-s]').forEach(b2 => b2.onclick = () => { step = b2.dataset.s; render(); });
+          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode }); };
         };
         render(); modal.classList.add('open', 'wide');
-      }).finally?.(() => modal.classList.remove('wide')) ?? null;
+      });
     },
     setActive(id) { for (const b of party.children) b.classList.toggle('active', b.dataset.id === id); },
     buildMenu(sections) {
@@ -365,6 +428,23 @@ export function createUI({ title, subtitle }) {
   };
   requestAnimationFrame(keyLoop);
   return ui;
+}
+
+/** Plan de la table : tuiles déjà posées (terrain + code), nouvelles tuiles en surbrillance, position des héros */
+function mapSVG({ cells, type }) {
+  const xs = cells.flatMap(c => [c.x - c.w / 2, c.x + c.w / 2]), zs = cells.flatMap(c => [c.z - c.h / 2, c.z + c.h / 2]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs), pad = 0.15;
+  const shape = c => {
+    if (type === 'hex') { const r = c.h / 2; return `<polygon points="${Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 2 + i * Math.PI / 3; return `${(c.x + Math.cos(a) * r * 0.97).toFixed(3)},${(c.z + Math.sin(a) * r * 0.97).toFixed(3)}`; }).join(' ')}"/>`; }
+    return `<rect x="${c.x - c.w * 0.48}" y="${c.z - c.h * 0.48}" width="${c.w * 0.96}" height="${c.h * 0.96}" rx="${c.w * 0.05}"/>`;
+  };
+  const fs = Math.min(cells[0].w, cells[0].h) * 0.26;
+  return `<svg viewBox="${x0 - pad} ${z0 - pad} ${x1 - x0 + pad * 2} ${z1 - z0 + pad * 2}" preserveAspectRatio="xMidYMid meet">
+    ${cells.map(c => `<g class="mc ${c.isNew ? 'new' : 'old'}" style="--t:${c.color}">${shape(c)}
+      <text x="${c.x}" y="${c.z + fs * 0.35}" font-size="${fs}">${c.code}</text>
+      ${c.place ? `<text class="pl" x="${c.x}" y="${c.z - c.h * 0.28}" font-size="${fs * 0.55}">${c.place}</text>` : ''}
+      ${c.hero ? `<circle cx="${c.x + c.w * 0.32}" cy="${c.z + c.h * 0.3}" r="${fs * 0.32}" class="hero"/>` : ''}</g>`).join('')}
+  </svg>`;
 }
 
 export function toggleFullscreen() {

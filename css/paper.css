@@ -71,3 +71,5 @@
 /* Plaque de nom (socle) */
 .pplate { position: absolute; left: 0; top: 10px; transform: translateX(-50%) translateZ(1px); white-space: nowrap; font: 600 9px 'Cinzel', Georgia, serif; color: #f2e2b8; background: #14100d; border: 1px solid var(--c); border-bottom-width: 2px; padding: 1px 6px; border-radius: 3px; pointer-events: none; }
 .pfig.faded .pplate { opacity: .3; }
+.ppoi .ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } .ppoi .ic .f { fill: currentColor; stroke: none; }
+.ptile.gone { visibility: hidden; pointer-events: none; }

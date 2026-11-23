@@ -11,45 +11,41 @@ Site 100 % statique, **PWA installable et jouable hors-ligne**, prêt pour Capac
 - Recommandé avant un déploiement (facultatif) : `python3 tools/build-sw.py` — met à jour la liste des fichiers disponibles hors-ligne et purge les anciens caches.
 - **Capacitor (plus tard)** : `webDir` = racine du dépôt, rien à builder.
 
-## Le scénario — Chapitre I « Le Glas de Saint-Ombre » (coopératif, 1 à 4 héros)
+## Principe : une application « MJ » pour un jeu de plateau physique
 
-**But commun : faire taire la cloche maudite avant le 12ᵉ glas** (14 en facile, 10 en difficile).
-Chaque fin de manche, la cloche sonne (+1 glas, +2 tant que le Sonneur vit). Au 5ᵉ glas le cimetière se vide, au 8ᵉ le charnier.
+Les joueurs ont les **vraies tuiles** (une grande illustration découpée), les **vraies figurines** et les **vrais dés**.
+L'app arbitre et raconte : elle dit quoi poser, gère PNJ, monstres, règles et campagne. Le plateau à l'écran reflète la table.
 
-Le **Rite de silence** exige 3 éléments, à trouver en parallèle (il faut se répartir) :
-1. **Psautier noir** — sacristie de la Chapelle Sainte-Brume, gardée par 2 pillards squelettes.
-2. **Huile de veille** — Maud la prépare avec l'**Herbe-de-lune**… que cueillait son petit-fils Tobie, encerclé par des renards à la Clairière des Pendus.
-3. **Clé du clocher** — le Passeur du marais : payer (pièce de la Souche creuse), convaincre (Tobie sauvé), intimider (Force) ou voler (Discrétion — en cas d'échec : +1 glas).
+- **Consignes de mise en place** (façon Destinies), regroupées : « Placez les tuiles F-03, P-06 » (emplacement surligné à l'écran, jeton d'intérêt sur les lieux) → OK → « Placez les figurines : Gaspard, Loup n°1, Loup n°2 » → OK. Désactivables (menu → Table physique).
+- **Tuiles numérotées** : lettre du terrain + numéro (V village, F forêt, P plaine, R rochers, M marais, U ruines, C calciné, N neige, X crypte).
+- **Monstres numérotés** (Loup 1, Loup 2…) : l'app suit les PV de chacun.
+- **Dés physiques D100** saisis à l'écran (dizaines + unités, 00+0 = 100). Option « virtuels ».
 
-Puis : Abbaye (2 gardes morts) → portail → **Clocher** → le Sonneur (boss) → **3 réussites de Savoir** au Rite (−15 % tant que le Sonneur vit).
-Lieux optionnels : Cimetière (indice), Charnier (soins ou réveil des morts), Cairn runique (−2 glas), Chapelle (prière : −1 glas + eau bénite), Auberge (soins).
+## Règles (v4)
 
-### Héros
-| Héros | Rôle | PV | Combat | Force | Savoir | Discrétion | Talent |
-|---|---|---|---|---|---|---|---|
-| Aldric | Chevalier | 10 | 65 | 55 | 35 | 30 | monte le destrier (déplacement 5) |
-| Ysolde | Mage | 7 | 70 (magie, portée 2) | 25 | 75 | 40 | Lueur : révèle les tuiles voisines |
-| Brann | Barbare | 12 | 60 (2 dégâts) | 80 | 25 | 25 | brute |
-| Sélène | Voleuse | 8 | 55 | 35 | 45 | 80 | déplacement 4 |
+- **Manche** : chaque héros joue, puis les **Ténèbres** (en fin de manche, ou à une position tirée au sort avec l'option *ordre aléatoire* façon Aeon's End).
+- **Tour d'un héros = 1 déplacement + 1 action + 1 attaque**, dans l'ordre voulu.
+  - Déplacement : 2 cases (Sélène 3, Aldric à cheval 4), sur les cases visibles. Chaque pas révèle les cases voisines.
+  - **Embuscade** : traverser une case occupée par un monstre (sans s'y arrêter) = il frappe au passage (+10 %), puis on continue. Sélène peut esquiver (Discrétion).
+  - Action : interagir avec le lieu (toutes ses activités), parler à un PNJ (confirmation), talent.
+  - Attaque : séparée de l'action (combat provisoire = 1 jet D100, à remplacer par votre système).
+- **Brouillard total** : seules les cases voisines des héros sont visibles (terrain, PNJ, monstres, lieux). Un PNJ peut révéler un lieu lointain ; une **zone entière** peut rester invisible tant qu'un PNJ ne l'a pas débloquée (le pont).
+- **Boosts ✦** : par héros, 5 max, +10 % chacun, **dépensés avant le jet**. +1 par manche ; gagnés/perdus par certaines actions (puits, pièges, prière, mauvaise réponse…).
+- **Monstres** : règle simple (avancer de 1, attaquer au contact) + **une carte d'action tirée par type de monstre** à chaque phase des Ténèbres (Charge, Meute, Torpeur, Double attaque, Soin…).
+- **Difficulté** : limite de glas = base (facile 13 / normal 11 / difficile 9) + bonus selon le nombre de héros (solo +3, duo +2, trio +1). PV des monstres +1 à 3-4 héros, −1 en solo ; certains monstres n'apparaissent qu'à partir de 2 ou 3 héros (façon Gloomhaven). Les compétences de base sont plus basses pour compenser la générosité des boosts.
+- **Questions des PNJ** : choix multiples avec pièges ; les réponses sont dans les dialogues précédents → **prenez des notes sur papier**.
 
-### Tour de jeu
-- **Manche** = chaque héros joue à son tour (bandeau animé « Au tour de… »), puis **Phase des ténèbres** (ennemis, glas, événements).
-- **Tour d'un héros = 1 déplacement + 1 action**, dans l'ordre voulu :
-  - Déplacement : jusqu'à 3 cases connues ; entrer dans une case inconnue la révèle et arrête le mouvement.
-  - Action (une seule) : **interagir avec le lieu** (on fait alors *tout* ce qui y est disponible), **parler à un PNJ** (confirmation demandée), **combattre** (placeholder D100, confirmation demandée) ou talent (Lueur).
-  - Actions libres : utiliser des herbes de soin, monter/descendre de cheval.
-- Héros tombé : revient à Grisval à la manche suivante, +1 glas. Défaite si tous tombent en même temps.
-- Dés **D100 physiques** saisis à l'écran (dizaines + unités), réussite si ≤ compétence.
+## Campagne
 
-### Durée de partie (estimations)
-| | Durée |
-|---|---|
-| Ancienne intro (v2, non coop) | ~20-30 min |
-| **Chapitre I coop — 2 héros** | **~40-55 min** (≈ 9-11 manches) |
-| 3 héros | ~55-75 min |
-| 4 héros | ~70-90 min |
+Prologue (tutoriel) + 5 étapes (à venir). Entre les étapes :
+- **XP** gagnée uniquement en fin d'étape : commune (victoire 30, +5 par quête) + perso (+4 par ennemi vaincu, +2 par critique). Défaite : la moitié, et on rejoue l'étape.
+- **Niveaux** (50, 120, 210, 320, 450 XP) : 1 point = +5 % à une compétence **ou** un avantage de classe (Rempart, Érudition, Brise-os, Assassin…).
+- **Mémoire de campagne** : choix et infos retenus pour les étapes suivantes (`g.memory('prologue.gardienAmi')`).
+- **Réputation cachée** auprès des PNJ (`g.rep('gaspard', +1)`), qui modifiera les dialogues futurs.
+- **Objets conservés** (marqués `keep`) d'une étape à l'autre.
 
-Base de calcul : ~1,5-2 min par tour de héros (déplacement, lecture, jet de dés) + ~10 min de narration/dialogues.
+## Prologue — « Le Pont de Brume » (tutoriel)
+Rallumer le fanal de la Tour du Guet avant le dernier glas. Couvre : dialogue à choix, quête révélant un lieu (Gaspard → tanière), activités de lieu, piège (boost ±), prière, embuscade au gué, gardien du pont avec question piège (le nom entendu chez Berthe), zone verrouillée, boss, victoire + XP.
 
 ## Les 4 moteurs
 

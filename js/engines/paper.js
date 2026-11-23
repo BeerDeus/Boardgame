@@ -4,6 +4,7 @@ import { squareGrid } from '../core/grid.js';
 import { TERRAINS, texUrl } from '../core/terrains.js';
 import { Gestures } from '../core/gestures.js';
 import { figureSVG, tileIconsSVG } from '../core/art.js';
+import { icon, ICON_NAMES } from '../core/icons.js';
 import { tween, ease, updateTweens, tweensActive, damp, dampAngle, nearestAngle, clamp, lerp, rng, hashStr, cancelTweens } from '../core/tween.js';
 import { settings } from '../core/settings.js';
 
@@ -70,18 +71,18 @@ export async function createEngine(container, { onProgress }) {
   const tiles = new Map(), figs = new Map(), occ = new Map();
   function addTile(data) {
     const c = grid.get(data.key), p = P(c.x, c.z), R = rng(hashStr(data.key));
-    const el = h('div', 'ptile' + (data.revealed ? '' : ' hidden'));
+    const el = h('div', 'ptile' + (data.revealed ? '' : ' hidden gone'));
     el.dataset.tile = data.key;
     el.style.transform = `translate3d(${p.x - TS / 2}px, ${p.y - TS / 2}px, 0)`;
     el.style.width = el.style.height = `${TS}px`;
     el.innerHTML = `<div class="pin"><div class="pface front" style="background-image:url('${texUrl(TERRAINS[data.terrain].tex)}')">${tileIconsSVG(data.terrain, R)}<div class="pname">${data.name}</div></div><div class="pface back"></div></div><div class="pov"></div>`;
-    if (data.poi) { const t = h('div', 'ppoi', data.poi.icon); t.dataset.poi = data.key; el.append(t); }
+    if (data.poi) { const t = h('div', 'ppoi', ICON_NAMES.includes(data.poi.icon) ? icon(data.poi.icon) : data.poi.icon); t.dataset.poi = data.key; el.append(t); }
     boardEl.append(el); tiles.set(data.key, { el, data, c, revealed: !!data.revealed });
   }
   async function revealTile(key, { focus = true } = {}) {
     const t = tiles.get(key); if (!t || t.revealed) return; t.revealed = true;
     if (focus) flyTo({ x: t.c.x * TS, y: t.c.z * TS, zoom: Math.max(G.zoom, 1.0) });
-    t.el.classList.add('flipping'); t.el.classList.remove('hidden');
+    t.el.classList.remove('gone'); t.el.classList.add('flipping'); t.el.classList.remove('hidden');
     await new Promise(r => setTimeout(r, 700)); t.el.classList.remove('flipping');
   }
   function highlight(reach, explore) {

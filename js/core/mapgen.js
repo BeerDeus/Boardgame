@@ -37,6 +37,12 @@ export function buildMap(grid, story, seed = 1) {
     const names = TERRAINS[t].names, Rk = rng(hashStr(c.key) + seed);
     tiles.set(c.key, { key: c.key, terrain: t, name: names[Math.floor(Rk() * names.length)], place: null, poi: null });
   }
+  // zones verrouillées : toutes les cases situées au-delà d'un lieu (ex. de l'autre côté du pont)
+  for (const z of story.zones || []) {
+    const bc = grid.get(placeKey[z.beyond]); if (!bc) continue;
+    const [bu] = uv(bc);
+    for (const c of grid.cells) if (uv(c)[0] > bu + 1e-6) tiles.get(c.key).zone = z.id;
+  }
   const start = placeKey[story.places.find(p => p.start).id];
   // sanity : tout est atteignable (aucune case infranchissable pour l'instant)
   const reach = bfs(grid, start, () => true).dist;

@@ -76,9 +76,8 @@ export async function createEngine(container, { onProgress }) {
             col.position.y = state ? 0 : hidden; fog.visible = !state; mesh.material = [side, state ? matFor(data.terrain) : fogTop, side];
             if (props) props.visible = state; return;
           }
-          mesh.material = [side, matFor(data.terrain), side];
+          mesh.material = [side, matFor(data.terrain), side]; fog.visible = false;
           if (props) { props.visible = true; props.scale.set(1, 0.01, 1); }
-          tween({ duration: 0.9, update: k => { fog.material.opacity = 0.55 * (1 - k); fog.scale.set(R * (3.2 + k * 2), R * (1.6 + k), 1); } }).then(() => (fog.visible = false));
           await tween({ duration: 0.75, ease: ease.outBack, update: k => (col.position.y = hidden * (1 - k)) });
           if (props) await tween({ duration: 0.35, ease: ease.outBack, update: k => props.scale.set(1, Math.max(0.01, k), 1) });
         },

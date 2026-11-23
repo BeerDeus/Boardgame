@@ -1,6 +1,7 @@
 // Textures : chargement + génération procédurale (dos de tuile, icônes, sprites).
 import * as THREE from 'three';
 import { TERRAINS, texUrl } from '../core/terrains.js';
+import { ICON_NAMES, iconDataUrl } from '../core/icons.js';
 
 const loader = new THREE.TextureLoader();
 const cache = new Map();
@@ -50,8 +51,11 @@ export function iconTexture(char, bg = '#1d1612', fg = '#e8c165') {
   const S = 128, [c, g] = canvas(S, S);
   g.fillStyle = bg; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 2, 0, Math.PI * 2); g.fill();
   g.strokeStyle = fg; g.lineWidth = 6; g.beginPath(); g.arc(S / 2, S / 2, S / 2 - 10, 0, Math.PI * 2); g.stroke();
-  g.fillStyle = fg; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(char, S / 2, S / 2 + 4);
-  const t = toTex(c); iconCache.set(k, t); return t;
+  const t = toTex(c); iconCache.set(k, t);
+  if (ICON_NAMES.includes(char)) {
+    const img = new Image(); img.onload = () => { g.drawImage(img, S * 0.22, S * 0.22, S * 0.56, S * 0.56); t.needsUpdate = true; }; img.src = iconDataUrl(char, fg, 2);
+  } else { g.fillStyle = fg; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(char, S / 2, S / 2 + 4); }
+  return t;
 }
 
 const radCache = new Map();

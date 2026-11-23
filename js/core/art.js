@@ -99,7 +99,7 @@ const BODIES = {
     <circle cx="86" cy="60" r="1.8" fill="${dark}"/>`,
 };
 
-const ALIAS = { barbarian: 'knight', skeleton: 'ghoul', skelwarrior: 'ghoul', skelrogue: 'ghoul', sonneur: 'monk' };
+const ALIAS = { hunter: 'knight', barbarian: 'knight', skeleton: 'ghoul', skelwarrior: 'ghoul', skelrogue: 'ghoul', sonneur: 'monk' };
 export const KIND_LABEL = { knight: 'Chevalier', mage: 'Mage', rogue: 'Voleuse', cleric: 'Prêtre', npc: 'PNJ', ghoul: 'Goule', wolf: 'Loup', fox: 'Renard', horse: 'Destrier', child: 'Enfant', ferryman: 'Passeur', monk: 'Moine' };
 const PORTRAIT_BOX = { knight: '24 8 52 52', mage: '22 4 56 56', rogue: '24 24 52 52', cleric: '24 24 52 52', npc: '18 28 52 52', ghoul: '6 42 50 50', wolf: '56 38 44 44', fox: '56 46 44 44', horse: '56 36 44 44', child: '28 44 44 44', ferryman: '24 26 52 52', monk: '22 24 56 56' };
 

@@ -8,6 +8,19 @@ import { iconTexture, ringTexture, radialTexture } from './textures.js';
 
 const V = () => new THREE.Vector3();
 
+function makeLabel(text, color) {
+  const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 512; c.height = 112;
+  g.font = '600 52px Cinzel, Georgia, serif'; const w = Math.min(496, g.measureText(text).width + 56);
+  const x = (512 - w) / 2;
+  g.fillStyle = 'rgba(14,10,8,0.88)'; g.beginPath(); g.roundRect(x, 14, w, 84, 20); g.fill();
+  g.strokeStyle = color; g.lineWidth = 7; g.stroke();
+  g.fillStyle = '#f4e6c0'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  sp.center.set(0.5, 1.15); sp.scale.set(0.42, 0.092, 1); sp.position.y = 0.02; sp.renderOrder = 10;
+  return sp;
+}
+
 export class Board3D {
   constructor(stage, grid, o) {
     this.s = stage; this.grid = grid;
@@ -46,12 +59,14 @@ export class Board3D {
       tok.userData.poiKey = data.key; tok.visible = t.revealed; t.poi = tok; this.root.add(tok);
     }
     t.reveal(false, t.revealed);
+    t.group.visible = t.revealed; // brouillard total : tuile invisible tant qu'elle n'est pas découverte
     return t;
   }
   async revealTile(key, { focus = true } = {}) {
     const t = this.tiles.get(key); if (!t || t.revealed) return;
     t.revealed = true;
     if (focus) this.s.rig.flyTo({ x: t.cell.x, z: t.cell.z, dist: Math.min(this.s.rig.goal.dist, this.o.focusDist * 1.3) }, 5);
+    t.group.visible = true; this.s.invalidate(4);
     await t.reveal(true, true);
     this.dust(new THREE.Vector3(t.cell.x, t.topY, t.cell.z), 8, this.grid.w * 0.5);
     if (t.poi) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
@@ -90,6 +105,8 @@ export class Board3D {
     f.rotation.y = (Math.random() - 0.5) * 0.6;
     this.arrange(key, data.id);
     f.userData.restIdle = data.idle || 'idle';
+    // étiquette de nom toujours lisible (sprite face caméra, sous le socle à l'écran)
+    const lab = makeLabel(data.name, data.base || data.color); lab.visible = this.labels !== false; f.add(lab); f.userData.label = lab;
     if (spawn) {
       const y0 = f.position.y; f.scale.setScalar(0.01);
       this.dust(f.position.clone(), 10, 0.5, 0x2a2420);
@@ -169,6 +186,7 @@ export class Board3D {
     tween({ duration: 0.25, update: k => tg.position.lerpVectors(kb, tp, k) });
     await tween({ duration: 0.25, ease: ease.outCubic, update: k => f.position.lerpVectors(reach, from, k) });
   }
+  setLabels(v) { this.labels = v; for (const f of this.figs.values()) if (f.userData.label) f.userData.label.visible = v; this.s.invalidate(); }
   setRingColor(hex) { this.ring.material.color.setHex(hex); }
   setSelected(id) {
     const f = id && this.figs.get(id);
@@ -250,7 +268,7 @@ export class Board3D {
   pickAt(x, y) {
     const objs = [];
     for (const f of this.figs.values()) objs.push(f.userData.hit);
-    for (const t of this.tiles.values()) { if (t.poi?.visible) objs.push(t.poi); objs.push(t.hit); }
+    for (const t of this.tiles.values()) { if (!t.revealed) continue; if (t.poi?.visible) objs.push(t.poi); objs.push(t.hit); }
     const h = this.s.pick(x, y, objs); if (!h) return null;
     let o = h.object; while (o && !o.userData.figureId && !o.userData.poiKey && !o.userData.tileKey) o = o.parent;
     if (!o) return null;

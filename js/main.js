@@ -23,7 +23,7 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
     const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l) });
     ui.progress(0.85, 'Portraits…');
     try {
-      const [{ createBaker }, { STORY }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./core/story.js'), import('./core/portraits.js')]);
+      const [{ createBaker }, { STORY }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./stories/prologue.js'), import('./core/portraits.js')]);
       const baker = await createBaker(128);
       const seen = new Set();
       for (const c of [...STORY.heroes, ...STORY.cast]) { if (seen.has(c.kind)) continue; seen.add(c.kind); setPortrait(c.kind, await baker.portrait(c)); }
