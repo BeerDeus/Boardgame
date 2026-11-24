@@ -34,13 +34,15 @@ export function loadCampaign() {
   try { return { completed: [], memory: {}, ...JSON.parse(localStorage.getItem(KEY)) }; } catch { return { completed: [], memory: {} }; }
 }
 export function saveCampaign(c) { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch {} }
-/** Fin d'étape : mémoire, XP (victoire complète, défaite = moitié), objets conservés */
+/** Fin d'étape : mémoire, XP (victoire seulement, une fois par héros et par étape), objets conservés */
 export function completeStep(id, { win, memory = {}, xp = {}, stash = {} }) {
   const c = loadCampaign();
   const gains = {};
   for (const [hid, n] of Object.entries(xp)) {
-    const p = heroProgress(c, hid), before = levelOf(p.xp), got = win ? n : Math.floor(n / 2);
-    p.xp += got; gains[hid] = { xp: got, total: p.xp, level: levelOf(p.xp), up: levelOf(p.xp) - before };
+    const p = heroProgress(c, hid), before = levelOf(p.xp), already = p.won.includes(id);
+    const got = win && !already ? n : 0;
+    if (win && !already) p.won.push(id);
+    p.xp += got; gains[hid] = { xp: got, total: p.xp, level: levelOf(p.xp), up: levelOf(p.xp) - before, why: !win ? 'defeat' : already ? 'already' : null };
   }
   if (win) {
     if (!c.completed.includes(id)) c.completed.push(id);
@@ -83,7 +85,9 @@ export const PERKS = {
     { id: 'esquive', name: 'Esquive', desc: '+10 armure', fx: { armor: 10 } },
   ],
 };
-export function heroProgress(c, id) { c.heroes ||= {}; return (c.heroes[id] ||= { xp: 0, spent: 0, perks: [], skills: {} }); }
+export function heroProgress(c, id) { c.heroes ||= {}; const p = (c.heroes[id] ||= { xp: 0, spent: 0, perks: [], skills: {} }); p.won ||= []; return p; }
+/** Le héros a déjà gagné cette étape : la rejouer ne rapporte plus d'XP */
+export const heroWon = (c, hid, stepId) => !!c.heroes?.[hid]?.won?.includes(stepId);
 export const pointsAvailable = p => levelOf(p.xp) - 1 - p.spent;
 
 /** Applique la progression de campagne à une fiche de héros (copie) */

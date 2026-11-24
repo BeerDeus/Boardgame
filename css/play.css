@@ -469,3 +469,4 @@ body.narrating #viewport { visibility: hidden; }
   .sp-it b { font-size: 12.5px; } .sp-it small { font-size: 11px; } .sp-code { font-size: 13px; padding: 1px 6px; }
   .sp-head h3 { font-size: 15px; } .sp-card .cm-btns .btn { padding: 5px 12px; }
 }
+.xp.none span { color: var(--muted); }

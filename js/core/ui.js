@@ -236,7 +236,7 @@ export function createUI({ title, subtitle }) {
     },
     endScreen({ title, subtitle, stats, onReplay, xp = [] }) {
       end.innerHTML = `<div class="end-card"><h1>${title}</h1><h3>${subtitle}</h3>
-        ${xp.length ? `<div class="xp-list">${xp.map(x => `<div class="xp" style="--c:${x.color}"><b>${x.name}</b><span>+${x.xp} XP</span><small>niv. ${x.level}${x.up ? ` <em>${icon('boost')} niveau supérieur !</em>` : ''}</small></div>`).join('')}</div>` : ''}
+        ${xp.length ? `<div class="xp-list">${xp.map(x => `<div class="xp ${x.xp ? '' : 'none'}" style="--c:${x.color}"><b>${x.name}</b><span>${x.xp ? `+${x.xp} XP` : 'Pas d\'XP'}</span><small>${x.why === 'defeat' ? 'défaite' : x.why === 'already' ? 'étape déjà gagnée' : x.why === 'test' ? 'test (non enregistré)' : ''}${x.why ? ' · ' : ''}niv. ${x.level}${x.up ? ` <em>${icon('boost')} niveau supérieur !</em>` : ''}</small></div>`).join('')}</div>` : ''}
         <table>${stats.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
         <div class="end-btns"><button class="btn accent" data-r>Rejouer</button><a class="btn" href="index.html">Autres moteurs</a></div></div>`;
       end.querySelector('[data-r]').onclick = onReplay; end.classList.add('open');
@@ -402,7 +402,7 @@ export function createUI({ title, subtitle }) {
               <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
               <span class="ps-stats">${icon('heart')} ${hh.hp} PV · ${statBadge('combat', 15)} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
               <span class="ps-attrs">${Object.keys(STATS).map(k => statChip(k, hh.skills[k] ?? '—', 16)).join('')}</span>
-              <span class="ps-talent">${hh.talent}</span></button>`; }).join('')}</div>
+              <span class="ps-talent">${hh.talent}</span>${pr?.won?.includes(step) ? '<em class="ps-xpnote">Étape déjà gagnée : plus d\'XP</em>' : ''}</button>`; }).join('')}</div>
             <div class="ps-foot">
               <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
               <div class="segs">${[['fixed', 'Ordre fixe'], ['deck', 'Ordre aléatoire']].map(([k, l]) => `<button data-m="${k}" class="${k === mode ? 'on' : ''}">${l}</button>`).join('')}</div>

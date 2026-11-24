@@ -52,7 +52,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         p.spent++; saveCampaign(campaign);
       }
     }
-    const pick = await ui.partySelect({ tips: settings.tips,  steps: STEPS, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => [h.id, { level: levelOf(heroProgress(campaign, h.id).xp) }])) });
+    const pick = await ui.partySelect({ tips: settings.tips,  steps: STEPS, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => { const p = heroProgress(campaign, h.id); return [h.id, { level: levelOf(p.xp), won: draft ? [] : [...p.won] }]; })) });
     dialogue.cover?.(); // écran noir jusqu'à l'introduction (pas de plateau entre-temps)
     st = (await STEPS.find(s => s.id === pick.step).load()).STORY;
     if (pick.tips != null) settings.set({ tips: pick.tips });
@@ -715,12 +715,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   // ------------------------------------------------------------------ fin
   async function finish(win) {
     if (S.ended) return; S.ended = true; save();
-    // XP de fin d'étape : commune (victoire + quêtes) + bonus perso (ennemis, critiques). Défaite : moitié.
+    // XP de fin d'étape (victoire seulement) : commune (victoire + quêtes) + bonus perso (ennemis, critiques).
+    // Défaite : aucune XP. Étape déjà gagnée par ce héros : aucune XP non plus.
     const quests = Object.values(S.quests).filter(q => q === 'done').length;
     const common = (win ? 30 : 10) + 5 * quests;
     const xp = Object.fromEntries(S.party.map(id => [id, common + 4 * (S.hstats[id]?.kills || 0) + 2 * (S.hstats[id]?.crits || 0) + (S.bonusXp?.[id] || 0)]));
     const stash = Object.fromEntries(Object.entries(S.inv).filter(([k, n]) => n > 0 && st.items[k]?.keep));
-    const gains = draft ? Object.fromEntries(S.party.map(id => [id, { xp: xp[id], level: levelOf(heroProgress(campaign, id).xp), up: 0 }])) // test : rien n'est enregistré
+    const gains = draft ? Object.fromEntries(S.party.map(id => [id, { xp: win ? xp[id] : 0, level: levelOf(heroProgress(campaign, id).xp), up: 0, why: win ? 'test' : 'defeat' }])) // test : rien n'est enregistré
       : completeStep(S.step, { win, memory: { ...(st.remember?.(g) || {}), ...S.memoryOut }, xp, stash });
     await sleep(700);
     if (win) { sfx.bell(); for (const h of heroes()) engine.animate?.(h.id, 'cheer'); await sleep(1200); }
