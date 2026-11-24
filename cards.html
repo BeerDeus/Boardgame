@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grimoire · Cartes d'objets</title>
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/fonts.css">
+  <style>
+    :root { --gold: #c9a45c; --gold-hi: #f2d58a; --text: #eadcbc; --muted: #a8977a; }
+    body { margin: 0; background: #0b0908; color: var(--text); font-family: 'EB Garamond', Georgia, serif; }
+    header { padding: 14px 20px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border-bottom: 1px solid #3a2e22; }
+    h1 { font-family: Cinzel, Georgia, serif; font-weight: 500; color: var(--gold-hi); margin: 0; font-size: 22px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; flex: 1 1 300px; }
+    button, a.btn { font: 15px Cinzel, Georgia, serif; color: var(--gold-hi); background: #2a1a10; border: 1px solid var(--gold); border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; }
+    h2 { font-family: Cinzel, Georgia, serif; font-weight: 500; color: var(--gold); margin: 18px 20px 6px; font-size: 16px; }
+    .sheet { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 20px 30px; }
+    .c { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .c svg { width: 189px; height: 264px; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
+    .c small { color: var(--muted); font-size: 12px; }
+    .c button { font-size: 12px; padding: 3px 8px; }
+    @media print {
+      @page { size: A4; margin: 8mm; }
+      body { background: #fff; } header, h2, .c small, .c button { display: none; }
+      .sheet { gap: 0; padding: 0; } .c svg { width: 63mm; height: 88mm; filter: none; outline: .2mm dashed #999; }
+      .c { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cartes d'objets</h1>
+    <p>Format poker 63 × 88 mm. Imprimez en A4 à 100 % (9 cartes par page), puis le verso au dos. Chaque carte peut aussi être téléchargée en SVG.</p>
+    <button id="print">🖨 Imprimer</button><a class="btn" href="index.html">‹ Accueil</a>
+  </header>
+  <div id="out"></div>
+  <script type="module">
+    import { itemCardSVG, cardBackSVG } from './js/core/cards.js';
+    import { campaignLevels } from './js/core/campaign.js';
+    const out = document.getElementById('out');
+    const dl = (name, svg) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); a.download = name; a.click(); };
+    const card = (svg, label, file) => { const c = document.createElement('div'); c.className = 'c'; c.innerHTML = `${svg}<small>${label}</small>`; const b = document.createElement('button'); b.textContent = '⬇ SVG'; b.onclick = () => dl(file, svg); c.append(b); return c; };
+    const seen = new Set();
+    for (const url of await campaignLevels()) {
+      let d; try { d = await (await fetch(url)).json(); } catch { continue; }
+      const items = Object.entries(d.items || {}).filter(([, it]) => !seen.has(it.code || it.name)).sort((a, b) => String(a[1].code).localeCompare(String(b[1].code)));
+      if (!items.length) continue;
+      out.insertAdjacentHTML('beforeend', `<h2>${d.title || d.id}</h2>`);
+      const sheet = document.createElement('div'); sheet.className = 'sheet'; out.append(sheet);
+      for (const [id, it] of items) { seen.add(it.code || it.name); const svg = itemCardSVG(it); sheet.append(card(svg, `${it.code || '?'} · ${it.name}`, `${it.code || id}.svg`)); }
+    }
+    out.insertAdjacentHTML('beforeend', '<h2>Verso commun</h2>');
+    const back = document.createElement('div'); back.className = 'sheet'; out.append(back);
+    back.append(card(cardBackSVG(), 'Verso (toutes les cartes)', 'verso-objet.svg'));
+    document.getElementById('print').onclick = () => print();
+  </script>
+</body>
+</html>

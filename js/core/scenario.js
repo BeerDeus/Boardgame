@@ -105,6 +105,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   const revealed = new Set(S.revealed);
   const save = () => { S.revealed = [...revealed]; S.explored = [...explored]; S.savedAt = Date.now(); try { localStorage.setItem(saveKey, JSON.stringify(S)); } catch {} };
   const R = { reach: new Map(), busy: false, marks: new Set(), setupTiles: [], setupFigs: [], setupTokens: [] };
+  S.log ||= []; ui.setEvents?.(S.log);
+  ui.onEvent = e => { S.log.push(e); if (S.log.length > 60) S.log.shift(); };
 
   // ------------------------------------------------------------------ plateau
   const poiFor = t => { if (!t.poi || !t.place) return null; const acts = placeDef(t.place).activities || []; return acts.some(a => !(a.once && S.done.includes(a.id))) ? t.poi : null; };
@@ -236,12 +238,14 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     async defeat() { await finish(false); },
     choose: o => ui.choose(o),
     has: k => (S.inv[k] || 0) > 0,
-    give(k, n = 1) { S.inv[k] = (S.inv[k] || 0) + n; ui.toast(`Obtenu : <b>${st.items[k].name}</b>${n > 1 ? ' ×' + n : ''}`, 2600); sfx.success(); refreshHUD(); },
-    take(k) { S.inv[k] = Math.max(0, (S.inv[k] || 0) - 1); refreshHUD(); },
+    /** Objet obtenu : la carte physique est prise dans la pioche d'objets */
+    async give(k, n = 1) { if (!st.items[k]) return; S.inv[k] = (S.inv[k] || 0) + n; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'take', n }); },
+    /** Objet utilisé ou perdu : la carte est défaussée */
+    async take(k) { if (!(S.inv[k] > 0)) return; S.inv[k]--; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'discard' }); },
     questActive: id => S.quests[id] === 'active',
     questDoneQ: id => S.quests[id] === 'done',
-    questStart(id) { if (S.quests[id]) return; S.quests[id] = 'active'; ui.toast(`Nouvel objectif : <b>${st.quests[id].title}</b>`, 2800); sfx.ui(); refreshHUD(); },
-    questDone(id) { if (S.quests[id] === 'done') return; S.quests[id] = 'done'; ui.toast(`✓ <b>${st.quests[id].title}</b>`, 2400); sfx.success(); refreshHUD(); },
+    async questStart(id) { if (S.quests[id] || !st.quests[id]) return; S.quests[id] = 'active'; refreshHUD(); save(); await ui.notice({ kind: 'quest', title: st.quests[id].title, text: st.quests[id].hint }); },
+    async questDone(id) { if (S.quests[id] === 'done' || !st.quests[id]) return; S.quests[id] = 'done'; refreshHUD(); save(); await ui.notice({ kind: 'quest-done', title: st.quests[id].title }); },
     toast: (m, ms) => ui.toast(m, ms),
     narrate: o => dialogue.narrate(o),
     bell() { sfx.bell(); engine.shake?.(0.03); },
@@ -335,7 +339,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
 
   // ------------------------------------------------------------------ manches & tours
   async function startRound() {
-    S.round++;
+    S.round++; ui.round = S.round;
     for (const id of S.ko) { const f = S.figs[id]; Object.assign(f, { alive: true, hp: def(id).hp, tile: map.start }); await engine.addFigure(figData(id), map.start, { spawn: true }); ui.toast(`${def(id).name} revient au hameau.`); }
     S.ko = [];
     if (S.round > 1) for (const h of heroes()) S.boost[h.id] = Math.min(boostMaxOf(h.id), (S.boost[h.id] || 0) + st.boost.perRound);
@@ -535,12 +539,12 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     const it = st.items[item];
     if (it.use) { // effets définis dans l'éditeur
       if (it.useCond && !evalCond(it.useCond, g)) { ui.toast(`<b>${it.name}</b> — ${it.useNeed || 'pas maintenant.'}`); return; }
-      return act(async () => { await it.use(g); if (it.consume !== false) g.take(item); save(); });
+      return act(async () => { await it.use(g); if (it.consume !== false) await g.take(item); save(); });
     }
     if (item !== 'herbes') { ui.toast(`<b>${it.name}</b> — ${it.desc}`, 3200); return; }
     const id = active(), f = S.figs[id], h = def(id);
     if (!f?.alive || f.hp >= h.hp) { ui.toast(`${h.name} n'a pas besoin de soins.`); return; }
-    g.take('herbes'); f.hp = Math.min(h.hp, f.hp + 3); ui.floatText(engine.screenPos(id), '+3', '#8fe07a'); sfx.magic(); refreshHUD(); save();
+    act(() => g.take('herbes')); f.hp = Math.min(h.hp, f.hp + 3); ui.floatText(engine.screenPos(id), '+3', '#8fe07a'); sfx.magic(); refreshHUD(); save();
   }
 
   // ------------------------------------------------------------------ combat (provisoire : un jet D100)
@@ -821,10 +825,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     R.setupTiles.push(...first); R.setupFigs.push(...Object.keys(S.figs));
     if (poiFor(tileOf(map.start))) R.setupTokens.push(map.start);
     await flushSetup();
-    g.questStart(Object.keys(st.quests)[0]);
+    await g.questStart(Object.keys(st.quests)[0]);
     await startRound();
   } else {
-    ui.toast(`Partie reprise · Manche ${S.round}`, 2200);
+    ui.round = S.round; ui.toast(`Partie reprise · Manche ${S.round}`, 2200);
     const h = activeDef(); engine.setRingColor?.(parseInt(h.color.slice(1), 16)); select(h.id); engine.focusFigure(h.id); refreshHUD();
     if (resetup) await fullSetup();
   }

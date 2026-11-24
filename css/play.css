@@ -104,7 +104,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .n-card p { font-size: clamp(17px, 3.2vh, 22px); line-height: 1.5; margin: 0 0 16px; min-height: 5em; }
 
 /* Aide */
-.help-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.55); }
+.help-overlay { position: absolute; inset: 0; z-index: 33; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.55); }
 .help-overlay.open { display: flex; }
 .help-card { width: min(680px, 90vw); max-height: 90vh; overflow: auto; background: var(--panel-solid); border: 1px solid var(--gold); border-radius: 14px; padding: 14px 20px; }
 .help-card h2 { font-family: var(--head); color: var(--gold-hi); margin: 0 0 10px; font-weight: 500; }
@@ -470,3 +470,30 @@ body.narrating #viewport { visibility: hidden; }
   .sp-head h3 { font-size: 15px; } .sp-card .cm-btns .btn { padding: 5px 12px; }
 }
 .xp.none span { color: var(--muted); }
+/* Carte d'objet à prendre / défausser */
+.cmodal.cardm { background: rgba(0,0,0,.35); z-index: 45; }
+.cp-card { display: flex; gap: 16px; align-items: center; width: min(640px, 80vw); max-height: 80vh; max-height: 80dvh; background: linear-gradient(180deg, #1d1510, #0d0907); border: 1px solid var(--gold); border-radius: 14px; padding: 12px 16px; box-shadow: 0 16px 50px rgba(0,0,0,.8); animation: pop .25s; }
+.cp-card.discard { border-color: #b05a4a; }
+.cp-img { flex: none; height: min(56vh, 300px); aspect-ratio: 63 / 88; animation: cardin .5s cubic-bezier(.2,.9,.3,1.2); }
+.cp-card.discard .cp-img { filter: grayscale(.5) brightness(.85); }
+.cp-img svg { display: block; filter: drop-shadow(0 8px 18px rgba(0,0,0,.7)); }
+@keyframes cardin { from { transform: translateY(30px) rotate(-8deg) scale(.8); opacity: 0; } }
+.cp-body { min-width: 0; overflow: auto; max-height: 100%; }
+.cp-body small { color: #9ccbff; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-family: var(--head); }
+.cp-card.discard .cp-body small { color: #ff9a7a; }
+.cp-body h3 { margin: 2px 0 6px; font-family: var(--head); font-weight: 500; color: var(--gold-hi); display: flex; gap: 6px; align-items: center; }
+.cp-body p { margin: 0 0 8px; font-size: 16px; line-height: 1.35; } .cp-eff { color: var(--muted); font-style: italic; }
+@media (max-height: 480px) { .cp-img { height: min(62vh, 230px); } .cp-body p { font-size: 14px; } }
+@media (max-width: 520px) { .cp-card { flex-direction: column; } .cp-img { height: 34vh; } }
+/* Notification à valider (quêtes) */
+.nt-card { display: flex; gap: 12px; width: min(480px, 80vw); background: linear-gradient(180deg, #241a10, #0d0907); border: 1px solid var(--gold); border-radius: 14px; padding: 12px 16px; box-shadow: 0 16px 50px rgba(0,0,0,.8); animation: pop .25s; }
+.nt-card.done { border-color: #8fc46a; }
+.nt-ic { color: var(--gold-hi); } .nt-card.done .nt-ic { color: #8fc46a; } .nt-ic .ic { width: 34px; height: 34px; }
+.nt-card small { color: var(--gold); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-family: var(--head); } .nt-card.done small { color: #8fc46a; }
+.nt-card h3 { margin: 2px 0 4px; font-family: var(--head); font-weight: 500; color: var(--gold-hi); } .nt-card p { margin: 0 0 10px; color: var(--muted); }
+/* Journal : derniers événements */
+.jcode { font-style: normal; font: 600 12px var(--head); color: #9ccbff; }
+.ev-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.ev-r { font: 500 11px var(--head); color: var(--gold); text-transform: uppercase; letter-spacing: .1em; margin-top: 6px; }
+.ev { font-size: 14px; color: var(--text); padding: 2px 0 2px 8px; border-left: 2px solid var(--line); }
+.ev.k-item { border-left-color: #6fb3ff; } .ev.k-quest { border-left-color: var(--gold); } .ev.k-done { border-left-color: #8fc46a; } .ev.k-lost { border-left-color: #b05a4a; }

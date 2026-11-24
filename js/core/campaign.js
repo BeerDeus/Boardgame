@@ -7,7 +7,7 @@ const KEY = 'grimoire.campaign.v1';
 export const CAMPAIGN = {
   title: 'Les Chroniques de Brumeval',
   steps: [
-    { id: 'prologue', num: 'Prologue', title: 'Le Pont de Brume', tag: 'Tutoriel', load: () => loadLevel('levels/prologue.json') },
+    { id: 'prologue', num: 'Prologue', title: 'Le Pont de Brume', tag: 'Tutoriel', url: 'levels/prologue.json', load: () => loadLevel('levels/prologue.json') },
     { id: 'e1', num: 'Étape I', title: 'À venir', soon: true },
     { id: 'e2', num: 'Étape II', title: 'À venir', soon: true },
     { id: 'e3', num: 'Étape III', title: 'À venir', soon: true },
@@ -16,6 +16,8 @@ export const CAMPAIGN = {
   ],
 };
 
+/** Fichiers de niveaux de la campagne (planche des cartes…) */
+export async function campaignLevels() { return CAMPAIGN.steps.filter(s => s.url).map(s => s.url); }
 /** Charge un niveau JSON (format de l'éditeur) → { STORY } */
 const levelCache = new Map();
 export function loadLevel(url) {

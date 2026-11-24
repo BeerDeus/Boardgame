@@ -5,6 +5,7 @@ import { figureSVG } from './art.js';
 import { icon, ICON_NAMES } from './icons.js';
 const ic = n => (ICON_NAMES.includes(n) ? icon(n) : (n ?? ''));
 import { sfx } from './sfx.js';
+import { itemCardSVG } from './cards.js';
 import { settings } from './settings.js';
 
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -64,7 +65,9 @@ export function createUI({ title, subtitle }) {
   const banner = h('div', 'turn-banner'); root.append(banner);
   const modal = h('div', 'cmodal'); root.append(modal);
   journalFull.addEventListener('click', e => { if (e.target === journalFull || e.target.dataset.close != null) journalFull.classList.remove('open'); });
-  let journalData = [], invData = [];
+  let journalData = [], invData = [], events = [];
+  /** Fil des derniers événements (journal) */
+  const logEvent = (msg, kind = '') => { const e = { t: String(msg), k: kind, r: ui.round ?? 0 }; events.push(e); if (events.length > 60) events.shift(); ui.onEvent?.(e); };
 
   // Toasts
   const toasts = h('div', 'toasts'); root.append(toasts);
@@ -115,7 +118,9 @@ export function createUI({ title, subtitle }) {
     progress(p, label) { loader.querySelector('.bar i').style.width = `${Math.round(p * 100)}%`; if (label) loader.querySelector('.loader-label').textContent = label; },
     loaded() { loader.classList.add('done'); setTimeout(() => loader.remove(), 600); },
     error(msg) { loader.querySelector('.loader-label').innerHTML = `<span class="err">${msg}</span>`; },
-    toast(msg, ms = 2200) {
+    toast(msg, ms = 5500) {
+      ms = Math.max(5000, Math.min(6000, ms)); // les messages restent lisibles 5-6 s
+      logEvent(msg);
       const t = h('div', 'toast', msg); toasts.append(t);
       requestAnimationFrame(() => t.classList.add('in'));
       setTimeout(() => { t.classList.remove('in'); setTimeout(() => t.remove(), 300); }, ms);
@@ -152,9 +157,14 @@ export function createUI({ title, subtitle }) {
         b.title = `${it.name} — ${it.desc}`; b.onclick = () => onUse(it.id); inv.append(b);
       }
     },
+    /** Restaure le fil des événements (partie reprise) */
+    setEvents(list) { events = [...(list || [])]; },
     openJournal() {
+      let lastR = null;
+      const evHtml = events.slice().reverse().slice(0, 40).map(e => { const head = e.r !== lastR ? `<div class="ev-r">Manche ${e.r || 0}</div>` : ''; lastR = e.r; return `${head}<div class="ev ${(e.k || '').split(' ').filter(Boolean).map(x => 'k-' + x).join(' ')}">${e.t}</div>`; }).join('');
       journalFull.innerHTML = `<div class="help-card"><h2>Journal</h2>${journalData.map(q => `<div class="jq ${q.done ? 'done' : ''}"><b>${icon(q.done ? 'check' : 'flag')} ${q.title}</b><span>${q.hint}</span></div>`).join('')}
-        <h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b><span>${i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
+        <h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b>${i.code ? `<em class="jcode">${i.code}</em>` : ''}<span>${i.effect || i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
+        <h2>Derniers événements</h2><div class="ev-list">${evHtml || '<p class="muted">Rien pour l\'instant.</p>'}</div>
         <button class="btn wide" data-close>Fermer</button></div>`;
       journalFull.classList.add('open');
     },
@@ -277,6 +287,37 @@ export function createUI({ title, subtitle }) {
           ${note ? `<p class="muted">${note}</p>` : ''}<div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div>`;
         modal.classList.add('open', 'setup'); sfx.ui();
         const close = () => { modal.classList.remove('open', 'setup'); keyHandler = null; res(); };
+        modal.querySelector('[data-yes]').onclick = close;
+        keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      });
+    },
+    /** Carte d'objet physique : « Prenez la carte » (take) ou « Défaussez la carte » (discard) */
+    cardPrompt({ item, mode = 'take', n = 1, note = '' }) {
+      return new Promise(res => {
+        const take = mode === 'take', code = item.code || '';
+        const title = take ? (n > 1 ? `Prenez ${n} cartes` : 'Prenez la carte') : 'Défaussez la carte';
+        const text = take ? `Prenez la carte <b>${code ? code + ' · ' : ''}${item.name}</b>${n > 1 ? ` (×${n})` : ''} dans la pioche d'objets et posez-la dans la besace commune.`
+          : `Remettez la carte <b>${code ? code + ' · ' : ''}${item.name}</b> dans la boîte.`;
+        logEvent(`${take ? 'Objet obtenu' : 'Objet défaussé'} : <b>${item.name}</b>${n > 1 ? ' ×' + n : ''}`, take ? 'item' : 'item lost');
+        modal.innerHTML = `<div class="cp-card ${take ? 'take' : 'discard'}"><div class="cp-img">${itemCardSVG(item, { width: '100%', height: '100%', cls: 'item-card' })}</div>
+          <div class="cp-body"><small>${take ? 'Nouvel objet' : 'Objet utilisé ou perdu'}</small><h3>${icon(take ? 'check' : 'close')} ${title}</h3><p>${text}</p>
+          <p class="cp-eff">${item.effect || item.desc || ''}</p>${note ? `<p class="muted">${note}</p>` : ''}
+          <div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div></div>`;
+        modal.classList.add('open', 'cardm'); take ? sfx.success() : sfx.ui();
+        const close = () => { modal.classList.remove('open', 'cardm'); keyHandler = null; res(); };
+        modal.querySelector('[data-yes]').onclick = close;
+        keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      });
+    },
+    /** Notification à valider (quête nouvelle / terminée…) */
+    notice({ kind = 'quest', title, text = '', sub = '' }) {
+      return new Promise(res => {
+        const done = kind === 'quest-done';
+        logEvent(`${done ? 'Quête terminée' : 'Nouvelle quête'} : <b>${title}</b>`, done ? 'quest done' : 'quest');
+        modal.innerHTML = `<div class="nt-card ${done ? 'done' : ''}"><div class="nt-ic">${icon(done ? 'check' : 'flag')}</div><div><small>${sub || (done ? 'Quête terminée' : 'Nouvelle quête')}</small><h3>${title}</h3>${text ? `<p>${text}</p>` : ''}
+          <div class="cm-btns"><button class="btn accent" data-yes>OK</button></div></div></div>`;
+        modal.classList.add('open', 'tipm'); done ? sfx.success() : sfx.ui();
+        const close = () => { modal.classList.remove('open', 'tipm'); keyHandler = null; res(); };
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });

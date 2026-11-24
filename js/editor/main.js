@@ -7,6 +7,7 @@ import { statBadge, statChip } from '../core/stat-icons.js';
 import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
+import { itemCardSVG, ITEM_TYPES, ART_NAMES } from '../core/cards.js';
 import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
@@ -224,13 +225,19 @@ function panelQuests() {
     idField('item', id, () => {}, new Set(Object.keys(L.items))),
     row(fieldFor('text', it, 'name', ctx, 'Nom'), h('label', { class: 'fld' }, h('span', {}, 'Icône'), iconSelect(it.icon, v => { it.icon = v; changed(); }))),
     fieldFor('text', it, 'desc', ctx, 'Description'), row(fieldFor('bool', it, 'keep', ctx, 'Conservé dans la campagne')),
+    h('details', { class: 'card-phys' }, h('summary', {}, `Carte physique ${it.code || '(sans code)'}`),
+      h('div', { class: 'cardrow' }, h('div', { class: 'cardprev', html: itemCardSVG(it, { width: '126px', height: '176px' }) }),
+        h('div', {}, row(field('Code', input(it.code, v => { it.code = v; changed(); }, { placeholder: 'O-05' })),
+          field('Type', select(it.type || '', Object.entries(ITEM_TYPES), v => { it.type = v || undefined; changed(); render(); }, { empty: '(auto)' }))),
+          field('Illustration', select(it.art || '', Object.entries(ART_NAMES), v => { it.art = v || undefined; changed(); render(); }, { empty: '(selon l\'icône)' })),
+          field('Texte de la carte', textarea(it.effect, v => { it.effect = v; changed(); }, { rows: 2, placeholder: it.desc || 'Effet imprimé sur la carte' }), 'Vide = la description.')))),
     h('details', { open: it.useEffects?.length ? true : undefined }, h('summary', {}, `Utilisable depuis la besace (${it.useEffects?.length || 0} effet(s))`),
       row(field('Consommé à l\'usage', checkbox(it.consume !== false, v => { if (v) delete it.consume; else it.consume = false; changed(); }))),
       fieldFor('cond', it, 'useCond', ctx, 'Utilisable si'), fieldFor('text', it, 'useNeed', ctx, 'Message si pas utilisable'), fieldFor('effects', it, 'useEffects', ctx, 'Effets quand on l\'utilise'))));
   return h('div', { class: 'panel' }, h('h2', {}, 'Quêtes'), h('p', { class: 'muted' }, 'Démarrées / terminées par des effets. La première quête démarre automatiquement au début du niveau.'), qs,
     btn('+ Quête', () => { const id = uniqueId('quete', new Set(Object.keys(L.quests))); L.quests[id] = { title: 'Nouvelle quête', hint: '' }; changed(); render(); }, 'small'),
     h('h2', {}, 'Objets'), its,
-    btn('+ Objet', () => { const id = uniqueId('objet', new Set(Object.keys(L.items))); L.items[id] = { name: 'Nouvel objet', icon: 'coin', desc: '' }; changed(); render(); }, 'small'));
+    btn('+ Objet', () => { const id = uniqueId('objet', new Set(Object.keys(L.items))); const nums = Object.values(L.items).map(x => +String(x.code || '').replace(/\D/g, '') || 0); L.items[id] = { name: 'Nouvel objet', icon: 'coin', desc: '', code: `O-${String(Math.max(0, ...nums) + 1).padStart(2, '0')}`, type: 'quete' }; changed(); render(); }, 'small'));
 }
 
 // --- événements

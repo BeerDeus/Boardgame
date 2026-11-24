@@ -74,5 +74,6 @@ Toutes les briques se choisissent dans des menus de l'éditeur (`js/core/level.j
 - Les **variantes** changent le texte selon une condition, les **embranchements** changent la suite.
 
 **Objets** : on peut les rendre **utilisables depuis la besace**, avec une condition, des effets, et le choix d'être consommés ou non.
+Chaque objet a une **carte physique** (format poker 63 × 88 mm) : code (O-01…), type (consommable, objet de quête, équipement, relique), illustration, texte imprimé. La planche d'impression est `cards.html` (recto de tous les objets de la campagne + verso commun, export SVG). En jeu : « **Prenez la carte** » à l'obtention, « **Défaussez la carte** » à l'usage ou à la perte. Les quêtes (nouvelle / terminée) s'affichent dans une fenêtre à valider ; les autres messages restent 5-6 s et sont repris dans le journal (« Derniers événements »).
 **Personnages** : « Quand on lui parle », c'est la première règle dont la condition est vraie qui choisit le dialogue. Si aucun dialogue, le PNJ dit sa réplique.
 **Carte** : `hexMap` (lignes « odd-r »), `tiles["col,ligne"] = { terrain, zone }`, lieux avec `cell: [col, ligne]`. Les codes des tuiles physiques (F-01…) sont attribués ligne par ligne.

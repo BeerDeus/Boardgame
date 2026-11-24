@@ -830,22 +830,38 @@
    "useCond": {
     "type": "wounded"
    },
-   "useNeed": "le héros actif n'a pas besoin de soins."
+   "useNeed": "le héros actif n'a pas besoin de soins.",
+   "code": "O-01",
+   "type": "conso",
+   "art": "herbes",
+   "effect": "Utiliser : soigne 3 PV au héros actif et guérit le poison. Conservées entre les étapes."
   },
   "huile": {
    "name": "Huile de lampe",
    "icon": "flask",
-   "desc": "Pour rallumer le fanal de la Tour du Guet."
+   "desc": "Pour rallumer le fanal de la Tour du Guet.",
+   "code": "O-02",
+   "type": "quete",
+   "art": "huile",
+   "effect": "De quoi rallumer le fanal de la Tour du Guet."
   },
   "eau": {
    "name": "Eau bénite",
    "icon": "drop",
-   "desc": "+1 dégât contre les morts-vivants."
+   "desc": "+1 dégât contre les morts-vivants.",
+   "code": "O-03",
+   "type": "equip",
+   "art": "eau",
+   "effect": "Tant que le groupe la possède : +1 dégât contre les morts-vivants."
   },
   "poupee": {
    "name": "Poupée de chiffon",
    "icon": "person",
-   "desc": "Lise l'a perdue près du moulin."
+   "desc": "Lise l'a perdue près du moulin.",
+   "code": "O-04",
+   "type": "quete",
+   "art": "poupee",
+   "effect": "La poupée de chiffon de Lise, perdue près du vieux moulin."
   }
  },
  "minorChance": 0,
