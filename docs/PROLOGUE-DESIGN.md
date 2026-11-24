@@ -1,4 +1,4 @@
-# Prologue — proposition de design (point 5)
+# Prologue — design (validé et implémenté)
 
 Objectif : relier tous les PNJ. Le fanal exige **3 composants tenus par 3 PNJ différents**, dont deux passent par une **mission d'échange**. Personnalités, tests de stats, chemins alternatifs et réactions selon le héros déjà écrits sont conservés.
 
@@ -36,8 +36,9 @@ Gardien du pont ◀─ nom d'Aldegonde (Berthe / Lise / indice de Mathilde)
 - Gardien : nom (Berthe, Lise, Mathilde), regard (Volonté), force (Force), ou raccourci du gué (Gaspard) — inchangé.
 - Porte de la Tour sans la clé : **enfoncer** (Force difficile, échec +1 glas) ou **crocheter** (Agilité normale). La clé ouvre sans jet.
 - **Sélène** : peut **subtiliser la clé** à la ceinture de Gaspard (Agilité difficile) ; s'il la surprend, Gaspard se fâche.
-- **Ysolde** : peut allumer le fanal **par magie** sans pierre à feu (Intelligence difficile, échec +1 glas).
-- **Brann** : Mathilde forge la pierre à feu sans bras de fer (comme la lame).
+- **Brann** : Mathilde forge la pierre à feu sans épreuve (les autres doivent tenir le soufflet : Force normale, à retenter si échec).
+- **Aldric** : +10 au test de Volonté pour plaider la cause de Gaspard auprès de Berthe.
+- (Non retenu : allumage du fanal par la magie d'Ysolde.)
 
 ## 4. Objets (cartes)
 O-01 Herbes de soin · O-02 Huile de lampe · O-03 Eau bénite · O-04 Poupée de chiffon · **O-05 Silex noir** (quête) · **O-06 Pierre à feu** (quête) · **O-07 Clé de la Tour** (quête) · **O-08 Lettre de Gaspard** (quête) · **O-09 Médaillon d'Odon** (relique).

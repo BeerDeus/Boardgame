@@ -86,25 +86,6 @@
        "text": "Une pièce tinte au fond du puits…"
       }
      ]
-    },
-    {
-     "id": "oil",
-     "icon": "flask",
-     "label": "Prendre l'huile de lampe",
-     "desc": "Il en faudra pour le fanal.",
-     "once": true,
-     "need": "En parler à Berthe",
-     "cond": {
-      "type": "flag",
-      "flag": "askedOil"
-     },
-     "effects": [
-      {
-       "type": "give",
-       "item": "huile",
-       "n": 1
-      }
-     ]
     }
    ]
   },
@@ -315,7 +296,7 @@
      "id": "trap",
      "icon": "lock",
      "label": "Forcer la trappe",
-     "desc": "Agilité : réussite +2 boosts, échec −1 boost.",
+     "desc": "Agilité : un silex noir dans tous les cas ; réussite +2 boosts, échec −1 boost.",
      "once": true,
      "effects": [
       {
@@ -325,6 +306,11 @@
        "mod": 0,
        "label": "Désamorcer le piège",
        "success": [
+        {
+         "type": "give",
+         "item": "silex",
+         "n": 1
+        },
         {
          "type": "boost",
          "n": 2,
@@ -344,6 +330,11 @@
         {
          "type": "toast",
          "text": "Une aiguille empoisonnée ! <b>−1 boost</b>."
+        },
+        {
+         "type": "give",
+         "item": "silex",
+         "n": 1
         }
        ]
       }
@@ -401,7 +392,7 @@
         },
         {
          "type": "questDone",
-         "quest": "fanal"
+         "quest": "pont"
         },
         {
          "type": "questStart",
@@ -558,27 +549,175 @@
     "icon": "flag",
     "label": "Fanal"
    },
-   "desc": "Le fanal est éteint. Tant qu'il ne brûle pas, la brume avance.",
+   "desc": "La porte est fermée à clé. Au sommet, le fanal est éteint : tant qu'il ne brûle pas, la brume avance.",
    "activities": [
+    {
+     "id": "porte_cle",
+     "icon": "key",
+     "label": "Ouvrir la porte avec la clé",
+     "desc": "Sans jet de dés.",
+     "cond": {
+      "type": "all",
+      "conds": [
+       {
+        "type": "has",
+        "item": "cle"
+       },
+       {
+        "type": "notFlag",
+        "flag": "porteOuverte"
+       }
+      ]
+     },
+     "need": "la clé de la Tour",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "porteOuverte",
+       "value": true
+      },
+      {
+       "type": "take",
+       "item": "cle"
+      },
+      {
+       "type": "toast",
+       "text": "La clé tourne en grinçant : la <b>porte de la Tour</b> est ouverte."
+      }
+     ]
+    },
+    {
+     "id": "porte_force",
+     "icon": "attack",
+     "label": "Enfoncer la porte",
+     "desc": "Force difficile ; échec : +1 glas.",
+     "cond": {
+      "type": "all",
+      "conds": [
+       {
+        "type": "notHas",
+        "item": "cle"
+       },
+       {
+        "type": "notFlag",
+        "flag": "porteOuverte"
+       }
+      ]
+     },
+     "need": "porte déjà ouverte",
+     "effects": [
+      {
+       "type": "test",
+       "stat": "force",
+       "diff": "difficile",
+       "mod": 0,
+       "label": "Enfoncer la porte",
+       "success": [
+        {
+         "type": "set",
+         "flag": "porteOuverte",
+         "value": true
+        },
+        {
+         "type": "toast",
+         "text": "La porte cède dans un fracas de bois pourri."
+        }
+       ],
+       "fail": [
+        {
+         "type": "glas",
+         "n": 1
+        },
+        {
+         "type": "toast",
+         "text": "La porte tient bon. Le vacarme a réveillé la cloche : <b>+1 glas</b>."
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "porte_crochet",
+     "icon": "lock",
+     "label": "Crocheter la serrure",
+     "desc": "Agilité.",
+     "cond": {
+      "type": "all",
+      "conds": [
+       {
+        "type": "notHas",
+        "item": "cle"
+       },
+       {
+        "type": "notFlag",
+        "flag": "porteOuverte"
+       }
+      ]
+     },
+     "need": "porte déjà ouverte",
+     "effects": [
+      {
+       "type": "test",
+       "stat": "agilite",
+       "diff": "normal",
+       "mod": 0,
+       "label": "Crocheter la serrure",
+       "success": [
+        {
+         "type": "set",
+         "flag": "porteOuverte",
+         "value": true
+        },
+        {
+         "type": "toast",
+         "text": "Un déclic : la serrure cède."
+        }
+       ],
+       "fail": [
+        {
+         "type": "toast",
+         "text": "La vieille serrure résiste. Réessayez plus tard."
+        }
+       ]
+      }
+     ]
+    },
     {
      "id": "fanal",
      "icon": "glow",
      "label": "Rallumer le fanal",
-     "desc": "Intelligence : réussite = victoire.",
+     "desc": "Intelligence facile : réussite = victoire.",
      "blockedByEnemies": true,
-     "need": "Huile de lampe",
+     "need": "porte ouverte, huile de lampe et pierre à feu",
      "cond": {
-      "type": "has",
-      "item": "huile"
+      "type": "all",
+      "conds": [
+       {
+        "type": "flag",
+        "flag": "porteOuverte"
+       },
+       {
+        "type": "has",
+        "item": "huile"
+       },
+       {
+        "type": "has",
+        "item": "pierre"
+       }
+      ]
      },
      "effects": [
       {
        "type": "test",
        "stat": "intelligence",
-       "diff": "normal",
+       "diff": "facile",
        "mod": 0,
        "label": "Rallumer le fanal",
        "success": [
+        {
+         "type": "questDone",
+         "quest": "fanal"
+        },
         {
          "type": "victory"
         }
@@ -586,7 +725,7 @@
        "fail": [
         {
          "type": "toast",
-         "text": "La mèche est humide… réessayez au prochain tour."
+         "text": "L'étincelle meurt sur la mèche humide… réessayez au prochain tour."
         }
        ]
       }
@@ -862,6 +1001,52 @@
    "type": "quete",
    "art": "poupee",
    "effect": "La poupée de chiffon de Lise, perdue près du vieux moulin."
+  },
+  "silex": {
+   "name": "Silex noir",
+   "icon": "rune",
+   "desc": "Un caillou noir qui chante sous l'acier. Mathilde en fera une pierre à feu.",
+   "code": "O-05",
+   "type": "quete",
+   "art": "silex",
+   "effect": "Apportez-le à Mathilde : elle en forgera une pierre à feu."
+  },
+  "pierre": {
+   "name": "Pierre à feu",
+   "icon": "glow",
+   "desc": "Forgée par Mathilde : de quoi allumer la mèche du fanal.",
+   "code": "O-06",
+   "type": "quete",
+   "art": "briquet",
+   "effect": "Forgée par Mathilde. Avec l'huile, elle rallume le fanal."
+  },
+  "cle": {
+   "name": "Clé de la Tour",
+   "icon": "key",
+   "desc": "La clé de la porte de la Tour du Guet, gardée par Gaspard.",
+   "code": "O-07",
+   "type": "quete",
+   "art": "cle",
+   "effect": "Ouvre la porte de la Tour du Guet sans jet de dés."
+  },
+  "lettre": {
+   "name": "Lettre de Gaspard",
+   "icon": "scroll",
+   "desc": "Une lettre scellée de Gaspard pour Berthe.",
+   "code": "O-08",
+   "type": "quete",
+   "art": "lettre",
+   "effect": "À porter à Berthe, puis rapporter sa réponse à Gaspard."
+  },
+  "medaillon": {
+   "name": "Médaillon d'Odon",
+   "icon": "coin",
+   "desc": "Le médaillon du capitaine Odon, confié par sa sœur Berthe.",
+   "code": "O-09",
+   "type": "relique",
+   "art": "medaillon",
+   "keep": true,
+   "effect": "Montré à celui qui fut Odon, il réveille sa mémoire. Conservé dans la campagne."
   }
  },
  "minorChance": 0,
@@ -1070,8 +1255,23 @@
   },
   "fanal": {
    "title": "Rallumer le fanal de la Tour du Guet",
-   "hint": "Il faut de l'huile (auberge), puis suivre le chemin de l'est : gué, puis Pont de Brume.",
-   "target": "pont"
+   "hint": "Réunir l'huile (Berthe), une pierre à feu (Mathilde) et la clé de la Tour (Gaspard), puis passer le pont, à l'est.",
+   "target": "tour"
+  },
+  "pierre": {
+   "title": "Une pierre à feu",
+   "hint": "Mathilde la forgera avec un silex noir. Lise ramasse ce genre de cailloux ; la cache du contrebandier en cache peut-être.",
+   "target": "forge"
+  },
+  "cle": {
+   "title": "La clé de la Tour",
+   "hint": "Gaspard, ancien de la Garde, l'a gardée. Gagnez sa confiance : les loups, ou la vérité.",
+   "target": "camp"
+  },
+  "lettre": {
+   "title": "La lettre de Gaspard",
+   "hint": "Portez-la à Berthe, puis rapportez sa réponse à Gaspard.",
+   "target": "hameau"
   },
   "poupee": {
    "title": "Retrouver la poupée de Lise",
@@ -1087,6 +1287,11 @@
    "title": "Chasser les loups de la tanière",
    "hint": "Au nord, derrière le camp de Gaspard.",
    "target": "taniere"
+  },
+  "pont": {
+   "title": "Passer le Pont de Brume",
+   "hint": "Le Gardien demande le nom de la bâtisseuse. Ou trouvez un autre passage.",
+   "target": "pont"
   },
   "tour": {
    "title": "Atteindre la Tour du Guet",
@@ -1201,6 +1406,14 @@
        "once": true
       },
       {
+       "t": "Gaspard vous a écrit une lettre.",
+       "next": "lettre",
+       "cond": {
+        "type": "has",
+        "item": "lettre"
+       }
+      },
+      {
        "t": "Glisser discrètement la main dans le tiroir à monnaie…",
        "next": "menu",
        "once": true,
@@ -1257,7 +1470,7 @@
     },
     "fanal": {
      "s": "berthe",
-     "t": "Il faut de l'huile, d'abord : prenez celle de ma réserve, ici même. Ensuite, le chemin de l'<b>est</b> : le Gué des Noyés, puis le Pont de Brume. Et là… le Gardien.",
+     "t": "Il faut trois choses. L'<b>huile</b>, d'abord : tenez, prenez celle de ma réserve. Ensuite une <b>pierre à feu</b> pour la mèche : voyez Mathilde, à la forge. Et la porte de la Tour est fermée à <b>clé</b>… la Garde avait la clé. <b>Gaspard</b> en était, de la Garde. Puis le chemin de l'<b>est</b> : le Gué des Noyés, le Pont de Brume. Et là… le Gardien.",
      "next": null,
      "effects": [
       {
@@ -1266,8 +1479,25 @@
        "value": true
       },
       {
-       "type": "toast",
-       "text": "Vous pouvez prendre l'<b>huile</b> de l'auberge (bouton « Lieu »)."
+       "type": "questStart",
+       "quest": "fanal"
+      },
+      {
+       "type": "give",
+       "item": "huile",
+       "n": 1
+      },
+      {
+       "type": "questStart",
+       "quest": "pierre"
+      },
+      {
+       "type": "questStart",
+       "quest": "cle"
+      },
+      {
+       "type": "questStart",
+       "quest": "pont"
       }
      ],
      "choices": [
@@ -1565,6 +1795,143 @@
      "s": "berthe",
      "t": "Que la Dame Grise vous garde. Et si vous voyez mon Odon… rapportez-moi de ses nouvelles.",
      "next": null
+    },
+    "lettre": {
+     "s": "narrator",
+     "t": "Berthe déplie la lettre. Ses lèvres bougent en silence. « …Je me suis enfui, Berthe. Odon est monté seul. Pardonne-moi, si tu peux. » Elle froisse le papier contre sa poitrine.",
+     "next": "lettre2"
+    },
+    "lettre2": {
+     "s": "berthe",
+     "t": "Ce lâche. Ce pauvre lâche… Trois nuits qu'il campe dans les bois, à cent pas de ma porte, et il n'a pas eu le courage de frapper.",
+     "next": null,
+     "choices": [
+      {
+       "t": "Il a eu peur, Berthe. Aujourd'hui, il essaie de réparer.",
+       "next": "plaider"
+      },
+      {
+       "t": "Je vous la laisse. C'est entre vous deux.",
+       "next": "colere"
+      }
+     ]
+    },
+    "plaider": {
+     "s": "berthe",
+     "t": "Réparer ? Et qui va me rendre mon frère ?",
+     "next": "plaider_x",
+     "branches": [
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "aldric"
+       },
+       "next": "plaider_aldric"
+      }
+     ]
+    },
+    "plaider_x": {
+     "s": "hero",
+     "t": "La peur n'est pas une faute, Berthe. Fuir, si. Et il vous demande pardon, à vous, avant de nous aider à monter là-haut.",
+     "next": null,
+     "test": {
+      "stat": "volonte",
+      "diff": "normal",
+      "mod": 0,
+      "label": "Plaider pour Gaspard",
+      "success": "pardon",
+      "fail": "colere",
+      "successEffects": [],
+      "failEffects": []
+     }
+    },
+    "plaider_aldric": {
+     "s": "hero",
+     "t": "J'ai vu des soldats fuir, Berthe, et j'en ai vu revenir. Ceux qui reviennent valent mieux que ceux qui n'ont jamais eu peur. Gaspard revient.",
+     "next": null,
+     "test": {
+      "stat": "volonte",
+      "diff": "normal",
+      "mod": 10,
+      "label": "Plaider pour Gaspard (parole de chevalier)",
+      "success": "pardon",
+      "fail": "colere",
+      "successEffects": [],
+      "failEffects": []
+     }
+    },
+    "pardon": {
+     "s": "berthe",
+     "t": "…Dites-lui que la soupe sera chaude, s'il redescend un jour de ses bois. Et prenez ça : le <b>médaillon d'Odon</b>. S'il reste quelque chose de mon frère là-haut, montrez-le-lui.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "take",
+       "item": "lettre"
+      },
+      {
+       "type": "set",
+       "flag": "bertheRepondu",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "berthePardon",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "berthe",
+       "n": 1
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": 1
+      },
+      {
+       "type": "give",
+       "item": "medaillon",
+       "n": 1
+      },
+      {
+       "type": "questStart",
+       "quest": "odon"
+      },
+      {
+       "type": "toast",
+       "text": "Retournez voir <b>Gaspard</b> avec la réponse de Berthe."
+      }
+     ]
+    },
+    "colere": {
+     "s": "berthe",
+     "t": "Non. Dites-lui qu'il peut garder sa honte, moi je garde ma colère. …Mais prenez ça. Le <b>médaillon d'Odon</b>. S'il reste quelque chose de mon frère là-haut, montrez-le-lui.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "take",
+       "item": "lettre"
+      },
+      {
+       "type": "set",
+       "flag": "bertheRepondu",
+       "value": true
+      },
+      {
+       "type": "give",
+       "item": "medaillon",
+       "n": 1
+      },
+      {
+       "type": "questStart",
+       "quest": "odon"
+      },
+      {
+       "type": "toast",
+       "text": "Retournez voir <b>Gaspard</b> avec la réponse de Berthe."
+      }
+     ]
     }
    }
   },
@@ -1611,6 +1978,72 @@
        "cond": {
         "type": "notFlag",
         "flag": "lameForgee"
+       }
+      },
+      {
+       "t": "Il nous faut une pierre à feu, pour le fanal.",
+       "next": "pierre",
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "notHas",
+          "item": "silex"
+         },
+         {
+          "type": "notFlag",
+          "flag": "pierreForgee"
+         },
+         {
+          "type": "notFlag",
+          "flag": "silexDemande"
+         }
+        ]
+       }
+      },
+      {
+       "t": "Voici un silex noir.",
+       "next": "pierre_brann",
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "has",
+          "item": "silex"
+         },
+         {
+          "type": "notFlag",
+          "flag": "pierreForgee"
+         },
+         {
+          "type": "heroIs",
+          "hero": "brann"
+         }
+        ]
+       }
+      },
+      {
+       "t": "Voici un silex noir.",
+       "next": "pierre_forge",
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "has",
+          "item": "silex"
+         },
+         {
+          "type": "notFlag",
+          "flag": "pierreForgee"
+         },
+         {
+          "type": "not",
+          "cond": {
+           "type": "heroIs",
+           "hero": "brann"
+          }
+         }
+        ]
        }
       },
       {
@@ -1858,8 +2291,104 @@
     },
     "cache": {
      "s": "mathilde",
-     "t": "Au <b>sud-est</b>, dans l'éboulis près de la chapelle. Les contrebandiers piégeaient leur trappe avec des aiguilles. Des doigts agiles, pas des gros bras.",
+     "t": "Au <b>sud-est</b>, dans l'éboulis près de la chapelle. Les contrebandiers y planquaient leurs <b>silex noirs</b>, les meilleurs du pays, et piégeaient leur trappe avec des aiguilles. Des doigts agiles, pas des gros bras.",
      "next": "menu"
+    },
+    "pierre": {
+     "s": "mathilde",
+     "t": "Une pierre à feu ? Mon dernier silex a éclaté hier sur l'enclume. Rapportez-m'en un <b>noir</b>, de ceux qui chantent sous l'acier, et je vous forge une pierre à feu qui allumerait de la glace. La petite <b>Lise</b> en ramasse partout, ces cailloux-là. Et les contrebandiers en planquaient dans leur <b>cache</b>, au sud-est.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "silexDemande",
+       "value": true
+      },
+      {
+       "type": "questStart",
+       "quest": "pierre"
+      }
+     ]
+    },
+    "pierre_forge": {
+     "s": "mathilde",
+     "t": "Ça, c'est du silex. Bon. Prenez le soufflet, je m'occupe du reste. Et soufflez régulier, hein, pas comme un asthmatique.",
+     "next": null,
+     "test": {
+      "stat": "force",
+      "diff": "normal",
+      "mod": 0,
+      "label": "Tenir le soufflet de la forge",
+      "success": "pierre_ok",
+      "fail": "pierre_ko",
+      "successEffects": [],
+      "failEffects": []
+     }
+    },
+    "pierre_ko": {
+     "s": "mathilde",
+     "t": "Le soufflet vous échappe, la braise retombe. Pfff. Revenez quand vous aurez repris votre souffle, le silex ne s'envolera pas.",
+     "next": "menu"
+    },
+    "pierre_brann": {
+     "s": "mathilde",
+     "t": "Toi, pas besoin de te faire souffler : tu as des poumons de forge. Pose ça là. …Voilà. Elle crache des étincelles comme un dragon enrhumé.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "take",
+       "item": "silex"
+      },
+      {
+       "type": "give",
+       "item": "pierre",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "pierre"
+      },
+      {
+       "type": "set",
+       "flag": "pierreForgee",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": 1
+      }
+     ]
+    },
+    "pierre_ok": {
+     "s": "mathilde",
+     "t": "…Pas mal, pour un souffleur du dimanche. Tenez : une <b>pierre à feu</b>. Frappez-la sur l'acier au-dessus de la mèche, et le fanal se souviendra qu'il est un fanal.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "take",
+       "item": "silex"
+      },
+      {
+       "type": "give",
+       "item": "pierre",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "pierre"
+      },
+      {
+       "type": "set",
+       "flag": "pierreForgee",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": 1
+      }
+     ]
     }
    }
   },
@@ -2028,12 +2557,17 @@
     },
     "merci": {
      "s": "lise",
-     "t": "Tenez, c'est mon porte-bonheur. Grand-mère dit qu'il chasse la brume !",
+     "t": "Tenez, c'est mon porte-bonheur : un <b>caillou noir</b> qui fait des étincelles quand on le cogne. Grand-mère dit qu'il chasse la brume !",
      "next": null,
      "effects": [
       {
        "type": "take",
        "item": "poupee"
+      },
+      {
+       "type": "give",
+       "item": "silex",
+       "n": 1
       },
       {
        "type": "questDone",
@@ -2164,6 +2698,91 @@
        "t": "Vous étiez de la Garde du Guet, non ?",
        "next": "garde",
        "once": true
+      },
+      {
+       "t": "La clé de la Tour, Gaspard. Vous l'avez gardée.",
+       "next": "cle_lettre",
+       "once": true,
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "any",
+          "conds": [
+           {
+            "type": "flag",
+            "flag": "gaspardAmi"
+           },
+           {
+            "type": "flag",
+            "flag": "gaspardAllie"
+           }
+          ]
+         },
+         {
+          "type": "notHas",
+          "item": "cle"
+         },
+         {
+          "type": "notFlag",
+          "flag": "cleDonnee"
+         }
+        ]
+       },
+       "need": "gagner sa confiance (les loups, ou la vérité sur la Garde)"
+      },
+      {
+       "t": "Berthe a lu votre lettre.",
+       "next": "cle_ok",
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "flag",
+          "flag": "bertheRepondu"
+         },
+         {
+          "type": "notFlag",
+          "flag": "cleDonnee"
+         },
+         {
+          "type": "notHas",
+          "item": "cle"
+         }
+        ]
+       }
+      },
+      {
+       "t": "Subtiliser la clé qui pend à sa ceinture…",
+       "next": "menu",
+       "once": true,
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "heroIs",
+          "hero": "selene"
+         },
+         {
+          "type": "notHas",
+          "item": "cle"
+         },
+         {
+          "type": "notFlag",
+          "flag": "cleDonnee"
+         }
+        ]
+       },
+       "test": {
+        "stat": "agilite",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Voler la clé de Gaspard",
+        "success": "vol_cle",
+        "fail": "vol_cle_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
       },
       {
        "t": "Vous allez nous aider, que ça vous plaise ou non.",
@@ -2395,6 +3014,137 @@
        "text": "Nouveau chemin : le <b>passage des contrebandiers</b> au Gué des Noyés."
       }
      ]
+    },
+    "cle_lettre": {
+     "s": "gaspard",
+     "t": "…Oui. Je l'ai emportée en fuyant, comme un voleur. Elle est à vous. Mais avant… Berthe. Je ne peux pas la regarder en face. Portez-lui ça. Et revenez me dire ce qu'elle en a fait.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "give",
+       "item": "lettre",
+       "n": 1
+      },
+      {
+       "type": "set",
+       "flag": "lettreDonnee",
+       "value": true
+      },
+      {
+       "type": "questStart",
+       "quest": "lettre"
+      }
+     ]
+    },
+    "cle_ok": {
+     "s": "gaspard",
+     "t": "Elle l'a lue. Bon. …Bon. Voilà la <b>clé de la Tour</b>. Elle ouvre la petite porte, côté fleuve.",
+     "next": "menu",
+     "variants": [
+      {
+       "cond": {
+        "type": "flag",
+        "flag": "berthePardon"
+       },
+       "t": "Elle a dit ça ? La soupe… Ha. Cette femme. Tenez : la <b>clé de la Tour</b>. Et un conseil : au Gué des Noyés, en amont, il y a un passage de contrebandiers."
+      }
+     ],
+     "effects": [
+      {
+       "type": "give",
+       "item": "cle",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "lettre"
+      },
+      {
+       "type": "questDone",
+       "quest": "cle"
+      },
+      {
+       "type": "set",
+       "flag": "cleDonnee",
+       "value": true
+      },
+      {
+       "type": "if",
+       "cond": {
+        "type": "all",
+        "conds": [
+         {
+          "type": "flag",
+          "flag": "berthePardon"
+         },
+         {
+          "type": "notFlag",
+          "flag": "raccourci"
+         }
+        ]
+       },
+       "then": [
+        {
+         "type": "set",
+         "flag": "raccourci",
+         "value": true
+        },
+        {
+         "type": "rep",
+         "npc": "gaspard",
+         "n": 1
+        },
+        {
+         "type": "toast",
+         "text": "Nouveau chemin : le <b>passage des contrebandiers</b> au Gué des Noyés."
+        }
+       ],
+       "else": []
+      }
+     ]
+    },
+    "vol_cle": {
+     "s": "narrator",
+     "t": "Pendant que Gaspard taille ses flèches, vos doigts dénouent le lacet de sa ceinture. La clé glisse dans votre manche sans un bruit.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "give",
+       "item": "cle",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "cle"
+      },
+      {
+       "type": "set",
+       "flag": "cleDonnee",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "cleVolee",
+       "value": true
+      }
+     ]
+    },
+    "vol_cle_ko": {
+     "s": "gaspard",
+     "t": "Hé ! Tes doigts, voleuse ! Dehors, tous ! Et ne revenez pas !",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardFache",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": -1
+      }
+     ]
     }
    }
   },
@@ -2564,7 +3314,7 @@
       },
       {
        "type": "questDone",
-       "quest": "fanal"
+       "quest": "pont"
       },
       {
        "type": "questStart",
@@ -2603,7 +3353,7 @@
       },
       {
        "type": "questDone",
-       "quest": "fanal"
+       "quest": "pont"
       },
       {
        "type": "questStart",
@@ -2651,7 +3401,7 @@
       },
       {
        "type": "questDone",
-       "quest": "fanal"
+       "quest": "pont"
       },
       {
        "type": "questStart",
@@ -2725,7 +3475,7 @@
       },
       {
        "type": "questDone",
-       "quest": "fanal"
+       "quest": "pont"
       },
       {
        "type": "questStart",
@@ -2762,6 +3512,15 @@
      "t": "Parlez vite, ou ne parlez plus.",
      "next": null,
      "choices": [
+      {
+       "t": "Montrer le médaillon d'Odon.",
+       "next": "medaillon",
+       "once": true,
+       "cond": {
+        "type": "has",
+        "item": "medaillon"
+       }
+      },
       {
        "t": "Odon ! Capitaine Odon, souvenez-vous de votre serment !",
        "next": null,
@@ -2860,6 +3619,34 @@
      "s": "sentinelle",
      "t": "Alors venez. Et tombez sur les marches, comme les autres.",
      "next": null
+    },
+    "medaillon": {
+     "s": "sentinelle",
+     "t": "Ce médaillon… Berthe. Ma petite sœur. Elle me le pendait au cou les soirs de garde. Le serment… le serment me tient encore, mais pas pour longtemps. Frappez, pendant que je me souviens !",
+     "next": null,
+     "effects": [
+      {
+       "type": "statBonus",
+       "stat": "combat",
+       "n": 15,
+       "who": "all",
+       "duration": "level"
+      },
+      {
+       "type": "set",
+       "flag": "odonReveille",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "nomSentinelle",
+       "value": true
+      },
+      {
+       "type": "toast",
+       "text": "La Sentinelle vacille : <b>+15 % en Combat</b> pour tous (ce niveau)."
+      }
+     ]
     }
    }
   }
@@ -3129,6 +3916,18 @@
   {
    "key": "prologue.nomFondatrice",
    "value": "Aldegonde la Rousse"
+  },
+  {
+   "key": "prologue.berthePardon",
+   "flag": "berthePardon"
+  },
+  {
+   "key": "prologue.cleVolee",
+   "flag": "cleVolee"
+  },
+  {
+   "key": "prologue.odonReveille",
+   "flag": "odonReveille"
   }
  ]
 }
