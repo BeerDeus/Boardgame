@@ -53,6 +53,26 @@ export async function createEngine(container, { onProgress, story }) {
   const overlayGeo = new THREE.CircleGeometry(R * 0.97, 6).rotateX(-Math.PI / 2).rotateY(Math.PI / 6);
   const fogTex = radialTexture('rgba(190,195,210,0.9)', 'rgba(140,145,160,0.45)');
 
+  // Tuiles peintes : une grande illustration (plan de référence) plaquée sur le dessus des tuiles.
+  // Même calcul que le plan : grille sans espacement, centrée, ajustée à l'image avec une marge.
+  const artOn = () => { try { return localStorage.getItem('grimoire.tileArt') !== '0'; } catch { return true; } };
+  let art = null;
+  if (story?.tileArt && story.hexMap && artOn()) {
+    try {
+      const a = story.tileArt, g0 = hexGrid({ mask: story.hexMap, size: R, gap: 0 }), hw = Math.sqrt(3) / 2 * R;
+      const xs = g0.cells.map(c => c.x), zs = g0.cells.map(c => c.z);
+      const minX = Math.min(...xs) - hw, maxX = Math.max(...xs) + hw, minZ = Math.min(...zs) - R, maxZ = Math.max(...zs) + R;
+      const s = Math.min((a.width - 2 * a.margin) / (maxX - minX), (a.height - 2 * a.margin) / (maxZ - minZ));
+      const ox = (a.width - (maxX - minX) * s) / 2 - minX * s, oz = (a.height - (maxZ - minZ) * s) / 2 - minZ * s;
+      const tex = (await loadTex(a.url)).clone(); tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.repeat.set(1, 1); tex.needsUpdate = true;
+      art = {
+        mat: new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 }),
+        has: k => g0.has(k),
+        uv: (k, lx, lz) => { const c = g0.get(k); return [((c.x + lx) * s + ox) / a.width, 1 - ((c.z + lz) * s + oz) / a.height]; },
+      };
+    } catch (e) { console.warn('Illustration des tuiles indisponible', e); art = null; }
+  }
+
   let board;
   board = new Board3D(stage, grid, {
     figScale: 0.95, focusDist: 4, postfx: true, homeDist: Math.max(8.5, span * 0.85), cineDist: 2.6, overlayTex: hexFrameTexture(),
@@ -61,9 +81,17 @@ export async function createEngine(container, { onProgress, story }) {
       const g = new THREE.Group();
       const col = new THREE.Group(); g.add(col);
       const depth = h + 0.7;
-      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(R, R * 1.02, depth, 6, 1), [side, matFor(data.terrain), side]);
+      const painted = !!art?.has(data.key);
+      const geo = new THREE.CylinderGeometry(R, R * 1.02, depth, 6, 1);
+      if (painted) { // UV du dessus = position de la case dans l'illustration
+        const cap = geo.groups[1], idx = geo.index, pos = geo.attributes.position, uv = geo.attributes.uv;
+        for (let i = cap.start; i < cap.start + cap.count; i++) { const v = idx.getX(i); uv.setXY(v, ...art.uv(data.key, pos.getX(v), pos.getZ(v))); }
+        uv.needsUpdate = true;
+      }
+      const topMat = painted ? art.mat : matFor(data.terrain);
+      const mesh = new THREE.Mesh(geo, [side, topMat, side]);
       mesh.position.y = h - depth / 2; mesh.castShadow = true; mesh.receiveShadow = true; col.add(mesh);
-      const props = buildProps(data.terrain, rng(hashStr(data.key)), hexSampler(R, R * 0.42), 0.95, settings.gfx.props);
+      const props = painted ? null : buildProps(data.terrain, rng(hashStr(data.key)), hexSampler(R, R * 0.42), 0.95, settings.gfx.props);
       if (props) { props.position.y = h; col.add(props); }
       const overlay = new THREE.Mesh(overlayGeo, board.reachMat); overlay.position.y = h + 0.004; col.add(overlay);
       const fog = new THREE.Sprite(new THREE.SpriteMaterial({ map: fogTex, transparent: true, depthWrite: false, opacity: 0.55, color: 0x9aa0b0 }));
@@ -74,10 +102,10 @@ export async function createEngine(container, { onProgress, story }) {
         group: g, top: col, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.45, z: -R * 0.3 },
         async reveal(animate, state = true, { onLand } = {}) {
           if (!animate) {
-            col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; mesh.material = [side, state ? matFor(data.terrain) : fogTop, side];
+            col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; mesh.material = [side, state ? topMat : fogTop, side];
             if (props) props.visible = state; return;
           }
-          mesh.material = [side, matFor(data.terrain), side]; fog.visible = false;
+          mesh.material = [side, topMat, side]; fog.visible = false;
           if (props) { props.visible = true; props.scale.set(1, 0.01, 1); }
           // chute depuis le ciel (gravité), en tournoyant légèrement, puis impact, rebond et écrasement
           const r = rng(hashStr(data.key + ':drop')), H0 = 5 + r() * 1.5, spin = (r() - 0.5) * 1.4, tx = (r() - 0.5) * 0.35, tz = (r() - 0.5) * 0.35;
@@ -112,6 +140,7 @@ export async function createEngine(container, { onProgress, story }) {
 
   board.menu.push({ title: 'Diorama', items: [
     { type: 'seg', label: 'Flou', value: 2.2, options: [{ label: 'Léger', value: 1.2 }, { label: 'Moyen', value: 2.2 }, { label: 'Fort', value: 3.5 }], onChange: v => { blur = v; stage.onResize(container.clientWidth, container.clientHeight); } },
+    ...(story?.tileArt ? [{ type: 'toggle', label: 'Tuiles peintes (illustration) — recharge', value: !!art, onChange: v => { try { localStorage.setItem('grimoire.tileArt', v ? '1' : '0'); } catch {} location.reload(); } }] : []),
     { type: 'toggle', label: 'Rotation par crans de 60°', value: false, onChange: v => (stage.rig.o.snapYaw = v ? Math.PI / 3 : 0) },
   ] });
   onProgress(0.75, 'Figurines…');

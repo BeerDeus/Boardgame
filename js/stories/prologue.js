@@ -27,6 +27,8 @@ export const STORY = {
 
   // Carte hexagonale de forme libre (moteur C). Lignes « odd-r » : les lignes impaires sont décalées d'une
   // demi-case. 'o' = tuile, espace = rien (ici la rivière). Les lieux peuvent viser une case : cell: [colonne, ligne].
+  // Illustration peinte des tuiles (même disposition que docs/carte-prologue-reference.png, 20 px de marge).
+  tileArt: { url: 'assets/maps/prologue-v1.jpg', width: 1536, height: 1024, margin: 20 },
   hexMap: [
     '   o     ',
     '  oo     ',
