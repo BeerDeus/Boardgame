@@ -6,7 +6,11 @@ Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (
 1. Hub → **Éditeur de niveaux** (sur PC de préférence). « Exemple : Prologue » ouvre le tutoriel comme modèle.
 2. Construire : **Carte** → **Lieux** → **Personnages** → **Dialogues** → **Quêtes & objets** → **Événements**.
 3. **Tester ▸** ouvre le niveau dans le jeu, dans un onglet séparé. Ni la campagne ni la partie en cours ne sont touchées.
-4. **Exporter** télécharge `<id>.json`. Pour l'ajouter au jeu :
+4. **Campagne** (onglet) : placer le niveau dans un Acte (« + Étape : niveau en cours »), régler l'ordre, le déblocage (« Débloquée après »), le titre et l'illustration.
+5. **⇪ Publier** envoie `levels/<id>.json` et `levels/campaign.json` sur GitHub, branche `claude/board-game-display-engine-mg98tg` (déployée par Hostinger). Publication refusée tant que le niveau ou la campagne ont des erreurs.
+   - **Jeton** : github.com → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token ; *Repository access* : **Only select repositories → BeerDeus/Boardgame** ; *Permissions* : **Contents : Read and write** (rien d'autre). Copier le jeton `github_pat_…` dans la fenêtre « Publier ». Il est stocké **uniquement** dans le navigateur de cet appareil (localStorage) et n'est jamais commité ; « Oublier le jeton » l'efface.
+   - Après publication, le jeu en ligne lit les nouveaux fichiers (les JSON sont toujours revalidés). Pour le mode hors-ligne d'un **nouveau** niveau, relancer un jour `python3 tools/build-sw.py`.
+6. **Exporter** télécharge `<id>.json` (sauvegarde). Ajout manuel au jeu :
    - le placer dans `levels/` ;
    - ajouter l'étape dans `levels/campaign.json` (Acte → étapes : `{ "id": "etape1", "num": "Étape I", "title": "…", "level": "levels/etape1.json" }`) ;
    - vérifier : `node tools/validate-level.mjs levels/etape1.json` ;

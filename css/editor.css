@@ -143,3 +143,21 @@ textarea.md { width: 100%; resize: none; overflow: hidden; line-height: 1.4; fon
 .pv-test { display: flex; align-items: center; gap: 4px; color: #cfe6ff; } .btn.ok { border-color: var(--green); } .btn.ko { border-color: var(--red); }
 .cardrow { display: flex; gap: 12px; align-items: flex-start; margin-top: 6px; } .cardrow > div:last-child { flex: 1; min-width: 0; }
 .cardprev svg { display: block; filter: drop-shadow(0 4px 10px rgba(0,0,0,.5)); }
+/* Campagne */
+.act-card { border-color: var(--gold); }
+.steps-ed { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0 14px; border-left: 2px solid var(--line); padding-left: 10px; }
+.step-ed { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; } .step-ed.current { border-color: #6fb3ff; }
+.imgfld { display: flex; gap: 6px; align-items: center; } .imgfld input { flex: 1; min-width: 0; }
+.imgprev { flex: none; width: 34px; height: 34px; border-radius: 6px; background: #2a1f17 center/cover; border: 1px solid var(--line); }
+.card-h .sp { flex: 1; }
+/* Fenêtre (publication) */
+.modal { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.6); padding: 10px; }
+.modal.open { display: flex; }
+.modal-card { width: min(680px, 96vw); max-height: 92vh; overflow: auto; background: #16110d; border: 1px solid var(--gold); border-radius: 14px; padding: 14px 20px; }
+.modal-card h2 { margin: 0 0 6px; font: 500 20px var(--head); color: var(--gold-hi); }
+.modal-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.gh-files { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+.gh-help { font-size: 14px; line-height: 1.4; padding-left: 20px; } .gh-help code { color: #9ccbff; }
+.gh-status { background: rgba(255,255,255,.04); border-radius: 8px; padding: 6px 10px; font-size: 14px; } .gh-status a { color: #9ccbff; }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.warn { color: #e8c165; } p.warn, p.ok { margin: 4px 0; }

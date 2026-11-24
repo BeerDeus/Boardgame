@@ -8,13 +8,14 @@ import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
 import { itemCardSVG, ITEM_TYPES, ART_NAMES } from '../core/cards.js';
+import { panelCampaign, publishDialog, loadEditorCampaign, campaignLevelFiles } from './campaign.js';
 import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
 const $ = s => document.querySelector(s);
 let L = load() || emptyLevel();
 const ui = { tab: 'general', sel: {}, collapsed: new Set() };
-const ctx = { get L() { return L; }, changed, refresh: render };
+const ctx = { get L() { return L; }, changed, refresh: render, check: () => checkLevel(L) };
 
 // ------------------------------------------------------------------ sauvegarde auto + annuler
 let undo = [], lastSnap = JSON.stringify(L), snapT = null, checkT = null;
@@ -69,7 +70,7 @@ const idField = (kind, cur, apply, taken) => {
 };
 
 // ------------------------------------------------------------------ panneaux
-const TABS = [['general', 'Général'], ['map', 'Carte'], ['places', 'Lieux'], ['cast', 'Personnages'], ['dialogues', 'Dialogues'], ['quests', 'Quêtes & objets'], ['events', 'Événements'], ['check', 'Vérifier'], ['help', 'Aide']];
+const TABS = [['campaign', 'Campagne'], ['general', 'Général'], ['map', 'Carte'], ['places', 'Lieux'], ['cast', 'Personnages'], ['dialogues', 'Dialogues'], ['quests', 'Quêtes & objets'], ['events', 'Événements'], ['check', 'Vérifier'], ['help', 'Aide']];
 
 function panelGeneral() {
   const p = h('div', { class: 'panel' }, h('h2', {}, 'Général'));
@@ -276,7 +277,9 @@ function panelHelp() {
   <li><b>Personnages</b> : PNJ (avec « Quand on lui parle »), ennemis (PV, attaque, défense), apparition en entrant dans le lieu ou par <b>vague</b>.</li>
   <li><b>Dialogues</b> : nœuds de texte reliés entre eux ; un nœud se termine par une suite simple, des <b>choix</b>, ou un <b>test de stat</b> qui mène à deux nœuds (réussite / échec). Un choix peut aussi lancer les dés.</li>
   <li><b>Tester ▸</b> ouvre le niveau dans le jeu (onglet séparé, sans toucher à la campagne).</li>
-  <li><b>Exporter</b> télécharge <code>&lt;id&gt;.json</code> : à placer dans <code>levels/</code> puis à ajouter à la campagne (<code>js/core/campaign.js</code>).</li></ol>
+  <li><b>Campagne</b> : Actes et étapes de l'accueil (ordre, déblocage, titres, illustrations) ; « + Étape : niveau en cours » ajoute ce niveau.</li>
+  <li><b>⇪ Publier</b> envoie <code>levels/&lt;id&gt;.json</code> et <code>levels/campaign.json</code> sur GitHub (branche déployée par Hostinger). Refusé si le niveau ou la campagne ont des erreurs. Il faut un <b>jeton GitHub fine-grained</b> (ce dépôt seulement, <i>Contents : Read and write</i>), saisi une fois et gardé seulement dans ce navigateur : la fenêtre de publication explique comment le créer.</li>
+  <li><b>Exporter</b> télécharge <code>&lt;id&gt;.json</code> (copie de sauvegarde, ou ajout manuel dans <code>levels/</code>).</li></ol>
   <h3>Tests de stat</h3><p>Réussite si D100 ≤ stat du héros actif + difficulté (Facile +20, Normal 0, Difficile −20, Héroïque −40) + modificateur. Les boosts ✦ ajoutent +10 chacun. </p><div class="stat-legend">${statChip('combat')} attaques ; ${Object.entries(STATS).map(([k, s]) => `<span>${statChip(k)} ${s.desc}</span>`).join('')}</div>
   <h3>Ce qu'on peut faire</h3><p>Effets rangés par catégorie : récit, dés et logique (test, si/sinon, hasard, fenêtre de choix, compteur), héros (boosts, soins, blessure, <b>bonus/malus de stat</b> pour le niveau ou permanent, poison/étourdi, XP, déplacement), objets et quêtes, carte (révéler, <b>déverrouiller une zone</b>, apparitions, départ d'un PNJ), partie (glas, limite de glas, victoire/défaite). Dans les textes, <code>{héros}</code> est remplacé par le nom du héros actif.</p>
   <h3>Drapeaux</h3><p>Mémoire du niveau : « Poser un drapeau » puis condition « Drapeau posé ». Leur nom est libre (ex. <code>pontOuvert</code>).</p>
@@ -289,14 +292,23 @@ function render() {
   for (const [k, l] of TABS) nav.append(h('button', { class: 'tab ' + (ui.tab === k ? 'on' : ''), type: 'button', onclick: () => { ui.tab = k; render(); } }, l));
   const main = $('#main'), sc = main.scrollTop;
   main.innerHTML = '';
-  const P = { general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
+  const P = { campaign: () => panelCampaign(ctx), general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
   main.append(P()); main.scrollTop = sc;
   $('#title').textContent = L.title || L.id; refreshLists(); updateBadge();
 }
 
 // ------------------------------------------------------------------ barre d'outils
 $('#new').onclick = () => { if (confirm('Commencer un nouveau niveau ? (exportez d\'abord celui-ci si besoin)')) setLevel(emptyLevel()); };
-$('#example').onclick = async () => { if (!confirm('Ouvrir le Prologue comme exemple ? (remplace le niveau en cours dans l\'éditeur)')) return; setLevel(await (await fetch('levels/prologue.json', { cache: 'no-cache' })).json()); };
+// Ouvrir un niveau du jeu (fichiers référencés par la campagne)
+$('#example').onclick = async () => {
+  await loadEditorCampaign().catch(() => {});
+  const files = [...new Map(campaignLevelFiles().map(x => [x.file, x])).values()];
+  const list = files.length ? files : [{ file: 'levels/prologue.json', step: { num: 'Prologue', title: '' } }];
+  const pick = prompt(`Ouvrir quel niveau du jeu ? (remplace le niveau en cours dans l'éditeur)\n${list.map((x, i) => `${i + 1}. ${x.step.num || ''} ${x.step.title || ''} — ${x.file}`).join('\n')}`, '1');
+  const f = list[+pick - 1]; if (!f) return;
+  try { setLevel(await (await fetch(f.file, { cache: 'no-cache' })).json()); } catch (e) { alert('Niveau illisible : ' + e.message); }
+};
+$('#publish').onclick = () => publishDialog(ctx);
 $('#open').onclick = () => $('#file').click();
 $('#file').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { setLevel(JSON.parse(await f.text())); } catch (err) { alert('Fichier illisible : ' + err.message); } e.target.value = ''; };
 $('#export').onclick = () => {
