@@ -748,9 +748,19 @@
   "herbes": {
    "name": "Herbes de soin",
    "icon": "herb",
-   "desc": "Toucher : soigne 3 PV au héros actif (gratuit). Conservées entre les étapes.",
-   "usable": true,
-   "keep": true
+   "desc": "Toucher : soigne 3 PV au héros actif. Conservées entre les étapes.",
+   "keep": true,
+   "useEffects": [
+    {
+     "type": "heal",
+     "n": 3,
+     "who": "active"
+    }
+   ],
+   "useCond": {
+    "type": "wounded"
+   },
+   "useNeed": "le héros actif n'a pas besoin de soins."
   },
   "huile": {
    "name": "Huile de lampe",

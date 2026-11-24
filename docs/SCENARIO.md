@@ -35,10 +35,42 @@ Toucher si D100 ≤ Combat du héros − défense de l'ennemi. **Dégâts = dég
 Les monstres jouent des cartes (`js/core/monsters.js`). Ils visent le héros atteignable le plus blessé, sinon le plus proche. **Garde N** : le monstre ne s'éloigne pas à plus de N cases de son lieu.
 
 ## Briques du format
-- **Effets** (`EFFECTS` dans `js/core/level.js`) : message, narration, test de stat, si/alors/sinon, donner ou retirer un objet, boosts, soins, repos, glas, drapeau, quêtes, révéler un lieu, déverrouiller une zone, apparition (figurine ou vague), lancer un dialogue, nuit, cloche, réputation, mémoire de campagne, victoire.
-- **Conditions** (`CONDS`) : drapeau posé ou non, objet possédé ou non, état de quête, ennemis présents ou non au lieu, figurine en vie, réputation, mémoire de campagne, toutes / au moins une.
-- **Dialogues** : chaque nœud a un orateur et un texte, puis une suite (nœud ou fin), des **choix** (condition, une seule fois, test, effets) ou un **test**.
-  - Les **variantes** changent le texte selon une condition.
-  - Les **embranchements** changent la suite selon une condition.
-- **Personnages** : « Quand on lui parle », c'est la première règle dont la condition est vraie qui choisit le dialogue. Si aucun dialogue, le PNJ dit sa réplique.
-- **Carte** : `hexMap` (lignes « odd-r »), `tiles["col,ligne"] = { terrain, zone }`, lieux avec `cell: [col, ligne]`. Les codes des tuiles physiques (F-01…) sont attribués ligne par ligne.
+Toutes les briques se choisissent dans des menus de l'éditeur (`js/core/level.js`).
+
+**Effets** (par catégorie) :
+- **Récit** : message (`{héros}` = nom du héros actif), narration plein écran, lancer un dialogue, nuit, cloche.
+- **Dés et logique** :
+  - test de stat (avec effets de réussite et d'échec) ;
+  - si / alors / sinon ;
+  - **au hasard (x %)** ;
+  - **fenêtre de choix** : options avec condition et effets ;
+  - **compteur** ; drapeau.
+- **Héros** :
+  - boosts ±, soins, **blessure** (mortelle ou non), repos ;
+  - **bonus/malus de stat**, pour ce niveau ou **permanent dans la campagne** ;
+  - **état** : poison, étourdi, guérison ;
+  - **XP bonus** ; **déplacer des héros vers un lieu**.
+- **Objets et quêtes** : donner ou retirer un objet, démarrer ou terminer une quête.
+- **Carte et figurines** : révéler un lieu ou le plus proche, **déverrouiller une zone**, apparition (figurine ou vague), **retirer une figurine** (départ, fuite).
+- **Partie** : glas ±, **limite de glas ±**, réputation, mémoire de campagne, victoire, **défaite**.
+
+**Conditions** :
+- **sur l'état du niveau** : drapeau posé ou non, objet possédé ou non, état de quête ;
+- **sur le héros actif** : qui c'est, une de ses stats ≥ N, ses PV ≤ N, il est blessé ;
+- **sur la partie** : nombre de héros, manche, glas, nuit, compteur ;
+- **sur les lieux et figurines** : ennemis présents ou non à un lieu, figurine en vie ;
+- **mémoire** : réputation, mémoire de campagne ;
+- **combinaisons** : **NON**, toutes, au moins une.
+
+**Dialogues** :
+- Un **texte d'ambiance** (le narrateur décrit la scène) s'affiche avant la première réplique.
+- Chaque nœud a un orateur (PNJ, héros ou narrateur) et un texte, puis :
+  - une suite simple ;
+  - des **choix** (condition, une seule fois, indice, effets) ;
+  - un **test de stat**, avec des effets de réussite ou d'échec (récompense, malus…) et une suite propre à chaque issue ou une suite commune.
+- Le joueur voit seulement **quelle stat** est testée (« 🎲 Force ») et devine la difficulté à la formulation.
+- Les **variantes** changent le texte selon une condition, les **embranchements** changent la suite.
+
+**Objets** : on peut les rendre **utilisables depuis la besace**, avec une condition, des effets, et le choix d'être consommés ou non.
+**Personnages** : « Quand on lui parle », c'est la première règle dont la condition est vraie qui choisit le dialogue. Si aucun dialogue, le PNJ dit sa réplique.
+**Carte** : `hexMap` (lignes « odd-r »), `tiles["col,ligne"] = { terrain, zone }`, lieux avec `cell: [col, ligne]`. Les codes des tuiles physiques (F-01…) sont attribués ligne par ligne.

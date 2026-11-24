@@ -10,6 +10,7 @@ import { settings, PRESETS } from './settings.js';
 import { CAMPAIGN, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, PERKS, saveCampaign, levelOf } from './campaign.js';
 import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
 import { SKILL_NAMES, DIFFICULTIES, statKey, testChance } from './stats.js';
+import { evalCond } from './level.js';
 
 const SAVE_V = 7;
 const TERRAIN_CODE = { village: 'V', forest: 'F', plains: 'P', rock: 'R', swamp: 'M', ruins: 'U', burned: 'C', snow: 'N', crypt: 'X' };
@@ -165,8 +166,66 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   }
 
   // ------------------------------------------------------------------ API exposée aux scénarios
+  /** Héros visés par un effet : active | here | all | id */
+  const whoIds = who => { const a = active(); return who === 'all' ? heroes().map(h => h.id) : who === 'here' ? heroes().filter(h => S.figs[h.id].tile === S.figs[a].tile).map(h => h.id) : [who === 'active' || !who ? a : who].filter(id => S.figs[id]?.alive); };
+  /** Valeur effective d'une stat (fiche + bonus du niveau) */
+  const skillOf = (id, k) => { k = statKey(k); return (def(id)?.skills?.[k] ?? 30) + (S.statMods?.[id]?.[k] || 0); };
+  /** Un héros tombe (combat, piège mortel…) */
+  async function knockOut(hid, why = '') {
+    const hf = S.figs[hid], h = def(hid); if (!hf?.alive) return;
+    hf.alive = false; S.stats.ko++; S.ko.push(hid); S.cond[hid] = {};
+    if (hid === 'aldric') S.mounted = false;
+    await engine.removeFigure(hid, { animate: true });
+    ui.toast(`${h.name} tombe${why} ! Retour au hameau à la prochaine manche. <b>+1 glas</b>`, 3200);
+    g.glas(1);
+    if (!heroes().length) await finish(false);
+  }
   const g = {
     flag: k => !!S.flags[k], set: (k, v = true) => { S.flags[k] = v; },
+    // --- lecture de l'état (conditions de l'éditeur)
+    activeId: () => active(), skillOf, hpOf: id => S.figs[id]?.hp ?? 0, maxHpOf: id => def(id)?.hp ?? 0, partySize: () => S.party.length, round: () => S.round, glasNow: () => S.glas,
+    isNight: () => S.tod === 'night', counterOf: k => S.counters[k] || 0,
+    /** {héros} → nom du héros actif */
+    fill: t => String(t ?? '').replace(/\{h[ée]ros\}|\{hero\}/gi, activeDef()?.name || 'vous'),
+    // --- effets supplémentaires (éditeur)
+    addCounter(k, n) { S.counters[k] = (S.counters[k] || 0) + n; },
+    async damage(n, who, lethal) {
+      for (const id of whoIds(who)) {
+        const f = S.figs[id]; f.hp -= n; sfx.hit(); ui.floatText(engine.screenPos(id), `-${n} PV`, '#ff6a4a');
+        if (f.hp <= 0) { if (lethal) await knockOut(id); else f.hp = 1; }
+      }
+      refreshHUD();
+    },
+    statBonus(k, n, who, duration) {
+      k = statKey(k);
+      for (const id of whoIds(who)) {
+        if (duration === 'campaign') { // permanent : enregistré dans la campagne (sauf en test depuis l'éditeur)
+          def(id).skills[k] = (def(id).skills[k] ?? 30) + n;
+          if (!draft) { const p = heroProgress(campaign, id); p.skills[k] = (p.skills[k] || 0) + n; saveCampaign(campaign); }
+        } else { S.statMods ||= {}; S.statMods[id] ||= {}; S.statMods[id][k] = (S.statMods[id][k] || 0) + n; }
+        ui.floatText(engine.screenPos(id), `${n > 0 ? '+' : ''}${n} ${SKILL_NAMES[k] || k}`, n > 0 ? '#9fd0ff' : '#ff7a6a');
+      }
+      if (n > 0) sfx.magic(); refreshHUD();
+    },
+    setStatus(kind, who) {
+      for (const id of whoIds(who)) {
+        const c = S.cond[id] ||= {};
+        if (kind === 'cure') { c.poison = false; c.stun = false; ui.floatText(engine.screenPos(id), 'Guéri', '#8fe07a'); }
+        else { c[kind] = true; ui.floatText(engine.screenPos(id), kind === 'poison' ? 'Empoisonné' : 'Étourdi', '#ff9a6a'); }
+      }
+      refreshHUD();
+    },
+    addXp(n, who) { S.bonusXp ||= {}; for (const id of who === 'all' ? S.party : whoIds(who)) { S.bonusXp[id] = (S.bonusXp[id] || 0) + n; ui.floatText(engine.screenPos(id), `+${n} XP`, '#ffd36a'); } },
+    async moveHeroesTo(place, who) {
+      const k = map.placeKey[place]; if (!k) return;
+      if (!revealed.has(k)) await reveal(k);
+      for (const id of whoIds(who)) { const f = S.figs[id]; if (f.tile === k) continue; await engine.moveFigure(id, [f.tile, k], { follow: true }); f.tile = k; }
+      await exploreTile(k); await revealAround(k); await flushSetup();
+    },
+    async despawn(id) { const f = S.figs[id]; if (!f?.alive) return; f.alive = false; await engine.removeFigure(id, { animate: true }); refreshHUD(); },
+    addGlasMax(n) { S.glasMax = Math.max(S.glas + 1, S.glasMax + n); ui.toast(`Limite de glas : <b>${S.glasMax}</b>`, 2400); refreshHUD(); },
+    async defeat() { await finish(false); },
+    choose: o => ui.choose(o),
     has: k => (S.inv[k] || 0) > 0,
     give(k, n = 1) { S.inv[k] = (S.inv[k] || 0) + n; ui.toast(`Obtenu : <b>${st.items[k].name}</b>${n > 1 ? ' ×' + n : ''}`, 2600); sfx.success(); refreshHUD(); },
     take(k) { S.inv[k] = Math.max(0, (S.inv[k] || 0) - 1); refreshHUD(); },
@@ -194,12 +253,12 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     async test(skill, label, mod = 0, diff = 'normal') {
       await tip('dice');
       skill = statKey(skill);
-      const h = activeDef(), base = h.skills[skill] ?? 30, chance = testChance(base, diff, mod), dm = DIFFICULTIES[diff]?.mod ?? 0;
+      const h = activeDef(), base = skillOf(h.id, skill), chance = testChance(base, diff, mod), dm = DIFFICULTIES[diff]?.mod ?? 0;
       S.stats.dice++;
       const parts = [`${SKILL_NAMES[skill] || skill} ${base} %`];
       if (dm) parts.push(`${DIFFICULTIES[diff].label} ${dm > 0 ? '+' : '−'}${Math.abs(dm)}`);
       if (mod) parts.push(`${mod > 0 ? '+' : '−'}${Math.abs(mod)}`);
-      const r = await ui.rollD100({ chance, label: `${h.name} — ${label}`, detail: parts.join(' · '), color: h.color, boosts: S.boost[h.id] || 0 });
+      const r = await ui.rollD100({ chance, label: `${h.name} — ${label}`, detail: parts.join(' · '), color: h.color, boosts: S.boost[h.id] || 0, stat: skill });
       spendBoost(h.id, r.spent);
       return r.ok;
     },
@@ -441,6 +500,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   }
   function useItem(item) {
     const it = st.items[item];
+    if (it.use) { // effets définis dans l'éditeur
+      if (it.useCond && !evalCond(it.useCond, g)) { ui.toast(`<b>${it.name}</b> — ${it.useNeed || 'pas maintenant.'}`); return; }
+      return act(async () => { await it.use(g); if (it.consume !== false) g.take(item); save(); });
+    }
     if (item !== 'herbes') { ui.toast(`<b>${it.name}</b> — ${it.desc}`, 3200); return; }
     const id = active(), f = S.figs[id], h = def(id);
     if (!f?.alive || f.hp >= h.hp) { ui.toast(`${h.name} n'a pas besoin de soins.`); return; }
@@ -453,8 +516,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     await tip('dice');
     const h = def(heroId), e = def(enemyId), ef = S.figs[enemyId];
     S.stats.dice++;
-    const chance = Math.max(5, Math.min(95, h.skills.combat - e.def));
-    const r = await ui.rollD100({ chance, label: `${h.name} attaque ${dispName(enemyId)}`, detail: `${h.combatName} ${h.skills.combat} % − défense ${e.def} %`, color: h.color, boosts: S.boost[heroId] || 0 });
+    const chance = Math.max(5, Math.min(95, skillOf(heroId, 'combat') - e.def));
+    const r = await ui.rollD100({ chance, label: `${h.name} attaque ${dispName(enemyId)}`, detail: `${h.combatName} ${skillOf(heroId, 'combat')} % − défense ${e.def} %`, color: h.color, boosts: S.boost[heroId] || 0, stat: 'combat' });
     spendBoost(heroId, r.spent);
     if (h.range > 1 && S.figs[heroId].tile !== ef.tile) { sfx.magic(); engine.animate?.(heroId, 'cast'); await sleep(500); } else await engine.bump(heroId, enemyId);
     S.used.attack = true;
@@ -513,14 +576,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (atk.poison && hf.hp > 0 && !c.poison) { c.poison = true; ui.toast(`${h.name} est <b>empoisonné</b> (−1 PV par tour, jusqu'à un soin).`, 2800); }
     if (atk.stun && hf.hp > 0) { c.stun = true; ui.toast(`${h.name} est <b>étourdi</b> : pas d'attaque à son prochain tour.`, 2800); }
     refreshHUD();
-    if (hf.hp <= 0) {
-      hf.alive = false; S.stats.ko++; S.ko.push(hid); S.cond[hid] = {};
-      if (hid === 'aldric') S.mounted = false;
-      await engine.removeFigure(hid, { animate: true });
-      ui.toast(`${h.name} tombe ! Retour au hameau à la prochaine manche. <b>+1 glas</b>`, 3200);
-      g.glas(1);
-      if (!heroes().length) await finish(false);
-    }
+    if (hf.hp <= 0) await knockOut(hid);
   }
 
   // ------------------------------------------------------------------ dialogues
@@ -586,7 +642,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         const h = def(a), d = distTo(af.tile, S.figs[id].tile, h.range);
         if (d == null) { ui.toast(`Hors de portée (portée ${h.range === 1 ? 'même case ou voisine' : h.range + ' cases'}).`); engine.focusFigure(id, { soft: true }); return; }
         return act(async () => {
-          const e = def(id), chance = Math.max(5, Math.min(95, h.skills.combat - e.def));
+          const e = def(id), chance = Math.max(5, Math.min(95, skillOf(a, 'combat') - e.def));
           const ok = await ui.confirm({ title: `Attaquer ${e.name} ?`, text: `PV ${S.figs[id].hp} · chance de toucher <b>${chance} %</b> (+10 par boost)<br>Dégâts <b>${h.dmg}</b>, <b>+1</b> par tranche de 20 sous la chance, <b>×2</b> sur critique<br><small>Utilise l'attaque du tour.</small>`, portrait: { kind: e.kind, color: e.color }, ok: 'Attaquer', cancel: 'Annuler', danger: true });
           if (ok) await attack(a, id);
         });
@@ -626,7 +682,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     // XP de fin d'étape : commune (victoire + quêtes) + bonus perso (ennemis, critiques). Défaite : moitié.
     const quests = Object.values(S.quests).filter(q => q === 'done').length;
     const common = (win ? 30 : 10) + 5 * quests;
-    const xp = Object.fromEntries(S.party.map(id => [id, common + 4 * (S.hstats[id]?.kills || 0) + 2 * (S.hstats[id]?.crits || 0)]));
+    const xp = Object.fromEntries(S.party.map(id => [id, common + 4 * (S.hstats[id]?.kills || 0) + 2 * (S.hstats[id]?.crits || 0) + (S.bonusXp?.[id] || 0)]));
     const stash = Object.fromEntries(Object.entries(S.inv).filter(([k, n]) => n > 0 && st.items[k]?.keep));
     const gains = draft ? Object.fromEntries(S.party.map(id => [id, { xp: xp[id], level: levelOf(heroProgress(campaign, id).xp), up: 0 }])) // test : rien n'est enregistré
       : completeStep(S.step, { win, memory: { ...(st.remember?.(g) || {}), ...S.memoryOut }, xp, stash });

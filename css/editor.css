@@ -75,3 +75,5 @@ details.card > summary b { font: 500 15px var(--head); color: var(--gold-hi); } 
 .tests2 > div { border: 1px solid #3a2d22; border-radius: 8px; padding: 6px 8px; } .ok-side { border-left: 3px solid var(--green) !important; } .ko-side { border-left: 3px solid var(--red) !important; }
 .ok-side .nested-l { color: var(--green); } .ko-side .nested-l { color: var(--red); }
 @media (max-width: 1100px) { .tests2 { grid-template-columns: 1fr; } }
+.opt-ed { border: 1px dashed #4a3a2a; border-radius: 8px; padding: 6px 10px; margin: 6px 0; }
+optgroup { color: var(--gold); font-style: normal; } option { color: var(--text); }

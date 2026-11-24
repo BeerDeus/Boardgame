@@ -60,7 +60,7 @@ export function createDialogue(root) {
         box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
       }
       $('.d-choices').innerHTML = ''; box.classList.remove('has-choices'); $('.d-hint').style.opacity = 0;
-      const typed = typeText($('.d-text'), val(n.t, g));
+      const typed = typeText($('.d-text'), g?.fill ? g.fill(val(n.t, g)) : val(n.t, g));
       const skip = () => typing?.finish();
       box.addEventListener('pointerup', skip);
       keyHandler = e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); skip(); } };
@@ -73,7 +73,7 @@ export function createDialogue(root) {
           choices.forEach((c, i) => {
             const ok = !c.cond || c.cond(g);
             const b = document.createElement('button'); b.className = 'choice' + (ok ? '' : ' locked');
-            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i><span>${val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>Requiert : ${c.need || '?'}</small>`}</span>`;
+            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i><span>${g?.fill ? g.fill(val(c.t, g)) : val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>Requiert : ${c.need || '?'}</small>`}</span>`;
             if (ok) { b.onclick = e => { e.stopPropagation(); res(c); }; btns[i] = c; }
             $('.d-choices').append(b);
           });

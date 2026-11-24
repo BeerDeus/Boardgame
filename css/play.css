@@ -416,3 +416,6 @@ body.narrating #viewport { visibility: hidden; }
 .narr-ic { display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 40% 35%, #4a3a24, #1a120c); border: 2px solid var(--gold); border-radius: 50%; }
 .narr-ic svg { width: 55%; height: 55%; stroke: var(--gold-hi); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .dlg-test { display: inline-block; font-style: normal !important; color: #9fd0ff !important; border: 1px solid rgba(111,179,255,.5); border-radius: 6px; padding: 0 5px; margin: 0 4px 2px 0; font-size: 12px !important; }
+.dlg-test .ic { width: 13px; height: 13px; vertical-align: -2px; }
+.d100-detail .ic { width: 16px; height: 16px; vertical-align: -3px; }
+.ps-attrs .ic { width: 12px; height: 12px; vertical-align: -1px; }

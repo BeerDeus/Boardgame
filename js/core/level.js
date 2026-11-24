@@ -4,37 +4,51 @@
 // la même description sert à l'interpréteur ET aux formulaires de l'éditeur.
 import { HEROES } from './heroes.js';
 import { SKILL_NAMES, STATS, DIFFICULTIES } from './stats.js';
+import { icon } from './icons.js';
 
 export const LEVEL_FORMAT = 1;
 
 /** Types de champs : text, longtext, number, bool, item, quest, place, zone, flag, cast, npc, dialogue, stat, diff, who, image, wave, effects, cond, conds, icon */
 export const WHO = { active: 'Héros actif', here: 'Héros sur la case', all: 'Tous les héros' };
 
+/** Groupes d'effets (menus de l'éditeur) */
+export const EFFECT_GROUPS = { recit: 'Récit', logique: 'Dés et logique', heros: 'Héros', objets: 'Objets et quêtes', carte: 'Carte et figurines', partie: 'Partie' };
 export const EFFECTS = {
-  toast:      { label: 'Message', fields: [['text', 'text', '', 'Texte']] },
-  narrate:    { label: 'Narration plein écran', fields: [['title', 'text', '', 'Titre'], ['text', 'longtext', '', 'Texte'], ['image', 'image', 'assets/bg/painting3.jpg', 'Image']] },
-  test:       { label: 'Test de stat (dés)', fields: [['stat', 'stat', 'force', 'Stat'], ['diff', 'diff', 'normal', 'Difficulté'], ['mod', 'number', 0, 'Modif. %'], ['label', 'text', '', 'Intitulé'], ['success', 'effects', [], 'Si réussite'], ['fail', 'effects', [], 'Si échec']] },
-  if:         { label: 'Si… alors… sinon', fields: [['cond', 'cond', null, 'Condition'], ['then', 'effects', [], 'Alors'], ['else', 'effects', [], 'Sinon']] },
-  give:       { label: 'Donner un objet', fields: [['item', 'item', '', 'Objet'], ['n', 'number', 1, 'Quantité']] },
-  take:       { label: 'Retirer un objet', fields: [['item', 'item', '', 'Objet']] },
-  boost:      { label: 'Boosts ±', fields: [['n', 'number', 1, 'Nombre (négatif = perte)'], ['who', 'who', 'active', 'Qui']] },
-  heal:       { label: 'Soigner', fields: [['n', 'number', 2, 'PV'], ['who', 'who', 'active', 'Qui']] },
-  restHere:   { label: 'Repos complet (PV max + 1 boost, case)', fields: [] },
-  glas:       { label: 'Glas ±', fields: [['n', 'number', 1, 'Nombre (négatif = recul)']] },
-  set:        { label: 'Poser un drapeau', fields: [['flag', 'flag', '', 'Drapeau'], ['value', 'bool', true, 'Valeur']] },
-  questStart: { label: 'Démarrer une quête', fields: [['quest', 'quest', '', 'Quête']] },
-  questDone:  { label: 'Terminer une quête', fields: [['quest', 'quest', '', 'Quête']] },
-  revealPlace:{ label: 'Révéler un lieu', fields: [['place', 'place', '', 'Lieu']] },
-  revealNearestPlace: { label: 'Révéler le lieu inconnu le plus proche', fields: [] },
-  unlockZone: { label: 'Déverrouiller une zone', fields: [['zone', 'zone', '', 'Zone']] },
-  spawn:      { label: 'Faire apparaître une figurine', fields: [['cast', 'cast', '', 'Figurine']] },
-  spawnWave:  { label: 'Faire apparaître une vague', fields: [['wave', 'wave', '', 'Vague (étiquette)']] },
-  dialogue:   { label: 'Lancer un dialogue', fields: [['dialogue', 'dialogue', '', 'Dialogue'], ['npc', 'cast', '', 'Avec']] },
-  night:      { label: 'La nuit tombe', fields: [] },
-  bell:       { label: 'Son de cloche', fields: [] },
-  rep:        { label: 'Réputation PNJ ±', fields: [['npc', 'cast', '', 'PNJ'], ['n', 'number', 1, 'Points']] },
-  remember:   { label: 'Mémoire de campagne', fields: [['key', 'text', '', 'Clé'], ['value', 'text', 'true', 'Valeur']] },
-  victory:    { label: 'Victoire', fields: [] },
+  toast:      { g: 'recit', label: 'Message', fields: [['text', 'text', '', 'Texte ({héros} = nom du héros actif)']] },
+  narrate:    { g: 'recit', label: 'Narration plein écran', fields: [['title', 'text', '', 'Titre'], ['text', 'longtext', '', 'Texte'], ['image', 'image', 'assets/bg/painting3.jpg', 'Image']] },
+  dialogue:   { g: 'recit', label: 'Lancer un dialogue', fields: [['dialogue', 'dialogue', '', 'Dialogue'], ['npc', 'cast', '', 'Avec']] },
+  night:      { g: 'recit', label: 'La nuit tombe', fields: [] },
+  bell:       { g: 'recit', label: 'Son de cloche', fields: [] },
+  test:       { g: 'logique', label: 'Test de stat (dés)', fields: [['stat', 'stat', 'force', 'Stat'], ['diff', 'diff', 'normal', 'Difficulté'], ['mod', 'number', 0, 'Modif. %'], ['label', 'text', '', 'Intitulé'], ['success', 'effects', [], 'Si réussite'], ['fail', 'effects', [], 'Si échec']] },
+  if:         { g: 'logique', label: 'Si… alors… sinon', fields: [['cond', 'cond', null, 'Condition'], ['then', 'effects', [], 'Alors'], ['else', 'effects', [], 'Sinon']] },
+  random:     { g: 'logique', label: 'Au hasard (… %)', fields: [['chance', 'number', 50, 'Chance %'], ['then', 'effects', [], 'Si le hasard sourit'], ['else', 'effects', [], 'Sinon']] },
+  choose:     { g: 'logique', label: 'Choix des joueurs (fenêtre)', fields: [['title', 'text', 'Que faites-vous ?', 'Titre'], ['text', 'longtext', '', 'Texte'], ['options', 'options', [], 'Options']] },
+  counter:    { g: 'logique', label: 'Compteur ±', fields: [['key', 'text', '', 'Compteur'], ['n', 'number', 1, 'Ajouter']] },
+  set:        { g: 'logique', label: 'Poser un drapeau', fields: [['flag', 'flag', '', 'Drapeau'], ['value', 'bool', true, 'Valeur']] },
+  boost:      { g: 'heros', label: 'Boosts ±', fields: [['n', 'number', 1, 'Nombre (négatif = perte)'], ['who', 'who', 'active', 'Qui']] },
+  heal:       { g: 'heros', label: 'Soigner', fields: [['n', 'number', 2, 'PV'], ['who', 'who', 'active', 'Qui']] },
+  damage:     { g: 'heros', label: 'Blesser (perte de PV)', fields: [['n', 'number', 1, 'PV perdus'], ['who', 'who', 'active', 'Qui'], ['lethal', 'bool', false, 'Peut faire tomber le héros']] },
+  restHere:   { g: 'heros', label: 'Repos complet (PV max + 1 boost, case)', fields: [] },
+  statBonus:  { g: 'heros', label: 'Bonus / malus de stat', fields: [['stat', 'statc', 'force', 'Stat'], ['n', 'number', 5, 'Points (%)'], ['who', 'who', 'active', 'Qui'], ['duration', 'duration', 'level', 'Durée']] },
+  status:     { g: 'heros', label: 'État (poison, étourdi, guérison)', fields: [['status', 'hcond', 'poison', 'État'], ['who', 'who', 'active', 'Qui']] },
+  xp:         { g: 'heros', label: 'XP bonus (fin du niveau)', fields: [['n', 'number', 5, 'XP'], ['who', 'who', 'all', 'Qui']] },
+  moveHero:   { g: 'heros', label: 'Déplacer des héros vers un lieu', fields: [['place', 'place', '', 'Lieu'], ['who', 'who', 'active', 'Qui']] },
+  give:       { g: 'objets', label: 'Donner un objet', fields: [['item', 'item', '', 'Objet'], ['n', 'number', 1, 'Quantité']] },
+  take:       { g: 'objets', label: 'Retirer un objet', fields: [['item', 'item', '', 'Objet']] },
+  questStart: { g: 'objets', label: 'Démarrer une quête', fields: [['quest', 'quest', '', 'Quête']] },
+  questDone:  { g: 'objets', label: 'Terminer une quête', fields: [['quest', 'quest', '', 'Quête']] },
+  revealPlace:{ g: 'carte', label: 'Révéler un lieu', fields: [['place', 'place', '', 'Lieu']] },
+  revealNearestPlace: { g: 'carte', label: 'Révéler le lieu inconnu le plus proche', fields: [] },
+  unlockZone: { g: 'carte', label: 'Déverrouiller une zone', fields: [['zone', 'zone', '', 'Zone']] },
+  spawn:      { g: 'carte', label: 'Faire apparaître une figurine', fields: [['cast', 'cast', '', 'Figurine']] },
+  spawnWave:  { g: 'carte', label: 'Faire apparaître une vague', fields: [['wave', 'wave', '', 'Vague (étiquette)']] },
+  despawn:    { g: 'carte', label: 'Retirer une figurine (départ, fuite)', fields: [['cast', 'cast', '', 'Figurine']] },
+  glas:       { g: 'partie', label: 'Glas ±', fields: [['n', 'number', 1, 'Nombre (négatif = recul)']] },
+  glasMax:    { g: 'partie', label: 'Limite de glas ± (plus ou moins de temps)', fields: [['n', 'number', 1, 'Glas']] },
+  rep:        { g: 'partie', label: 'Réputation PNJ ±', fields: [['npc', 'cast', '', 'PNJ'], ['n', 'number', 1, 'Points']] },
+  remember:   { g: 'partie', label: 'Mémoire de campagne', fields: [['key', 'text', '', 'Clé'], ['value', 'text', 'true', 'Valeur']] },
+  victory:    { g: 'partie', label: 'Victoire', fields: [] },
+  defeat:     { g: 'partie', label: 'Défaite', fields: [] },
 };
 
 export const CONDS = {
@@ -43,14 +57,26 @@ export const CONDS = {
   has:       { label: 'Possède l\'objet', fields: [['item', 'item', '', 'Objet']] },
   notHas:    { label: 'Ne possède pas l\'objet', fields: [['item', 'item', '', 'Objet']] },
   quest:     { label: 'État d\'une quête', fields: [['quest', 'quest', '', 'Quête'], ['state', 'qstate', 'active', 'État']] },
+  heroIs:    { label: 'Le héros actif est…', fields: [['hero', 'hero', '', 'Héros']] },
+  heroStat:  { label: 'Stat du héros actif ≥', fields: [['stat', 'statc', 'force', 'Stat'], ['n', 'number', 50, 'Au moins (%)']] },
+  hpBelow:   { label: 'PV du héros actif ≤', fields: [['n', 'number', 3, 'PV']] },
+  wounded:   { label: 'Le héros actif est blessé', fields: [] },
+  partySize: { label: 'Nombre de héros ≥', fields: [['n', 'number', 2, 'Au moins']] },
+  round:     { label: 'Manche ≥', fields: [['n', 'number', 3, 'Manche']] },
+  glas:      { label: 'Glas ≥', fields: [['n', 'number', 5, 'Glas']] },
+  night:     { label: 'C\'est la nuit', fields: [] },
+  counter:   { label: 'Compteur ≥', fields: [['key', 'text', '', 'Compteur'], ['n', 'number', 1, 'Au moins']] },
   enemiesAt: { label: 'Ennemis présents au lieu', fields: [['place', 'place', '', 'Lieu']] },
   noEnemiesAt: { label: 'Plus d\'ennemis au lieu', fields: [['place', 'place', '', 'Lieu']] },
   alive:     { label: 'Figurine en vie', fields: [['cast', 'cast', '', 'Figurine']] },
   rep:       { label: 'Réputation PNJ ≥', fields: [['npc', 'cast', '', 'PNJ'], ['n', 'number', 1, 'Au moins']] },
   memory:    { label: 'Mémoire de campagne', fields: [['key', 'text', '', 'Clé']] },
+  not:       { label: 'NON (inverse une condition)', fields: [['cond', 'cond', null, 'Condition']] },
   all:       { label: 'Toutes ces conditions', fields: [['conds', 'conds', [], 'Conditions']] },
   any:       { label: 'Au moins une condition', fields: [['conds', 'conds', [], 'Conditions']] },
 };
+export const DURATION = { level: 'Ce niveau seulement', campaign: 'Toute la campagne (permanent)' };
+export const HCOND = { poison: 'Empoisonné (−1 PV par tour)', stun: 'Étourdi (pas d\'attaque au prochain tour)', cure: 'Guérir (retire poison et étourdissement)' };
 export const QSTATE = { active: 'En cours', done: 'Terminée', none: 'Pas commencée' };
 
 // ------------------------------------------------------------------ interpréteur
@@ -67,6 +93,16 @@ export function evalCond(c, g) {
     case 'alive': return g.alive(c.cast);
     case 'rep': return g.repOf(c.npc) >= (c.n ?? 1);
     case 'memory': return !!g.memory(c.key);
+    case 'heroIs': return g.activeId() === c.hero;
+    case 'heroStat': return g.skillOf(g.activeId(), c.stat) >= (+c.n || 0);
+    case 'hpBelow': return g.hpOf(g.activeId()) <= (+c.n || 0);
+    case 'wounded': return g.hpOf(g.activeId()) < g.maxHpOf(g.activeId());
+    case 'partySize': return g.partySize() >= (+c.n || 1);
+    case 'round': return g.round() >= (+c.n || 1);
+    case 'glas': return g.glasNow() >= (+c.n || 1);
+    case 'night': return g.isNight();
+    case 'counter': return (g.counterOf(c.key) || 0) >= (+c.n || 1);
+    case 'not': return !evalCond(c.cond, g);
     case 'all': return (c.conds || []).every(x => evalCond(x, g));
     case 'any': return (c.conds || []).some(x => evalCond(x, g));
     default: console.warn('Condition inconnue', c); return true;
@@ -79,8 +115,23 @@ export async function runEffects(list, g, ctx = {}) {
 }
 async function runEffect(e, g, ctx) {
   switch (e.type) {
-    case 'toast': return g.toast(e.text, e.ms || 2800);
-    case 'narrate': return g.narrate({ title: e.title || '', text: e.text || '', image: e.image || 'assets/bg/painting3.jpg' });
+    case 'toast': return g.toast(g.fill(e.text), e.ms || 2800);
+    case 'narrate': return g.narrate({ title: g.fill(e.title || ''), text: g.fill(e.text || ''), image: e.image || 'assets/bg/painting3.jpg' });
+    case 'random': return runEffects(Math.random() * 100 < (+e.chance || 0) ? e.then : e.else, g, ctx);
+    case 'choose': {
+      const opts = (e.options || []).map(o => ({ label: g.fill(o.label || '…'), disabled: !evalCond(o.cond, g), need: o.need }));
+      const i = await g.choose({ title: g.fill(e.title || ''), text: g.fill(e.text || ''), options: opts });
+      return runEffects(e.options?.[i]?.effects, g, ctx);
+    }
+    case 'counter': return g.addCounter(e.key, +e.n || 0);
+    case 'damage': return g.damage(+e.n || 1, e.who || 'active', !!e.lethal);
+    case 'statBonus': return g.statBonus(e.stat || 'force', +e.n || 0, e.who || 'active', e.duration || 'level');
+    case 'status': return g.setStatus(e.status || 'poison', e.who || 'active');
+    case 'xp': return g.addXp(+e.n || 0, e.who || 'all');
+    case 'moveHero': return g.moveHeroesTo(e.place, e.who || 'active');
+    case 'despawn': return g.despawn(e.cast);
+    case 'glasMax': return g.addGlasMax(+e.n || 0);
+    case 'defeat': return g.defeat();
     case 'test': { const ok = await g.test(e.stat || 'force', e.label || STATS[e.stat]?.name || 'Test', +e.mod || 0, e.diff || 'normal'); ctx.last = ok; return runEffects(ok ? e.success : e.fail, g, ctx); }
     case 'if': return runEffects(evalCond(e.cond, g) ? e.then : e.else, g, ctx);
     case 'give': return g.give(e.item, +e.n || 1);
@@ -114,7 +165,7 @@ function activity(a) {
     need: a.need, cond: cond(a.cond), run: g => runEffects(a.effects, g) };
 }
 /** Étiquette d'un choix à dés : seulement la stat testée (« 🎲 Force ») — la difficulté se devine à la formulation */
-const testTag = t => `<small class="dlg-test">🎲 ${STATS[t.stat]?.name || t.stat}</small> `;
+const testTag = t => `<small class="dlg-test">${icon(t.stat)} ${STATS[t.stat]?.name || t.stat}</small> `;
 /** Lance le test puis applique les effets de réussite / d'échec ; renvoie le résultat */
 async function rollTest(t, g, ctx) {
   const ok = await g.test(t.stat, t.label || STATS[t.stat]?.name, +t.mod || 0, t.diff || 'normal');
@@ -162,7 +213,8 @@ export function fromData(d) {
     hexMap: d.hexMap, tileArt: d.tileArt, tiles: d.tiles || {},
     zones: d.zones || [], regions: d.regions || [],
     places: (d.places || []).map(p => ({ ...p, activities: (p.activities || []).map(activity) })),
-    cast: d.cast || [], items: d.items || {},
+    cast: d.cast || [],
+    items: mapObj(d.items, it => ({ ...it, use: it.useEffects?.length ? g => runEffects(it.useEffects, g) : undefined })),
     minors: (d.minors || []).map(m => ({ ...m, activities: (m.activities || []).map(activity) })), minorChance: d.minorChance ?? 0,
     quests: d.quests || {}, intro: d.intro || [], victoryText: d.victoryText, defeatText: d.defeatText,
     dialogues: mapObj(d.dialogues, dialogue),

@@ -166,11 +166,11 @@ export function createUI({ title, subtitle }) {
      * Jet D100 = dé des dizaines (00-90) + dé des unités (0-9) ; 00 + 0 = 100. Réussite si résultat ≤ chance.
      * Critique : ≤ chance / 5 · Maladresse : ≥ 96. Mode physique : le joueur saisit ses dés ; virtuel : tirage animé.
      */
-    rollD100({ chance: base, label, detail = '', color = '#c9a45c', enemy = false, boosts = 0 }) {
+    rollD100({ chance: base, label, detail = '', color = '#c9a45c', enemy = false, boosts = 0, stat = null }) {
       return new Promise(res => {
         const $ = q => dice.querySelector(q);
         let t = null, u = null, done = false, spent = 0, chance = base, crit = 1;
-        $('.d100-label').textContent = label; $('.d100-detail').textContent = detail;
+        $('.d100-label').textContent = label; $('.d100-detail').innerHTML = (stat && ICON_NAMES.includes(stat) ? icon(stat) + ' ' : '') + detail;
         dice.classList.toggle('noboost', !boosts);
         const setTarget = () => {
           chance = Math.min(95, base + spent * 10); crit = Math.max(1, Math.floor(chance / 5));
@@ -327,6 +327,16 @@ export function createUI({ title, subtitle }) {
         keyHandler = e => { if (e.key === 'Enter') close(true); if (e.key === 'Escape') close(false); };
       });
     },
+    /** Choix des joueurs (effet « Choix ») : renvoie l'indice de l'option choisie */
+    choose({ title = '', text = '', options = [] }) {
+      return new Promise(res => {
+        modal.innerHTML = `<div class="lp-card ch-card"><div class="lp-head"><h3>${title}</h3></div>${text ? `<p class="lp-desc">${text}</p>` : ''}
+          <div class="lp-list">${options.map((o, i) => `<button class="lp-act" data-i="${i}" ${o.disabled ? 'disabled' : ''}><span class="lp-ic">${o.disabled ? icon('lock') : `<b>${i + 1}</b>`}</span><span><b>${o.label}</b>${o.disabled && o.need ? `<small>${o.need}</small>` : ''}</span></button>`).join('')}</div></div>`;
+        modal.classList.add('open'); sfx.ui();
+        modal.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { modal.classList.remove('open'); keyHandler = null; res(+b.dataset.i); });
+        keyHandler = e => { const i = +e.key - 1; if (options[i] && !options[i].disabled) { modal.classList.remove('open'); keyHandler = null; res(i); } };
+      });
+    },
     /** Panneau de lieu : toutes les activités disponibles, faisables dans la même interaction */
     locationPanel({ title, desc, hero, list, run }) {
       return new Promise(res => {
@@ -352,7 +362,7 @@ export function createUI({ title, subtitle }) {
       return new Promise(res => {
         modal.innerHTML = `<div class="lp-card lu-card" style="--c:${hero.color}"><div class="lu-head"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
           <div><h3>${hero.name} — niveau supérieur !</h3><small>Choisissez 1 amélioration (définitive pour la campagne).</small></div></div>
-          <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
+          <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${ICON_NAMES.includes(k.id) ? icon(k.id) + ' ' : ''}${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
           <h4>ou un avantage</h4><div class="lp-list">${perks.map(p2 => `<button class="lp-act" data-p="${p2.id}"><span class="lp-ic">${icon('boost')}</span><span><b>${p2.name}</b><small>${p2.desc}</small></span></button>`).join('')}</div></div>`;
         modal.classList.add('open', 'wide');
         modal.querySelectorAll('[data-k]').forEach(b2 => b2.onclick = () => { modal.classList.remove('open', 'wide'); sfx.success(); res({ skill: b2.dataset.k }); });
@@ -390,7 +400,7 @@ export function createUI({ title, subtitle }) {
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
               <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
               <span class="ps-stats">${icon('heart')} ${hh.hp} · ${icon('attack')} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
-              <span class="ps-stats ps-attrs">${Object.entries(STATS).map(([k, s]) => `<span title="${s.name}">${s.short} ${hh.skills[k] ?? '—'}</span>`).join('')}</span>
+              <span class="ps-stats ps-attrs">${Object.entries(STATS).map(([k, s]) => `<span title="${s.name}">${icon(k)} ${hh.skills[k] ?? '—'}</span>`).join('')}</span>
               <span class="ps-talent">${hh.talent}</span></button>`; }).join('')}</div>
             <div class="ps-foot">
               <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>

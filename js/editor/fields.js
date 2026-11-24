@@ -1,7 +1,8 @@
 // Briques de formulaire de l'éditeur : champs typés, éditeur d'effets, éditeur de conditions.
 // Les objets du niveau sont modifiés EN PLACE ; ctx.changed() sauvegarde, ctx.refresh() redessine le panneau.
-import { EFFECTS, CONDS, WHO, QSTATE } from '../core/level.js';
-import { STATS, DIFFICULTIES } from '../core/stats.js';
+import { EFFECTS, CONDS, WHO, QSTATE, EFFECT_GROUPS, DURATION, HCOND } from '../core/level.js';
+import { STATS, DIFFICULTIES, SKILL_NAMES } from '../core/stats.js';
+import { HEROES } from '../core/heroes.js';
 import { TERRAINS } from '../core/terrains.js';
 import { ICON_NAMES, icon } from '../core/icons.js';
 
@@ -62,6 +63,10 @@ export function options(ctx, type) {
     case 'image': return IMAGES.map(u => [u, u.split('/').pop()]);
     case 'icon': return ICON_NAMES.map(n => [n, n]);
     case 'terrain': return Object.entries(TERRAINS).map(([k, v]) => [k, v.label]);
+    case 'hero': return HEROES.map(x => [x.id, x.name]);
+    case 'statc': return Object.entries(SKILL_NAMES);
+    case 'duration': return Object.entries(DURATION);
+    case 'hcond': return Object.entries(HCOND);
     default: return [];
   }
 }
@@ -81,6 +86,7 @@ export function fieldFor(type, obj, key, ctx, label = '', def) {
     case 'effects': obj[key] ||= []; return h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, label), effectsEditor(obj[key], ctx));
     case 'cond': return h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, label), condEditor(obj, key, ctx));
     case 'conds': obj[key] ||= []; return h('div', { class: 'nested' }, condsList(obj[key], ctx));
+    case 'options': obj[key] ||= []; return h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, label), optionsEditor(obj[key], ctx));
     case 'icon': el = iconSelect(obj[key], set); break;
     default: el = select(obj[key], options(ctx, type), set, { empty: '—' });
   }
@@ -101,7 +107,7 @@ export function effectsEditor(list, ctx) {
     list.forEach((e, i) => {
       const def = EFFECTS[e.type] || { label: e.type, fields: [] };
       const head = h('div', { class: 'fx-head' },
-        select(e.type, Object.entries(EFFECTS).map(([k, v]) => [k, v.label]), v => { for (const k of Object.keys(e)) delete e[k]; e.type = v; initFields(e, EFFECTS[v]); ctx.changed(); draw(); }),
+        effectTypeSelect(e.type, v => { for (const k of Object.keys(e)) delete e[k]; e.type = v; initFields(e, EFFECTS[v]); ctx.changed(); draw(); }),
         h('span', { class: 'sp' }),
         icoBtn('↑', 'Monter', () => { if (i) { [list[i - 1], list[i]] = [list[i], list[i - 1]]; ctx.changed(); draw(); } }),
         icoBtn('↓', 'Descendre', () => { if (i < list.length - 1) { [list[i + 1], list[i]] = [list[i], list[i + 1]]; ctx.changed(); draw(); } }),
@@ -112,7 +118,30 @@ export function effectsEditor(list, ctx) {
       }
       box.append(h('div', { class: 'fx-row ' + (e.type === 'test' ? 'is-test' : e.type === 'if' ? 'is-if' : '') }, head, simple.childNodes.length ? simple : null, nested.childNodes.length ? nested : null));
     });
-    box.append(h('div', { class: 'fx-add' }, select('', Object.entries(EFFECTS).map(([k, v]) => [k, v.label]), v => { if (!v) return; const e = { type: v }; initFields(e, EFFECTS[v]); list.push(e); ctx.changed(); draw(); }, { empty: '+ Ajouter un effet…' })));
+    box.append(h('div', { class: 'fx-add' }, effectTypeSelect('', v => { if (!v) return; const e = { type: v }; initFields(e, EFFECTS[v]); list.push(e); ctx.changed(); draw(); }, '+ Ajouter un effet…')));
+  };
+  draw(); return box;
+}
+/** Menu des types d'effets, rangés par catégorie */
+function effectTypeSelect(value, onChange, empty = null) {
+  const el = h('select');
+  if (empty) el.append(h('option', { value: '' }, empty));
+  for (const [gk, gl] of Object.entries(EFFECT_GROUPS)) {
+    const og = h('optgroup', { label: gl });
+    for (const [k, v] of Object.entries(EFFECTS)) if (v.g === gk) { const o = h('option', { value: k }, v.label); if (k === value) o.selected = true; og.append(o); }
+    el.append(og);
+  }
+  el.addEventListener('change', () => onChange(el.value || null)); return el;
+}
+/** Options d'une fenêtre de choix : libellé, condition, effets */
+function optionsEditor(list, ctx) {
+  const box = h('div', { class: 'opts' });
+  const draw = () => {
+    box.innerHTML = '';
+    list.forEach((o, i) => box.append(h('div', { class: 'opt-ed' },
+      h('div', { class: 'card-h' }, h('b', {}, `Option ${i + 1}`), h('span', { class: 'sp' }), icoBtn('✕', 'Supprimer', () => { list.splice(i, 1); ctx.changed(); draw(); }, 'del')),
+      fieldFor('text', o, 'label', ctx, 'Libellé'), fieldFor('cond', o, 'cond', ctx, 'Proposée si'), fieldFor('text', o, 'need', ctx, 'Texte si verrouillée'), fieldFor('effects', o, 'effects', ctx, 'Effets'))));
+    box.append(btn('+ Option', () => { list.push({ label: '', effects: [] }); ctx.changed(); draw(); }, 'small'));
   };
   draw(); return box;
 }

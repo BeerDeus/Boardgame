@@ -221,7 +221,7 @@ function panelDialogues() {
     });
     card.append(h('div', { class: 'card-h' }, h('span', { class: 'node-id' }, renameNode), nid === d.start ? h('em', {}, 'départ') : null, h('span', { class: 'sp' }),
       icoBtn('✕', 'Supprimer le nœud', () => { if (confirm(`Supprimer le nœud « ${nid} » ?`)) { delete nodes[nid]; changed(); render(); } }, 'del')),
-      row(field('Qui parle', select(n.s, who, v => { n.s = v; changed(); }))), fieldFor('longtext', n, 't', ctx, 'Texte'),
+      row(field('Qui parle', select(n.s, who, v => { n.s = v; changed(); }))), fieldFor('longtext', n, 't', ctx, 'Texte ({héros} = nom du héros actif)'),
       field('Suite', select(mode, [['next', 'Continuer vers un nœud / fin'], ['choices', 'Choix des joueurs'], ['test', 'Test de stat automatique']], v => {
         if (v === 'choices') { delete n.test; n.choices = n.choices?.length ? n.choices : [{ t: '', next: null }]; }
         else if (v === 'test') { delete n.choices; n.test = { stat: 'force', diff: 'normal', mod: 0, label: '', success: null, fail: null }; }
@@ -275,7 +275,10 @@ function panelQuests() {
     h('div', { class: 'card-h' }, h('b', {}, it.name || id), icoBtn('✕', 'Supprimer', () => { delete L.items[id]; changed(); render(); }, 'del')),
     idField('item', id, () => {}, new Set(Object.keys(L.items))),
     row(fieldFor('text', it, 'name', ctx, 'Nom'), h('label', { class: 'fld' }, h('span', {}, 'Icône'), iconSelect(it.icon, v => { it.icon = v; changed(); }))),
-    fieldFor('text', it, 'desc', ctx, 'Description'), row(fieldFor('bool', it, 'keep', ctx, 'Conservé dans la campagne'), fieldFor('bool', it, 'usable', ctx, 'Utilisable (soin 3 PV)'))));
+    fieldFor('text', it, 'desc', ctx, 'Description'), row(fieldFor('bool', it, 'keep', ctx, 'Conservé dans la campagne')),
+    h('details', { open: it.useEffects?.length ? true : undefined }, h('summary', {}, `Utilisable depuis la besace (${it.useEffects?.length || 0} effet(s))`),
+      row(field('Consommé à l\'usage', checkbox(it.consume !== false, v => { if (v) delete it.consume; else it.consume = false; changed(); }))),
+      fieldFor('cond', it, 'useCond', ctx, 'Utilisable si'), fieldFor('text', it, 'useNeed', ctx, 'Message si pas utilisable'), fieldFor('effects', it, 'useEffects', ctx, 'Effets quand on l\'utilise'))));
   return h('div', { class: 'panel' }, h('h2', {}, 'Quêtes'), h('p', { class: 'muted' }, 'Démarrées / terminées par des effets. La première quête démarre automatiquement au début du niveau.'), qs,
     btn('+ Quête', () => { const id = uniqueId('quete', new Set(Object.keys(L.quests))); L.quests[id] = { title: 'Nouvelle quête', hint: '' }; changed(); render(); }, 'small'),
     h('h2', {}, 'Objets'), its,
@@ -320,6 +323,7 @@ function panelHelp() {
   <li><b>Tester ▸</b> ouvre le niveau dans le jeu (onglet séparé, sans toucher à la campagne).</li>
   <li><b>Exporter</b> télécharge <code>&lt;id&gt;.json</code> : à placer dans <code>levels/</code> puis à ajouter à la campagne (<code>js/core/campaign.js</code>).</li></ol>
   <h3>Tests de stat</h3><p>Réussite si D100 ≤ stat du héros actif + difficulté (Facile +20, Normal 0, Difficile −20, Héroïque −40) + modificateur. Les boosts ✦ ajoutent +10 chacun. Stats : ${Object.values(STATS).map(s => `<b>${s.name}</b> (${s.desc})`).join(', ')}.</p>
+  <h3>Ce qu'on peut faire</h3><p>Effets rangés par catégorie : récit, dés et logique (test, si/sinon, hasard, fenêtre de choix, compteur), héros (boosts, soins, blessure, <b>bonus/malus de stat</b> pour le niveau ou permanent, poison/étourdi, XP, déplacement), objets et quêtes, carte (révéler, <b>déverrouiller une zone</b>, apparitions, départ d'un PNJ), partie (glas, limite de glas, victoire/défaite). Dans les textes, <code>{héros}</code> est remplacé par le nom du héros actif.</p>
   <h3>Drapeaux</h3><p>Mémoire du niveau : « Poser un drapeau » puis condition « Drapeau posé ». Leur nom est libre (ex. <code>pontOuvert</code>).</p>
   <p class="muted">Le travail est enregistré automatiquement dans ce navigateur. Exportez régulièrement pour garder une copie.</p>` });
 }

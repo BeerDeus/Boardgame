@@ -1,6 +1,6 @@
 // Vérification d'un niveau JSON (éditeur + tools/validate-level.mjs) : références croisées, carte, dialogues.
 import { TERRAINS } from './terrains.js';
-import { STATS, DIFFICULTIES } from './stats.js';
+import { STATS, DIFFICULTIES, SKILL_NAMES } from './stats.js';
 import { HEROES } from './heroes.js';
 import { EFFECTS, CONDS } from './level.js';
 
@@ -24,10 +24,12 @@ export function neighborsOf(col, row) {
 /** Parcourt tous les effets/conditions du niveau : visit(kind, obj, where) */
 export function walk(L, visit) {
   const eff = (list, where) => { for (const e of list || []) { visit('effect', e, where); const def = EFFECTS[e.type];
-    for (const [k, t] of def?.fields || []) { if (t === 'effects') eff(e[k], `${where} › ${def.label}`); if (t === 'cond') cnd(e[k], where); } } };
-  const cnd = (c, where) => { if (!c?.type) return; visit('cond', c, where); for (const x of c.conds || []) cnd(x, where); };
+    for (const [k, t] of def?.fields || []) { if (t === 'effects') eff(e[k], `${where} › ${def.label}`); if (t === 'cond') cnd(e[k], where);
+      if (t === 'options') for (const o of e[k] || []) { cnd(o.cond, where); eff(o.effects, `${where} › ${o.label || 'option'}`); } } } };
+  const cnd = (c, where) => { if (!c?.type) return; visit('cond', c, where); for (const x of c.conds || []) cnd(x, where); if (c.cond) cnd(c.cond, where); };
   const acts = (list, where) => { for (const a of list || []) { cnd(a.cond, `${where} › ${a.label || a.id}`); eff(a.effects, `${where} › ${a.label || a.id}`); } };
   for (const p of L.places || []) acts(p.activities, `Lieu « ${p.name || p.id} »`);
+  for (const [k, it] of Object.entries(L.items || {})) { cnd(it.useCond, `Objet « ${it.name || k} »`); eff(it.useEffects, `Objet « ${it.name || k} »`); }
   for (const m of L.minors || []) acts(m.activities, `Rencontre « ${m.name || m.id} »`);
   for (const [id, d] of Object.entries(L.dialogues || {})) for (const [nid, n] of Object.entries(d.nodes || {})) {
     const w = `Dialogue ${id} › ${nid}`;
@@ -115,6 +117,8 @@ export function checkLevel(L) {
       if (t === 'dialogue' && !dialogues[v]) E(`dialogue « ${v || '?'} » inconnu`, where);
       if (t === 'wave' && !waves.has(v)) E(`aucune figurine n'apparaît avec la vague « ${v || '?'} »`, where);
       if (t === 'stat' && !STATS[v]) E(`stat « ${v} » inconnue`, where);
+      if (t === 'statc' && !SKILL_NAMES[v]) E(`stat « ${v} » inconnue`, where);
+      if (t === 'hero' && !HEROES.some(h => h.id === v)) E(`héros « ${v || '?'} » inconnu`, where);
       if (t === 'flag' && !v) E('drapeau sans nom', where);
     }
   });
