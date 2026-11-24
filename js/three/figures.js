@@ -240,8 +240,11 @@ export function playAnim(fig, key, { loop = false, fade = 0.18 } = {}) {
   const dur = act.getClip().duration;
   tween({ duration: dur + 0.1 }); // garde le rendu actif pendant l'anim (rendu à la demande)
   return new Promise(res => {
-    const f = e => { if (e.action === act) { a.mixer.removeEventListener('finished', f); a.busy--; res(true); } };
+    let done = false;
+    const end = () => { if (done) return; done = true; a.mixer.removeEventListener('finished', f); clearTimeout(guard); a.busy--; res(true); };
+    const f = e => { if (e.action === act) end(); };
     a.mixer.addEventListener('finished', f);
+    const guard = setTimeout(end, (dur + 1.5) * 1000); // jamais bloquer la partie sur une animation
   });
 }
 export const hasAnim = (fig, key) => !!fig.userData.anim?.actions[fig.userData.anim.def.anims?.[key]];

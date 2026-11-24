@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { tween, ease, cancelTweens, nearestAngle, wait } from '../core/tween.js';
 import { makeFigure, flash, preloadGLB, applyFinish, playAnim, hasAnim } from './figures.js';
 import { settings } from '../core/settings.js';
+import { sfx } from '../core/sfx.js';
 import { iconTexture, ringTexture, radialTexture } from './textures.js';
 
 const V = () => new THREE.Vector3();
@@ -25,7 +26,7 @@ export class Board3D {
   constructor(stage, grid, o) {
     this.s = stage; this.grid = grid;
     this.o = Object.assign({ figScale: 1, focusDist: 5, homeDist: 9, homeYaw: 0, cineDist: 2.2, cinePitch: 0.24, cineAngle: 1.05, poiScale: 1 }, o);
-    this.tiles = new Map(); this.figs = new Map(); this.occ = new Map();
+    this.tiles = new Map(); this.figs = new Map(); this.occ = new Map(); this.dying = new Set(); this.pinnedCodes = new Set();
     this.root = new THREE.Group(); stage.scene.add(this.root);
     this.supports = { shadows: true };
     this.menu = [];
@@ -62,15 +63,56 @@ export class Board3D {
     t.group.visible = t.revealed; // brouillard total : tuile invisible tant qu'elle n'est pas découverte
     return t;
   }
+  /** Découverte d'une tuile : elle tombe du ciel et se pose, son numéro (code de la tuile physique) bien visible. */
   async revealTile(key, { focus = true } = {}) {
     const t = this.tiles.get(key); if (!t || t.revealed) return;
     t.revealed = true;
     if (focus) this.s.rig.flyTo({ x: t.cell.x, z: t.cell.z, dist: Math.min(this.s.rig.goal.dist, this.o.focusDist * 1.3) }, 5);
     t.group.visible = true; this.s.invalidate(4);
-    await t.reveal(true, true);
-    this.dust(new THREE.Vector3(t.cell.x, t.topY, t.cell.z), 8, this.grid.w * 0.5);
+    let landed = false;
+    const onLand = () => {
+      if (landed) return; landed = true;
+      const p = new THREE.Vector3(t.cell.x, t.topY, t.cell.z);
+      this.dust(p, 14, this.grid.w * 0.62); this.dust(p, 6, this.grid.w * 0.25, 0x8a7a66);
+      this.s.rig.shake(0.018); sfx.land();
+      this.showCode(key, true, { pop: true });
+      setTimeout(() => { if (!this.pinnedCodes.has(key)) this.showCode(key, false); }, 2600);
+    };
+    await t.reveal(true, true, { onLand });
+    onLand();
     if (t.poi && !t.poiHidden) this.popPoi(t);
   }
+  // ---------- numéro de tuile (sprite face caméra, au centre de la tuile) ----------
+  codeLabel(t) {
+    if (t.codeSp || !t.data.code) return t.codeSp;
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = 'rgba(14,10,8,0.86)'; g.beginPath(); g.roundRect(10, 14, 236, 100, 22); g.fill();
+    g.strokeStyle = '#ecd9a6'; g.lineWidth = 6; g.stroke();
+    g.font = '700 62px Cinzel, Georgia, serif'; g.fillStyle = '#ffe9b0'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.shadowColor = 'rgba(255,200,90,0.7)'; g.shadowBlur = 10; g.fillText(t.data.code, 128, 68);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+    sp.userData.w = this.grid.w * 0.62; sp.scale.set(sp.userData.w, sp.userData.w / 2, 1);
+    sp.position.set(0, t.topY + 0.2, 0); sp.renderOrder = 12; sp.visible = false;
+    (t.top || t.group).add(sp); t.codeSp = sp; return sp;
+  }
+  showCode(key, on, { pop = false } = {}) {
+    const t = this.tiles.get(key), sp = t && t.revealed && this.codeLabel(t); if (!sp) return;
+    const tag = 'code:' + key, m = sp.material, o0 = m.opacity, w = sp.userData.w;
+    cancelTweens(tag);
+    if (on) {
+      sp.visible = true;
+      tween({ tag, duration: pop ? 0.5 : 0.25, ease: pop ? ease.outBack : ease.outCubic, update: (e, k) => {
+        m.opacity = o0 + (1 - o0) * Math.min(1, k * 2.5);
+        const s = pop ? 1.8 - 0.8 * e : 1; sp.scale.set(w * s, w * s / 2, 1);
+      } });
+    } else {
+      tween({ tag, duration: 0.45, update: e => { m.opacity = o0 * (1 - e); } }).then(() => { if (m.opacity < 0.02) sp.visible = false; });
+    }
+    this.s.invalidate?.(4);
+  }
+  /** Numéros affichés en continu (pendant la consigne de mise en place), puis masqués */
+  showCodes(keys, on) { for (const k of keys) { if (on) this.pinnedCodes.add(k); else this.pinnedCodes.delete(k); this.showCode(k, on); } }
   popPoi(t) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
   highlight(reach, explore) {
     const R = new Set(reach), E = new Set(explore);
@@ -126,6 +168,7 @@ export class Board3D {
     const f = this.figs.get(id); if (!f) return;
     const key = f.userData.key; this.occRemove(key, id); this.figs.delete(id);
     if (this.ring.parent === f) this.setSelected(null);
+    this.dying.add(f); // son animation de mort doit continuer à être mise à jour
     if (animate && hasAnim(f, 'death')) {
       await playAnim(f, 'death');
       await tween({ duration: 0.5, update: k => { f.position.y -= 0.004; f.scale.setScalar(Math.max(0.01, (1 - k) * this.o.figScale)); } });
@@ -134,7 +177,7 @@ export class Board3D {
       await tween({ duration: 0.45, ease: ease.inQuad, update: k => { inner.rotation.x = -k * Math.PI / 2; inner.position.y = k * 0.02; } });
       await tween({ duration: 0.35, update: k => f.scale.setScalar(Math.max(0.01, (1 - k) * this.o.figScale)) });
     }
-    this.root.remove(f); this.arrange(key);
+    this.dying.delete(f); this.root.remove(f); this.arrange(key);
   }
   async hop(f, to, h = 0.22) {
     const walker = hasAnim(f, 'move'); if (walker) h = 0.05;
@@ -295,6 +338,7 @@ export class Board3D {
   update(dt, t) {
     const p = 0.62 + Math.sin(t * 3.2) * 0.18; this.reachMat.opacity = p; this.exploreMat.opacity = p;
     if (this.ring.visible) { const s = 1 + Math.sin(t * 4) * 0.06; this.ring.scale.set(s, s, s); this.ring.rotation.z += dt * 0.6; }
+    for (const f of this.dying) f.userData.anim?.mixer.update(dt);
     for (const f of this.figs.values()) {
       const an = f.userData.anim;
       if (an && (this.s.gfx.idleAnim || an.busy > 0 || this.moving?.has(f.userData.id))) an.mixer.update(dt);

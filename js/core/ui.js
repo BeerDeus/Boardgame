@@ -401,9 +401,10 @@ export function createUI({ title, subtitle }) {
           modal.querySelectorAll('[data-m]').forEach(b2 => b2.onclick = () => { mode = b2.dataset.m; render(); });
           modal.querySelectorAll('[data-s]').forEach(b2 => b2.onclick = () => { step = b2.dataset.s; render(); });
           modal.querySelector('[data-tips]').onchange = e => { withTips = e.target.checked; };
-          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode, tips: withTips }); };
+          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide', 'live'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode, tips: withTips }); };
         };
         render(); modal.classList.add('open', 'wide');
+        requestAnimationFrame(() => modal.classList.add('live')); // les rendus suivants ne rejouent pas l'animation d'ouverture
       });
     },
     setActive(id) { for (const b of party.children) b.classList.toggle('active', b.dataset.id === id); },

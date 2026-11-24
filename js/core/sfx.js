@@ -75,6 +75,14 @@ export const sfx = {
     n.buffer = noise(); f.type = 'bandpass'; f.Q.value = 1.5; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(3000, t + 0.5);
     env(g, t, 0.15, 0.25, 0.45); n.connect(f); f.connect(g); out(g, 0.5); n.start(t); n.stop(t + 0.8);
   },
+  land() {
+    if (!init()) return; const t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+    env(g, t, 0.004, 0.35, 0.22); o.connect(g); out(g, 0.15); o.start(t); o.stop(t + 0.3);
+    const n = ctx.createBufferSource(), ng = ctx.createGain(), f = ctx.createBiquadFilter(); n.buffer = noise(); f.type = 'lowpass'; f.frequency.value = 900;
+    env(ng, t, 0.002, 0.22, 0.12); n.connect(f); f.connect(ng); out(ng, 0.2); n.start(t); n.stop(t + 0.2);
+    if (settings.haptics) navigator.vibrate?.(15);
+  },
   magic() {
     if (!init()) return; const t = ctx.currentTime;
     for (const m of [1, 1.5, 2]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.setValueAtTime(440 * m, t); o.frequency.exponentialRampToValueAtTime(880 * m, t + 0.6); env(g, t, 0.05, 0.08, 0.7); o.connect(g); out(g, 0.9); o.start(t); o.stop(t + 0.9); }

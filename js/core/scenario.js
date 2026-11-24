@@ -14,6 +14,7 @@ const SAVE_V = 7;
 const TERRAIN_CODE = { village: 'V', forest: 'F', plains: 'P', rock: 'R', swamp: 'M', ruins: 'U', burned: 'C', snow: 'N', crypt: 'X' };
 const PARTY_BONUS = { 1: 3, 2: 2, 3: 1, 4: 0 }; // glas supplémentaires selon la taille du groupe
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const DROP_GAP = 420; // ms entre deux tuiles qui tombent (une par une)
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
@@ -48,6 +49,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
       }
     }
     const pick = await ui.partySelect({ tips: settings.tips,  steps: CAMPAIGN.steps, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => [h.id, { level: levelOf(heroProgress(campaign, h.id).xp) }])) });
+    dialogue.cover?.(); // écran noir jusqu'à l'introduction (pas de plateau entre-temps)
     st = (await CAMPAIGN.steps.find(s => s.id === pick.step).load()).STORY;
     if (pick.tips != null) settings.set({ tips: pick.tips });
     const n = pick.party.length;
@@ -102,10 +104,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
 
   // ------------------------------------------------------------------ plateau
   const poiFor = t => { if (!t.poi || !t.place) return null; const acts = placeDef(t.place).activities || []; return acts.some(a => !(a.once && S.done.includes(a.id))) ? t.poi : null; };
-  for (const t of map.tiles.values()) engine.addTile({ ...t, label: TERRAINS[t.terrain].label, revealed: revealed.has(t.key), poi: poiFor(t) });
+  // nouvelle partie : plateau vide, les premières tuiles tomberont du ciel après l'introduction
+  for (const t of map.tiles.values()) engine.addTile({ ...t, label: TERRAINS[t.terrain].label, revealed: resumed && revealed.has(t.key), poi: poiFor(t) });
   engine.resetCamera(true);
-  if (resumed) ready?.();
-  for (const [id, f] of Object.entries(S.figs)) if (f.alive) await engine.addFigure(figData(id), f.tile, { spawn: false });
+  if (resumed) {
+    ready?.();
+    for (const [id, f] of Object.entries(S.figs)) if (f.alive) await engine.addFigure(figData(id), f.tile, { spawn: false });
+  }
   if (S.tod === 'night') engine.setTimeOfDay('night');
   engine.applySettings?.(settings.gfx); engine.setFinish?.(settings.finish);
 
@@ -198,7 +203,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
     async unlockZone(id) {
       if (S.unlocked.includes(id)) return; S.unlocked.push(id);
       const ks = new Set(); for (const k of revealed) for (const n of grid.neighbors(k)) if (!revealed.has(n) && tileOf(n).zone === id && !locked(n)) ks.add(n);
-      await Promise.all([...ks].map((k, i) => sleep(i * 140).then(() => reveal(k, { focus: i === 0 }))));
+      await Promise.all([...ks].map((k, i) => sleep(i * DROP_GAP).then(() => reveal(k, { focus: i === 0 }))));
       await flushSetup();
     },
     async spawn(id) { await spawn(id); await flushSetup(); },
@@ -322,7 +327,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
 
   async function revealAround(k) {
     const ks = grid.neighbors(k).filter(n => !revealed.has(n) && !locked(n));
-    await Promise.all(ks.map((n, i) => sleep(i * 110).then(() => reveal(n, { focus: false }))));
+    await Promise.all(ks.map((n, i) => sleep(i * DROP_GAP).then(() => reveal(n, { focus: false }))));
   }
   async function reveal(key, { focus = true } = {}) {
     if (revealed.has(key)) return;
@@ -362,8 +367,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
       const heroTiles = new Set(heroes().map(h => S.figs[h.id].tile)), isNew = new Set(tiles);
       const mapView = { type: grid.type, cells: [...revealed].map(k => { const c = grid.get(k), t = tileOf(k), pd = t.place && placeDef(t.place);
         return { x: c.x, z: c.z, w: grid.w, h: grid.h, code: t.code, color: TERRAINS[t.terrain].tint, isNew: isNew.has(k), hero: heroTiles.has(k), place: pd && explored.has(k) ? pd.name.split(' ').slice(-1)[0] : '' }; }) };
+      engine.showCodes?.(tiles, true);
       await ui.setupPrompt({ title: tiles.length > 1 ? `Placez ${tiles.length} tuiles` : 'Placez la tuile', mapView, note: 'Posez chaque tuile en surbrillance contre les tuiles déjà sur la table, comme sur le plan (et sur le plateau à l\'écran).',
         items: tiles.map(k => { const t = tileOf(k); return { icon: 'map', code: t.code, title: TERRAINS[t.terrain].label, sub: teaserOf(k) }; }) });
+      engine.showCodes?.(tiles, false);
     }
     if (tokens.length || figs.length) {
       const items = [
@@ -689,8 +696,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   // ------------------------------------------------------------------ démarrage
   refreshHUD();
   if (!resumed) {
-    for (const p of st.intro) await dialogue.narrate(p);
-    R.setupTiles.push(...revealed); R.setupFigs.push(...Object.keys(S.figs));
+    for (const p of st.intro || []) await dialogue.narrate(p);
+    dialogue.uncover?.(); await sleep(500); // fin du fondu de la narration
+    // les premières tuiles tombent du ciel une par une (case de départ d'abord), puis les figurines apparaissent
+    const first = [map.start, ...[...revealed].filter(k => k !== map.start)];
+    await Promise.all(first.map((k, i) => sleep(i * DROP_GAP).then(() => { sfx.reveal(); return engine.revealTile(k, { focus: false }); })));
+    for (const [id, f] of Object.entries(S.figs)) if (f.alive) await engine.addFigure(figData(id), f.tile, { spawn: true });
+    R.setupTiles.push(...first); R.setupFigs.push(...Object.keys(S.figs));
     if (poiFor(tileOf(map.start))) R.setupTokens.push(map.start);
     await flushSetup();
     g.questStart(Object.keys(st.quests)[0]);

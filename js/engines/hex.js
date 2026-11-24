@@ -71,15 +71,25 @@ export async function createEngine(container, { onProgress, story }) {
       if (data.terrain === 'village') queueMicrotask(() => stage.addTorch(new THREE.Vector3(cell.x - R * 0.5, h + 0.35, cell.z + R * 0.3), 0xff8a3a, 1.6));
       const hidden = FOGY - h; // le sommet affleure juste au-dessus de l'eau
       const tile = {
-        group: g, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.45, z: -R * 0.3 },
-        async reveal(animate, state = true) {
+        group: g, top: col, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.45, z: -R * 0.3 },
+        async reveal(animate, state = true, { onLand } = {}) {
           if (!animate) {
-            col.position.y = state ? 0 : hidden; fog.visible = !state; mesh.material = [side, state ? matFor(data.terrain) : fogTop, side];
+            col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; mesh.material = [side, state ? matFor(data.terrain) : fogTop, side];
             if (props) props.visible = state; return;
           }
           mesh.material = [side, matFor(data.terrain), side]; fog.visible = false;
           if (props) { props.visible = true; props.scale.set(1, 0.01, 1); }
-          await tween({ duration: 0.75, ease: ease.outBack, update: k => (col.position.y = hidden * (1 - k)) });
+          // chute depuis le ciel (gravité), en tournoyant légèrement, puis impact, rebond et écrasement
+          const r = rng(hashStr(data.key + ':drop')), H0 = 5 + r() * 1.5, spin = (r() - 0.5) * 1.4, tx = (r() - 0.5) * 0.35, tz = (r() - 0.5) * 0.35;
+          col.position.y = H0; col.rotation.set(tx, spin, tz);
+          await tween({ duration: 0.62, ease: ease.inQuad, update: k => { const s = 1 - k; col.position.y = H0 * s; col.rotation.set(tx * s, spin * s * s, tz * s); } });
+          col.position.y = 0; col.rotation.set(0, 0, 0);
+          onLand?.();
+          await tween({ duration: 0.34, ease: ease.linear, update: k => {
+            col.position.y = Math.sin(Math.PI * k) * 0.08 * (1 - k);
+            const sq = Math.sin(Math.PI * Math.min(1, k * 2)) * 0.06 * (1 - k); col.scale.set(1 + sq, 1 - sq * 1.5, 1 + sq);
+          } });
+          col.position.y = 0; col.scale.set(1, 1, 1);
           if (props) await tween({ duration: 0.35, ease: ease.outBack, update: k => props.scale.set(1, Math.max(0.01, k), 1) });
         },
       };

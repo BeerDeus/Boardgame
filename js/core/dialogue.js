@@ -85,16 +85,30 @@ export function createDialogue(root) {
     box.classList.remove('open', 'has-choices');
   }
 
+  // La narration ne se ferme qu'un instant après « Continuer » : si une autre suit, elle enchaîne
+  // en fondu sans laisser apparaître le plateau entre les deux.
+  let narCloseT = null;
+  function cover() { clearTimeout(narCloseT); nar.innerHTML = ''; nar.classList.add('open'); document.body.classList.add('narrating'); }
+  function uncover() { clearTimeout(narCloseT); nar.classList.remove('open'); document.body.classList.remove('narrating'); }
   function narrate({ title, text, image }) {
     return new Promise(res => {
-      nar.innerHTML = `<div class="n-bg" style="background-image:url('${image}')"></div><div class="n-card"><h2>${title}</h2><p></p><button class="btn accent">Continuer</button></div>`;
+      clearTimeout(narCloseT);
+      const cont = nar.classList.contains('open');
+      const html = `<div class="n-bg ${cont ? 'xf' : ''}" style="background-image:url('${image}')"></div><div class="n-card ${cont ? 'xf' : ''}"><h2>${title}</h2><p></p><button class="btn accent">Continuer</button></div>`;
+      if (cont) {
+        nar.querySelector('.n-card')?.remove(); nar.insertAdjacentHTML('beforeend', html);
+        const bgs = [...nar.querySelectorAll('.n-bg')]; setTimeout(() => bgs.slice(0, -1).forEach(b => b.remove()), 700);
+      } else nar.innerHTML = html;
       nar.classList.add('open'); document.body.classList.add('narrating');
-      typeText(nar.querySelector('p'), text, 90);
-      const close = () => { typing?.finish(); keyHandler = null; nar.classList.remove('open'); document.body.classList.remove('narrating'); setTimeout(res, 350); };
+      typeText(nar.querySelector('.n-card p'), text, 90);
+      const close = () => {
+        typing?.finish(); keyHandler = null; res();
+        narCloseT = setTimeout(() => { nar.classList.remove('open'); document.body.classList.remove('narrating'); }, 60);
+      };
       nar.querySelector('.n-card').addEventListener('pointerup', () => typing?.finish());
-      nar.querySelector('button').onclick = e => { e.stopPropagation(); close(); };
+      nar.querySelector('.n-card button').onclick = e => { e.stopPropagation(); close(); };
       keyHandler = e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); if (typing) typing.finish(); else close(); } };
     });
   }
-  return { play, narrate, get open() { return box.classList.contains('open') || nar.classList.contains('open'); } };
+  return { play, narrate, cover, uncover, get open() { return box.classList.contains('open') || nar.classList.contains('open'); } };
 }
