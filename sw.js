@@ -3,7 +3,7 @@
 //  • Assets lourds (modèles, textures, HDRI, polices) : cache d'abord + rafraîchissement en arrière-plan.
 //  • Le navigateur vérifie sw.js à chaque visite (updateViaCache: 'none') ; nouvelle version = activée
 //    immédiatement et la page se recharge toute seule. Aucune réinstallation nécessaire.
-const VERSION = 'grimoire-1795539588';
+const VERSION = 'grimoire-1795540130';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -122,10 +122,19 @@ self.addEventListener('fetch', e => {
   e.respondWith(isCode ? networkFirst(req) : staleWhileRevalidate(req));
 });
 
+// Le CDN de l'hébergeur garde parfois d'anciennes copies d'une même URL : on ajoute la version
+// du build dans l'URL (?v=) pour chaque fichier de code (imports imbriqués compris).
+function bust(req) {
+  if (req.mode === 'navigate') return req;
+  const u = new URL(req.url);
+  if (u.searchParams.has('t')) return req;
+  u.searchParams.set('v', VERSION.replace('grimoire-', ''));
+  return u.href;
+}
 async function networkFirst(req) {
   const c = await caches.open(VERSION);
   try {
-    const r = await fetch(req, { cache: 'no-cache' }); // revalidation serveur (ETag/304)
+    const r = await fetch(bust(req), { cache: 'no-cache' }); // revalidation serveur (ETag/304)
     if (r.ok) c.put(req, r.clone());
     return r;
   } catch {

@@ -1,5 +1,5 @@
 // Enregistrement du service worker + mise à jour automatique (sans réinstaller la PWA).
-export function registerPWA({ onStatus } = {}) {
+export function registerPWA({ onStatus, swUrl = 'sw.js' } = {}) {
   if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
   let reloading = false;
   // une nouvelle version prend le contrôle → on recharge une seule fois
@@ -9,7 +9,7 @@ export function registerPWA({ onStatus } = {}) {
     try { sessionStorage.setItem('grimoire.updated', '1'); } catch {}
     location.reload();
   });
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+  navigator.serviceWorker.register(swUrl, { updateViaCache: 'none' }).then(reg => {
     const check = () => reg.update().catch(() => {});
     // vérifie à chaque retour sur l'app et toutes les 15 min
     document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });

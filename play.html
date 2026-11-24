@@ -10,8 +10,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/fonts.css">
-  <link rel="stylesheet" href="css/play.css">
+  <link rel="stylesheet" href="css/fonts.css?v=1795540130">
+  <link rel="stylesheet" href="css/play.css?v=1795540130">
   <script type="importmap">
   { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
   </script>
@@ -19,12 +19,12 @@
 <body>
   <div id="viewport"></div>
   <div id="hud"></div>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=1795540130"></script>
   <script>
     // Garde-fou : si les scripts chargés sont plus vieux que ceux du serveur (cache du navigateur), on répare.
     setTimeout(async () => {
       try {
-        const txt = await (await fetch('js/version.js', { cache: 'no-store' })).text();
+        const txt = await (await fetch('js/version.js?t=' + Date.now(), { cache: 'no-store' })).text();
         const server = (txt.match(/VERSION = '([^']+)'/) || [])[1];
         if (server && window.__APP_V !== server && !sessionStorage.getItem('grimoire.fixing')) {
           sessionStorage.setItem('grimoire.fixing', '1');

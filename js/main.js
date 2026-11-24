@@ -44,6 +44,6 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
 })();
 
 import('./core/pwa.js').then(({ registerPWA, consumeUpdatedFlag }) => {
-  registerPWA();
+  registerPWA({ swUrl: 'sw.js?v=' + (new URL(import.meta.url).searchParams.get('v') || '') });
   if (consumeUpdatedFlag()) setTimeout(() => ui.toast('✓ Nouvelle version installée', 2600), 1500);
 });
