@@ -9,6 +9,7 @@ import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor
 import { mapPanel } from './map.js';
 import { itemCardSVG, ITEM_TYPES, ART_NAMES } from '../core/cards.js';
 import { panelCampaign, publishDialog, loadEditorCampaign, campaignLevelFiles } from './campaign.js';
+import { panelHeroes } from './heroes-panel.js';
 import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
@@ -70,7 +71,7 @@ const idField = (kind, cur, apply, taken) => {
 };
 
 // ------------------------------------------------------------------ panneaux
-const TABS = [['campaign', 'Campagne'], ['general', 'Général'], ['map', 'Carte'], ['places', 'Lieux'], ['cast', 'Personnages'], ['dialogues', 'Dialogues'], ['quests', 'Quêtes & objets'], ['events', 'Événements'], ['check', 'Vérifier'], ['help', 'Aide']];
+const TABS = [['campaign', 'Campagne'], ['heroes', 'Héros'], ['general', 'Général'], ['map', 'Carte'], ['places', 'Lieux'], ['cast', 'Personnages'], ['dialogues', 'Dialogues'], ['quests', 'Quêtes & objets'], ['events', 'Événements'], ['check', 'Vérifier'], ['help', 'Aide']];
 
 function panelGeneral() {
   const p = h('div', { class: 'panel' }, h('h2', {}, 'Général'));
@@ -292,7 +293,7 @@ function render() {
   for (const [k, l] of TABS) nav.append(h('button', { class: 'tab ' + (ui.tab === k ? 'on' : ''), type: 'button', onclick: () => { ui.tab = k; render(); } }, l));
   const main = $('#main'), sc = main.scrollTop;
   main.innerHTML = '';
-  const P = { campaign: () => panelCampaign(ctx), general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
+  const P = { campaign: () => panelCampaign(ctx), heroes: () => panelHeroes(ctx), general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
   main.append(P()); main.scrollTop = sc;
   $('#title').textContent = L.title || L.id; refreshLists(); updateBadge();
 }

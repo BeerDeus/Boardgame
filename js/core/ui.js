@@ -435,7 +435,7 @@ export function createUI({ title, subtitle }) {
         const step = stepDef.id;
         const render = () => {
           const n = sel.size, gmax = glasBase[diff] + (partyBonus[n] ?? 0);
-          modal.innerHTML = `<div class="ps-card">
+          modal.innerHTML = `<div class="ps-card ${heroes.length > 4 ? 'many' : ''}" style="--ncol:${Math.min(heroes.length, 6)}">
             <div class="ps-head"><a class="btn round small" href="index.html" title="Accueil" aria-label="Accueil">${icon('back')}</a><small>${stepDef.num || ''}${stepDef.tag ? ` · ${stepDef.tag}` : ''}${completed.includes(step) ? ` · ${icon('check')} déjà gagnée` : ''}</small><h2>${stepDef.title || ''}</h2><span class="ps-sub">Composez votre compagnie</span></div>
             <div class="ps-list">${heroes.map(hh => { const pr = progress[hh.id]; return `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
@@ -449,7 +449,7 @@ export function createUI({ title, subtitle }) {
               <label class="ps-tips"><input type="checkbox" data-tips ${withTips ? 'checked' : ''}> Conseils du tutoriel</label>
               <span class="ps-sum">${icon('bell')} ${gmax} glas <small>(${n} héros : +${partyBonus[n] ?? 0})</small></span>
               <button class="btn accent" data-go ${n ? '' : 'disabled'}>Commencer (${n} héros)</button></div></div>`;
-          modal.querySelectorAll('[data-h]').forEach(b2 => b2.onclick = () => { const id = b2.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
+          modal.querySelectorAll('[data-h]').forEach(b2 => b2.onclick = () => { const id = b2.dataset.h; if (!sel.has(id) && sel.size >= 4) { b2.animate?.([{ transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'none' }], 200); return; } sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
           modal.querySelectorAll('[data-d]').forEach(b2 => b2.onclick = () => { diff = b2.dataset.d; render(); });
           modal.querySelectorAll('[data-m]').forEach(b2 => b2.onclick = () => { mode = b2.dataset.m; render(); });
           modal.querySelector('[data-tips]').onchange = e => { withTips = e.target.checked; };

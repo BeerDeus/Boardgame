@@ -19,7 +19,7 @@ Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (
 Le travail est enregistré automatiquement dans le navigateur. Exporter régulièrement pour garder une copie.
 
 ## Statistiques et tests de dés
-- Chaque héros a **Combat** (attaques) et 4 stats, en % (`js/core/heroes.js`) :
+- Chaque héros a **Combat** (attaques) et 4 stats, en % (`levels/heroes.json`, onglet **Héros** de l'éditeur) :
   - **Force** : soulever, enfoncer, intimider ;
   - **Agilité** : esquiver, crocheter, discrétion ;
   - **Intelligence** : savoir, énigmes, pister ;
@@ -33,6 +33,12 @@ Le travail est enregistré automatiquement dans le navigateur. Exporter réguli�
   - **choix de dialogue avec « Lancer les dés »**, qui mène à un nœud de réussite ou d'échec ;
   - **nœud de dialogue en mode « Test de stat automatique »** : le jet a lieu après le texte.
 - Les progressions de niveau ajoutent +5 à une stat ; les avantages (`js/core/campaign.js`) ajoutent +10 à certaines.
+
+## Héros (onglet « Héros » de l'éditeur)
+- Fichier `levels/heroes.json`, commun à toute la campagne : nom, rôle, couleur, modèle 3D KayKit (chevalier, mage, barbare, voleur, voleur encapuchonné), PV, armure, déplacement, portée, dégâts, stats, talents, avantages de niveau.
+- **Talents prêts à l'emploi**, réglables : monture (figurine + bonus de déplacement), soin de zone (action), esquive d'embuscade (stat + difficulté), dégâts accrus, portée, inspiration (boosts), récupération (PV au début du tour). Le texte du talent est généré, ou écrit à la main.
+- **Avantages de niveau** : nom, description, effets (PV, armure, déplacement, portée, dégâts, boosts, +N à une stat).
+- Les modifications servent à « Tester ▸ » et sont envoyées par « ⇪ Publier » (case `levels/heroes.json`). La progression de campagne est liée à l'identifiant du héros. 4 héros maximum par partie.
 
 ## Combat
 Toucher si D100 ≤ Combat du héros − défense de l'ennemi. **Dégâts = dégâts de base + 1 par tranche de 20 sous la chance, ×2 sur critique.** Exemple : chance 55, jet 12 → 43 de marge → +2 dégâts.

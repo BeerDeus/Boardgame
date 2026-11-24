@@ -113,6 +113,8 @@ export const PERKS = {
     { id: 'esquive', name: 'Esquive', desc: '+10 armure', fx: { armor: 10 } },
   ],
 };
+/** Avantages proposés à un héros : ceux de sa fiche (levels/heroes.json), sinon ceux de sa classe */
+export const perksOf = hero => (hero.perks?.length ? hero.perks : PERKS[hero.kind] || []);
 export function heroProgress(c, id) { c.heroes ||= {}; const p = (c.heroes[id] ||= { xp: 0, spent: 0, perks: [], skills: {} }); p.won ||= []; return p; }
 /** Le héros a déjà gagné cette étape : la rejouer ne rapporte plus d'XP */
 export const heroWon = (c, hid, stepId) => !!c.heroes?.[hid]?.won?.includes(stepId);
@@ -120,12 +122,12 @@ export const pointsAvailable = p => levelOf(p.xp) - 1 - p.spent;
 
 /** Applique la progression de campagne à une fiche de héros (copie) */
 export function applyProgress(hero, p) {
-  const h = { ...hero, skills: { ...hero.skills }, boostStart: 0, boostMax: 0, level: p ? levelOf(p.xp) : 1 };
+  const h = { ...hero, skills: { ...hero.skills }, boostStart: hero.talentBoostStart || 0, boostMax: hero.talentBoostMax || 0, level: p ? levelOf(p.xp) : 1 };
   if (!p) return h;
   for (const [k0, v] of Object.entries(p.skills || {})) { const k = statKey(k0); h.skills[k] = (h.skills[k] || 0) + v; }
   if (p.dmg) h.dmg = (h.dmg || 1) + p.dmg;
   for (const pid of p.perks || []) {
-    const perk = (PERKS[hero.kind] || []).find(x => x.id === pid); if (!perk) continue;
+    const perk = perksOf(hero).find(x => x.id === pid); if (!perk) continue;
     for (const [k, v] of Object.entries(perk.fx)) if (k === 'skills') for (const [s, n] of Object.entries(v)) h.skills[s] = (h.skills[s] || 0) + n; else h[k] = (h[k] || 0) + v;
   }
   return h;

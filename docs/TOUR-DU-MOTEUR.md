@@ -11,7 +11,7 @@ js/core/      règles et interface (indépendants du rendu)
   scenario.js   moteur de règles « MJ » : manches, tours, déplacement, exploration, combat, Ténèbres, fin, menu
   level.js      format de niveau JSON : effets, conditions, dialogues → STORY (lu par scenario.js)
   level-check.js vérification d'un niveau (éditeur + tools/validate-level.mjs)
-  stats.js / heroes.js   stats Force/Agilité/Intelligence/Volonté, difficultés ; héros de la campagne
+  stats.js / heroes.js   stats Force/Agilité/Intelligence/Volonté, difficultés ; héros (levels/heroes.json) et talents paramétrables
   ui.js         HUD, modales (compagnie, consignes, dés D100, lieux, conseils), bandeaux, menu
   dialogue.js   dialogues PNJ à choix + narrations plein écran (enchaînées en fondu)
   mapgen.js     projection du scénario (lieux, zones, régions) sur la grille
@@ -31,7 +31,7 @@ js/three/     rendu 3D commun
   poi.js        marqueur 3D de point d'intérêt
   props.js / textures.js / impostor.js   décors procéduraux, textures, portraits pré-rendus
 js/engines/   hex.js (seul moteur conservé)
-js/editor/    éditeur de niveaux (editor.html) : formulaires, carte hex, dialogues
+js/editor/    éditeur (editor.html) : campagne, héros, niveaux (formulaires, carte hex, dialogues), publication GitHub
 levels/       niveaux JSON (prologue.json) + campaign.json (Actes et étapes)
 tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aperçus POI / figurines
 ```

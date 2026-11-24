@@ -3,6 +3,7 @@
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, IMAGES, slug } from './fields.js';
 import { CAMPAIGN_URL } from '../core/campaign.js';
 import { ghConfig, ghSave, ghForget, ghCheck, ghPut, GH_DEFAULT } from './github.js';
+import { heroesJSON, heroesChanged, checkHeroes, HEROES_PATH } from './heroes-panel.js';
 
 const STORE = 'grimoire.editor.campaign';
 let C = null;
@@ -127,22 +128,22 @@ const TOKEN_HELP = `<ol class="gh-help">
 export async function publishDialog(ctx) {
   if (!C) await loadEditorCampaign();
   const m = modalEl(), cfg = ghConfig();
-  const lvl = ctx.check(), camp = checkCampaign();
+  const lvl = ctx.check(), camp = checkCampaign(), her = checkHeroes();
   const levelFile = `levels/${ctx.L.id}.json`, inCampaign = campaignLevelFiles().some(x => x.file === levelFile);
-  const blocked = lvl.errors.length || camp.errors.length;
+  const blocked = lvl.errors.length || camp.errors.length || her.errors.length;
   let tokOpen = !cfg.token;
   const render = (status = '') => {
     m.innerHTML = '';
     const tok = input(cfg.token, v => { cfg.token = v.trim(); }, { type: 'password', placeholder: 'github_pat_…' });
     const msg = input(`Éditeur : ${ctx.L.title || ctx.L.id}`, () => {});
-    const withLevel = checkbox(true, () => {}), withCamp = checkbox(true, () => {});
+    const withLevel = checkbox(true, () => {}), withCamp = checkbox(true, () => {}), withHeroes = checkbox(heroesChanged(), () => {});
     const card = h('div', { class: 'modal-card' },
       h('h2', {}, 'Publier sur GitHub'),
       h('p', {}, `Dépôt `, h('b', {}, cfg.repo), ` · branche `, h('b', {}, cfg.branch), h('br'), h('small', { class: 'muted' }, 'Hostinger déploie automatiquement cette branche : le jeu en ligne est à jour quelques instants après.')),
       blocked ? h('div', { class: 'errs' }, h('h3', {}, 'Publication impossible : corrigez d\'abord les erreurs'),
-        ...lvl.errors.map(e => h('div', { class: 'err' }, '✗ Niveau : ' + e)), ...camp.errors.map(e => h('div', { class: 'err' }, '✗ Campagne : ' + e))) : null,
+        ...lvl.errors.map(e => h('div', { class: 'err' }, '✗ Niveau : ' + e)), ...camp.errors.map(e => h('div', { class: 'err' }, '✗ Campagne : ' + e)), ...her.errors.map(e => h('div', { class: 'err' }, '✗ Héros : ' + e))) : null,
       !inCampaign && !blocked ? h('p', { class: 'warn' }, `⚠ ${levelFile} n'est dans aucune étape de la campagne : il sera publié mais pas jouable depuis l'accueil (onglet Campagne → « + Étape : niveau en cours »).`) : null,
-      h('div', { class: 'gh-files' }, h('label', { class: 'chk' }, withLevel, ` ${levelFile}`, lvl.warnings.length ? h('small', { class: 'muted' }, ` (${lvl.warnings.length} avertissement(s))`) : null), h('label', { class: 'chk' }, withCamp, ` ${CAMPAIGN_URL}`)),
+      h('div', { class: 'gh-files' }, h('label', { class: 'chk' }, withLevel, ` ${levelFile}`, lvl.warnings.length ? h('small', { class: 'muted' }, ` (${lvl.warnings.length} avertissement(s))`) : null), h('label', { class: 'chk' }, withCamp, ` ${CAMPAIGN_URL}`), h('label', { class: 'chk' }, withHeroes, ` ${HEROES_PATH}`, h('small', { class: 'muted' }, heroesChanged() ? ' (héros modifiés dans l\'éditeur)' : ' (inchangés)'))),
       field('Message du commit', msg),
       h('details', { open: tokOpen || undefined, ontoggle: e => { tokOpen = e.target.open; } }, h('summary', {}, cfg.token ? 'Jeton GitHub enregistré sur cet appareil' : 'Jeton GitHub (à créer une fois)'), h('div', { html: TOKEN_HELP }),
         field('Jeton', tok), row(btn('Enregistrer le jeton', async () => { ghSave({ token: cfg.token }); try { await ghCheck(cfg); render('✓ Jeton valide : écriture autorisée sur le dépôt.'); } catch (e) { render('✗ ' + e.message); } }, 'small'),
@@ -156,6 +157,7 @@ export async function publishDialog(ctx) {
           const files = [];
           if (withLevel.checked) files.push([levelFile, JSON.stringify(ctx.L, null, 1) + '\n']);
           if (withCamp.checked) files.push([CAMPAIGN_URL, campaignJSON()]);
+          if (withHeroes.checked) files.push([HEROES_PATH, heroesJSON()]);
           if (!files.length) { render('Rien à publier.'); return; }
           const out = [];
           try {

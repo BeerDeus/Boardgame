@@ -1,0 +1,58 @@
+{
+ "format": 1,
+ "heroes": [
+  {
+   "id": "aldric", "name": "Aldric", "role": "Chevalier", "kind": "knight", "color": "#3f74d8",
+   "hp": 10, "armor": 20, "move": 2, "range": 1, "dmg": 1, "combatName": "Combat",
+   "skills": { "combat": 55, "force": 50, "agilite": 30, "intelligence": 30, "volonte": 50 },
+   "talents": [{ "type": "mount", "name": "Cavalier", "cast": "destrier", "bonus": 2 }],
+   "talentText": "Cavalier : sur le destrier, déplacement 4.",
+   "perks": [
+    { "id": "rempart", "name": "Rempart", "desc": "+10 armure", "fx": { "armor": 10 } },
+    { "id": "endurci", "name": "Endurci", "desc": "+2 PV max", "fx": { "hp": 2 } },
+    { "id": "cavalier", "name": "Cavalier émérite", "desc": "+1 déplacement", "fx": { "move": 1 } },
+    { "id": "meneur", "name": "Meneur", "desc": "+1 boost au départ", "fx": { "boostStart": 1 } },
+    { "id": "foi", "name": "Foi inébranlable", "desc": "+10 Volonté", "fx": { "skills": { "volonte": 10 } } }
+   ]
+  },
+  {
+   "id": "ysolde", "name": "Ysolde", "role": "Mage", "kind": "mage", "color": "#9b5de5",
+   "hp": 7, "armor": 5, "move": 2, "range": 1, "dmg": 1, "combatName": "Magie",
+   "skills": { "combat": 55, "force": 20, "agilite": 35, "intelligence": 60, "volonte": 45 },
+   "talents": [{ "type": "healAura", "name": "Lueur", "heal": 2 }, { "type": "range", "n": 1 }],
+   "talentText": "Lueur (action) : soigne 2 PV aux héros de sa case. Attaque à 2 cases.",
+   "perks": [
+    { "id": "concentration", "name": "Concentration", "desc": "+1 boost max et au départ", "fx": { "boostMax": 1, "boostStart": 1 } },
+    { "id": "portee", "name": "Longue portée", "desc": "+1 portée d'attaque", "fx": { "range": 1 } },
+    { "id": "erudition", "name": "Érudition", "desc": "+10 Intelligence", "fx": { "skills": { "intelligence": 10 } } },
+    { "id": "bouclier", "name": "Bouclier arcanique", "desc": "+10 armure", "fx": { "armor": 10 } }
+   ]
+  },
+  {
+   "id": "brann", "name": "Brann", "role": "Barbare", "kind": "barbarian", "color": "#d64545",
+   "hp": 12, "armor": 10, "move": 2, "range": 1, "dmg": 1, "combatName": "Combat",
+   "skills": { "combat": 50, "force": 65, "agilite": 30, "intelligence": 20, "volonte": 35 },
+   "talents": [{ "type": "dmg", "name": "Brute", "n": 1 }],
+   "talentText": "Brute : 2 dégâts par coup.",
+   "perks": [
+    { "id": "peau", "name": "Peau épaisse", "desc": "+3 PV max", "fx": { "hp": 3 } },
+    { "id": "briseos", "name": "Brise-os", "desc": "+10 Combat", "fx": { "skills": { "combat": 10 } } },
+    { "id": "endurant", "name": "Infatigable", "desc": "+1 déplacement", "fx": { "move": 1 } },
+    { "id": "colosse", "name": "Colosse", "desc": "+10 Force", "fx": { "skills": { "force": 10 } } }
+   ]
+  },
+  {
+   "id": "selene", "name": "Sélène", "role": "Voleuse", "kind": "rogue", "color": "#33a36b",
+   "hp": 8, "armor": 10, "move": 3, "range": 1, "dmg": 1, "combatName": "Combat",
+   "skills": { "combat": 45, "force": 30, "agilite": 65, "intelligence": 40, "volonte": 30 },
+   "talents": [{ "type": "dodge", "name": "Agile", "stat": "agilite", "diff": "normal" }],
+   "talentText": "Agile : déplacement 3, esquive les embuscades sur un jet d'Agilité.",
+   "perks": [
+    { "id": "pasleger", "name": "Pas léger", "desc": "+10 Agilité", "fx": { "skills": { "agilite": 10 } } },
+    { "id": "assassin", "name": "Assassin", "desc": "+1 dégât", "fx": { "dmg": 1 } },
+    { "id": "fouineuse", "name": "Fouineuse", "desc": "+1 boost au départ", "fx": { "boostStart": 1 } },
+    { "id": "esquive", "name": "Esquive", "desc": "+10 armure", "fx": { "armor": 10 } }
+   ]
+  }
+ ]
+}

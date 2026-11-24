@@ -499,3 +499,6 @@ body.narrating #viewport { visibility: hidden; }
 .ev.k-item { border-left-color: #6fb3ff; } .ev.k-quest { border-left-color: var(--gold); } .ev.k-done { border-left-color: #8fc46a; } .ev.k-lost { border-left-color: #b05a4a; }
 .ps-head { align-items: center; } .ps-head .btn.round { width: 32px; height: 32px; flex: none; } .ps-head small { order: 3; } .ps-head .ic { width: 12px; height: 12px; vertical-align: -1px; }
 .ps-sub { order: 4; margin-left: auto; font: 500 13px var(--head); color: var(--gold); letter-spacing: .06em; }
+.ps-card.many { width: min(1100px, 98vw); } .ps-card.many .ps-list { grid-template-columns: repeat(var(--ncol), minmax(0, 1fr)) !important; }
+.ps-card.many .ps-attrs .stat-chip { padding-right: 3px; } .ps-card.many .ps-attrs .stat-chip svg { width: 13px; height: 13px; }
+@media (max-width: 760px) and (min-height: 521px) { .ps-card.many .ps-list { grid-template-columns: repeat(2, 1fr) !important; } }

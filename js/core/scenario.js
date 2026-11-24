@@ -7,7 +7,7 @@ import { bfs } from './grid.js';
 import { TERRAINS } from './terrains.js';
 import { sfx } from './sfx.js';
 import { settings, PRESETS } from './settings.js';
-import { loadCampaignDef, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, PERKS, saveCampaign, levelOf } from './campaign.js';
+import { loadCampaignDef, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, perksOf, saveCampaign, levelOf } from './campaign.js';
 import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
 import { SKILL_NAMES, DIFFICULTIES, statKey, testChance } from './stats.js';
 import { evalCond } from './level.js';
@@ -52,7 +52,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
       const p = heroProgress(campaign, h.id);
       while (pointsAvailable(p) > 0) {
         const cur = applyProgress(h, p);
-        const pick = await ui.levelUp({ hero: cur, skills: Object.keys(SKILL_NAMES).map(k => ({ id: k, name: SKILL_NAMES[k], value: cur.skills[k] ?? 30 })), perks: (PERKS[h.kind] || []).filter(x => !p.perks.includes(x.id)) });
+        const pick = await ui.levelUp({ hero: cur, skills: Object.keys(SKILL_NAMES).map(k => ({ id: k, name: SKILL_NAMES[k], value: cur.skills[k] ?? 30 })), perks: perksOf(h).filter(x => !p.perks.includes(x.id)) });
         if (pick.skill) p.skills[pick.skill] = (p.skills[pick.skill] || 0) + 5; else p.perks.push(pick.perk);
         p.spent++; saveCampaign(campaign);
       }
@@ -131,14 +131,18 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   const activeDef = () => def(active()) || party()[0];
   const enemies = () => Object.entries(S.figs).filter(([id, f]) => f.alive && ['enemy', 'boss'].includes(def(id).team)).map(([id, f]) => ({ id, ...f }));
   const enemiesOn = k => enemies().filter(e => e.tile === k);
-  const moveOf = id => def(id).move + (id === 'aldric' && S.mounted ? 2 : 0);
+  // monture (talent « mount ») : un seul cavalier par groupe, sa monture est une figurine du niveau
+  const rider = () => party().find(h => h.mount && st.cast.some(c => c.id === h.mount.cast));
+  const mountId = () => rider()?.mount.cast;
+  const isRiding = id => !!S.mounted && rider()?.id === id && !!S.figs[mountId()]?.alive;
+  const moveOf = id => def(id).move + (isRiding(id) ? def(id).mount.bonus : 0);
   function boostMaxOf(id) { return st.boost.max + (def(id)?.boostMax || 0); }
   const hstat = (id, k, n = 1) => { S.hstats[id] ||= {}; S.hstats[id][k] = (S.hstats[id][k] || 0) + n; };
 
   // ------------------------------------------------------------------ HUD
   function refreshHUD() {
     const a = active(), ad = activeDef();
-    ui.setParty(party().map(h => ({ ...h, hp: S.figs[h.id].hp, max: h.hp, ko: !S.figs[h.id].alive, mounted: h.id === 'aldric' && S.mounted, turn: h.id === a, boost: S.boost[h.id], boostMax: boostMaxOf(h.id), poison: S.cond[h.id]?.poison, stun: S.cond[h.id]?.stun })), id => { engine.focusFigure(id); if (id !== a) ui.toast(`${def(id).name} attend son tour.`); });
+    ui.setParty(party().map(h => ({ ...h, hp: S.figs[h.id].hp, max: h.hp, ko: !S.figs[h.id].alive, mounted: isRiding(h.id), turn: h.id === a, boost: S.boost[h.id], boostMax: boostMaxOf(h.id), poison: S.cond[h.id]?.poison, stun: S.cond[h.id]?.stun })), id => { engine.focusFigure(id); if (id !== a) ui.toast(`${def(id).name} attend son tour.`); });
     ui.setActive(a);
     ui.setTurnHUD({ round: S.round, hero: ad, used: S.used, glas: S.glas, glasMax: S.glasMax, night: S.tod === 'night', boost: S.boost[ad.id] ?? 0, boostMax: boostMaxOf(ad.id),
       order: S.order.map((o, i) => (o === 'dark' ? { dark: true, done: i < S.turn } : { name: def(o).name, color: def(o).color, active: i === S.turn, done: i < S.turn })) });
@@ -166,8 +170,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (!f?.alive || S.ended) { ui.setActions([]); return; }
     const acts = [];
     if (placeActivities(f.tile).length) acts.push({ icon: 'place', label: 'Lieu', disabled: S.used.action, action: () => act(() => interactPlace()) });
-    if (id === 'ysolde') acts.push({ icon: 'glow', label: 'Lueur', disabled: S.used.action, action: () => act(() => glow(id)) });
-    if (id === 'aldric' && S.figs.destrier?.alive && S.figs.destrier.tile === f.tile) acts.push({ icon: 'horse', label: S.mounted ? 'Pied à terre' : 'En selle', action: () => act(() => toggleMount()) });
+    if (def(id).healAura) acts.push({ icon: 'glow', label: def(id).healAura.name, disabled: S.used.action, action: () => act(() => glow(id)) });
+    if (rider()?.id === id && S.figs[mountId()]?.alive && S.figs[mountId()].tile === f.tile) acts.push({ icon: 'horse', label: S.mounted ? 'Pied à terre' : 'En selle', action: () => act(() => toggleMount()) });
     if (R.undo?.id === id) acts.push({ icon: 'back', label: 'Annuler le déplacement', action: () => act(() => undoMove(), { keepUndo: true }) });
     acts.push({ icon: 'end', label: 'Fin du tour', primary: true, pulse: S.used.move && S.used.action && S.used.attack, action: () => act(() => endTurn()) });
     ui.setActions(acts);
@@ -182,7 +186,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   async function knockOut(hid, why = '') {
     const hf = S.figs[hid], h = def(hid); if (!hf?.alive) return;
     hf.alive = false; S.stats.ko++; S.ko.push(hid); S.cond[hid] = {};
-    if (hid === 'aldric') S.mounted = false;
+    if (rider()?.id === hid) S.mounted = false;
     await engine.removeFigure(hid, { animate: true });
     ui.toast(`${h.name} tombe${why} ! Retour au hameau à la prochaine manche. <b>+1 glas</b>`, 3200);
     g.glas(1);
@@ -370,6 +374,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     select(id); engine.focusFigure(id);
     await ui.turnBanner({ title: `Au tour de ${h.name}`, subtitle: `${h.role} · déplacement ${moveOf(id)} · action · attaque`, color: h.color, kind: h.kind });
     const c = S.cond[id] ||= {};
+    if (h.regen) { const f = S.figs[id]; if (f.hp < h.hp) { const b = f.hp; f.hp = Math.min(h.hp, f.hp + h.regen); ui.floatText(engine.screenPos(id), `+${f.hp - b} PV`, '#8fe07a'); } }
     if (c.poison) { const f = S.figs[id]; if (f.hp > 1) { f.hp--; ui.floatText(engine.screenPos(id), '-1 poison', '#9be07a'); } ui.toast(`${h.name} souffre du poison (−1 PV). Un soin le guérit.`, 2600); }
     if (c.stun) { c.stun = false; S.used.attack = true; ui.toast(`${h.name} est étourdi : pas d'attaque ce tour.`, 2600); }
     refreshHUD();
@@ -473,10 +478,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (!path || path.length < 2) return;
     engine.highlight([], []);
     const f = S.figs[id], last = path.length - 1;
-    const ride = id === 'aldric' && S.mounted && S.figs.destrier?.alive;
+    const ride = isRiding(id), mid = mountId();
     for (let i = 1; i <= last; i++) {
-      await Promise.all([engine.moveFigure(id, [path[i - 1], path[i]], { follow: true }), ride ? engine.moveFigure('destrier', [path[i - 1], path[i]], { follow: false }) : null]);
-      f.tile = path[i]; if (ride) S.figs.destrier.tile = path[i];
+      await Promise.all([engine.moveFigure(id, [path[i - 1], path[i]], { follow: true }), ride ? engine.moveFigure(mid, [path[i - 1], path[i]], { follow: false }) : null]);
+      f.tile = path[i]; if (ride) S.figs[mid].tile = path[i];
       sfx.step();
       await exploreTile(path[i]);
       await revealAround(path[i]); await flushSetup();
@@ -490,30 +495,31 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   // aucune embuscade, aucun jet de dés, aucun effet de lieu (drapeaux, objets, quêtes…).
   const stateSig = () => JSON.stringify({ ...S, figs: undefined, used: undefined, savedAt: undefined, revealed: undefined, explored: undefined, tipsSeen: undefined }) + revealed.size + '/' + explored.size;
   function undoSnapshot(id, path) {
-    const ride = id === 'aldric' && S.mounted && S.figs.destrier?.alive;
+    const ride = isRiding(id) ? mountId() : null;
     return { id, path: [...path], ride, turn: S.turn, round: S.round, known: path.slice(1).every(k => explored.has(k)), safe: !path.slice(1, -1).some(k => enemiesOn(k).length), sig: stateSig(),
-      figs: JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== id && !(ride && fid === 'destrier'))) };
+      figs: JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== id && fid !== ride)) };
   }
   function undoAllowed(b) {
     const f = S.figs[b.id];
     return b.known && b.safe && f?.alive && f.tile === b.path.at(-1) && S.turn === b.turn && S.round === b.round && !S.ended && stateSig() === b.sig
-      && JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== b.id && !(b.ride && fid === 'destrier'))) === b.figs;
+      && JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== b.id && fid !== b.ride)) === b.figs;
   }
   async function undoMove() {
     const u = R.undo; R.undo = null;
     if (!u || active() !== u.id || !undoAllowed(u)) { ui.toast('Ce déplacement ne peut plus être annulé.'); return; }
     const back = [...u.path].reverse(), f = S.figs[u.id];
     engine.highlight([], []);
-    await Promise.all([engine.moveFigure(u.id, back, { follow: true }), u.ride ? engine.moveFigure('destrier', back, { follow: false }) : null]);
-    f.tile = u.path[0]; if (u.ride) S.figs.destrier.tile = u.path[0];
+    await Promise.all([engine.moveFigure(u.id, back, { follow: true }), u.ride ? engine.moveFigure(u.ride, back, { follow: false }) : null]);
+    f.tile = u.path[0]; if (u.ride) S.figs[u.ride].tile = u.path[0];
     S.used.move = false;
     ui.toast(`Déplacement annulé : remettez ${def(u.id).name} sur <b>${tileOf(u.path[0]).code}</b>.`, 3200);
   }
   async function ambush(heroId, k) {
     const foes = enemiesOn(k).map(e => def(e.id)).sort((a, b) => b.atk - a.atk), e = foes[0];
     ui.toast(`<b>Embuscade !</b> ${e.name} frappe au passage.`, 2200);
-    if (heroId === 'selene') {
-      if (await g.test('agilite', 'Esquiver l\'embuscade')) { ui.floatText(engine.screenPos(heroId), 'Esquive', '#8fe07a'); return; }
+    const dg = def(heroId).dodge;
+    if (dg) {
+      if (await g.test(dg.stat || 'agilite', 'Esquiver l\'embuscade', 0, dg.diff || 'normal')) { ui.floatText(engine.screenPos(heroId), 'Esquive', '#8fe07a'); return; }
     }
     await enemyStrike(enemiesOn(k).find(x => def(x.id) === e).id, heroId, true);
   }
@@ -530,15 +536,16 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (n > 0) S.used.action = true;
   }
   async function glow(id) {
-    const k = S.figs[id].tile, here = heroes().filter(h => S.figs[h.id].tile === k);
+    const k = S.figs[id].tile, ha = def(id).healAura, here = heroes().filter(h => S.figs[h.id].tile === k && (ha.self || h.id !== id));
     sfx.magic(); engine.animate?.(id, 'cast');
-    for (const h of here) { const f = S.figs[h.id]; const before = f.hp; f.hp = Math.min(h.hp, f.hp + 2); if (f.hp > before) ui.floatText(engine.screenPos(h.id), `+${f.hp - before}`, '#8fe07a'); }
+    for (const h of here) { const f = S.figs[h.id]; const before = f.hp; f.hp = Math.min(h.hp, f.hp + ha.heal); if (f.hp > before) ui.floatText(engine.screenPos(h.id), `+${f.hp - before}`, '#8fe07a'); }
     S.used.action = true; refreshHUD();
   }
   async function toggleMount() {
     S.mounted = !S.mounted;
-    ui.toast(S.mounted ? `Aldric monte en selle : <b>déplacement ${moveOf('aldric')}</b>.` : 'Aldric met pied à terre.');
-    await engine.bump('destrier', null);
+    const r = rider(); if (!r) return;
+    ui.toast(S.mounted ? `${r.name} monte en selle : <b>déplacement ${moveOf(r.id)}</b>.` : `${r.name} met pied à terre.`);
+    await engine.bump(mountId(), null);
   }
   function useItem(item) {
     const it = st.items[item];
@@ -690,7 +697,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
           if (ok) await attack(a, id);
         });
       }
-      if (tm === 'mount') { if (a === 'aldric' && af.tile === S.figs.destrier.tile) return act(() => toggleMount()); ui.toast('Le destrier n\'obéit qu\'à Aldric.'); return; }
+      if (tm === 'mount') { const r = rider(); if (r && a === r.id && id === mountId() && af.tile === S.figs[id].tile) return act(() => toggleMount()); ui.toast(`${def(id).name} n'obéit qu'à ${r && id === mountId() ? r.name : 'son cavalier'}.`); return; }
     }
     if (hit.type === 'poi' || hit.type === 'tile') {
       const k = hit.key, t = tileOf(k);
@@ -816,7 +823,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   }
   settings.subscribe(() => engine.applySettings?.(settings.gfx));
   buildMenu();
-  window.__game = { S, R, dialogue, g, map, exploreTile, explored, act, talk, attack, reveal, teleport, interactPlace, endTurn, def, active, moveHero, pathFor };
+  window.__game = { S, R, dialogue, g, map, moveOf, exploreTile, explored, act, talk, attack, reveal, teleport, interactPlace, endTurn, def, active, moveHero, pathFor };
 
   // ------------------------------------------------------------------ démarrage
   refreshHUD();

@@ -182,6 +182,7 @@ export const GLB = {
   mage:      { url: KK + 'Mage.glb', height: 0.62, anims: { ...KAY, attack: 'Spellcast_Shoot' }, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
   barbarian: { url: KK + 'Barbarian.glb', height: 0.64, anims: { ...KAY, attack: '2H_Melee_Attack_Chop' }, hide: ['1H_Axe_Offhand', 'Barbarian_Round_Shield', '1H_Axe', 'Mug'] },
   rogue:     { url: KK + 'Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, hide: HEROW },
+  hooded:    { url: KK + 'Rogue_Hooded.glb', height: 0.63, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, hide: HEROW },
   // PNJ « civils » : jamais de cape, de chapeau de héros ni d'arme → on ne les confond pas avec les héros
   npc:       { url: KK + 'Barbarian.glb', height: 0.54, civil: true, anims: KAY, tint: 0xe0c49a, hide: ['1H_Axe', '1H_Axe_Offhand', '2H_Axe', 'Barbarian_Round_Shield', 'Barbarian_Hat', 'Barbarian_Cape'] }, // aubergiste, chope à la main
   child:     { url: KK + 'Rogue.glb', height: 0.42, civil: true, anims: KAY, tint: 0xf2d6a8, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
