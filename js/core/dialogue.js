@@ -1,5 +1,6 @@
 // Dialogues PNJ (frappe, portraits, choix conditionnels / uniques, effets) + narration plein écran.
 import { figureSVG } from './art.js';
+import { icon } from './icons.js';
 import { sfx } from './sfx.js';
 
 export function createDialogue(root) {
@@ -44,11 +45,18 @@ export function createDialogue(root) {
     let id = script.start, last = null;
     while (id && script.nodes[id]) {
       const n = script.nodes[id];
-      const sp = hooks.speaker(n.s);
+      const narr = n.s === 'narrator'; // texte d'ambiance : le narrateur décrit la scène
       if (n.s !== last) {
         last = n.s; hooks.onSpeaker?.(n.s);
-        $('.d-portrait').innerHTML = `<div class="pimg big" style="--c:${sp.color}">${figureSVG(sp.kind, sp.color, { portrait: true })}</div>`;
-        $('.d-name').textContent = sp.name; $('.d-name').style.color = sp.color;
+        if (narr) {
+          $('.d-portrait').innerHTML = `<div class="pimg big narr-ic">${icon('scroll')}</div>`;
+          $('.d-name').textContent = hooks.sceneTitle || 'La scène'; $('.d-name').style.color = '';
+        } else {
+          const sp = hooks.speaker(n.s);
+          $('.d-portrait').innerHTML = `<div class="pimg big" style="--c:${sp.color}">${figureSVG(sp.kind, sp.color, { portrait: true })}</div>`;
+          $('.d-name').textContent = sp.name; $('.d-name').style.color = sp.color;
+        }
+        box.classList.toggle('narr', narr);
         box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
       }
       $('.d-choices').innerHTML = ''; box.classList.remove('has-choices'); $('.d-hint').style.opacity = 0;
@@ -65,7 +73,7 @@ export function createDialogue(root) {
           choices.forEach((c, i) => {
             const ok = !c.cond || c.cond(g);
             const b = document.createElement('button'); b.className = 'choice' + (ok ? '' : ' locked');
-            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i><span>${c.t}${ok ? '' : `<small>Requiert : ${c.need || '?'}</small>`}</span>`;
+            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i><span>${val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>Requiert : ${c.need || '?'}</small>`}</span>`;
             if (ok) { b.onclick = e => { e.stopPropagation(); res(c); }; btns[i] = c; }
             $('.d-choices').append(b);
           });

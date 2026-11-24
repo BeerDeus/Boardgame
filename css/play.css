@@ -408,3 +408,11 @@ body.narrating #viewport { visibility: hidden; }
 .ps-tips input { width: 18px; height: 18px; accent-color: #c9a45c; }
 .menu-foot .ver { display: block; text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
 .ps-attrs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font: 600 11px var(--head); letter-spacing: .03em; } .ps-attrs span { padding: 1px 5px; border: 1px solid var(--line); border-radius: 6px; color: var(--gold-hi); }
+
+/* Dialogue : texte d'ambiance (narrateur) et choix avec dés */
+.dialogue.narr { background: linear-gradient(180deg, rgba(44,34,22,.96), rgba(20,15,10,.97)); }
+.dialogue.narr .d-text { font-style: italic; color: #e8dcc0; }
+.dialogue.narr .d-name { color: var(--gold); }
+.narr-ic { display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 40% 35%, #4a3a24, #1a120c); border: 2px solid var(--gold); border-radius: 50%; }
+.narr-ic svg { width: 55%; height: 55%; stroke: var(--gold-hi); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dlg-test { display: inline-block; font-style: normal !important; color: #9fd0ff !important; border: 1px solid rgba(111,179,255,.5); border-radius: 6px; padding: 0 5px; margin: 0 4px 2px 0; font-size: 12px !important; }

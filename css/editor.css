@@ -71,3 +71,7 @@ details.card > summary b { font: 500 15px var(--head); color: var(--gold-hi); } 
   body { grid-template: auto auto 1fr / 1fr; } #nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .tab { white-space: nowrap; } .split { grid-template-columns: 1fr; } .side { position: static; max-height: 240px; }
 }
+.tests2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0; }
+.tests2 > div { border: 1px solid #3a2d22; border-radius: 8px; padding: 6px 8px; } .ok-side { border-left: 3px solid var(--green) !important; } .ko-side { border-left: 3px solid var(--red) !important; }
+.ok-side .nested-l { color: var(--green); } .ko-side .nested-l { color: var(--red); }
+@media (max-width: 1100px) { .tests2 { grid-template-columns: 1fr; } }

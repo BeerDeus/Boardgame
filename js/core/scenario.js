@@ -529,8 +529,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     engine.highlight([], []); ui.vignette(true);
     engine.animate?.(heroId, 'talk');
     await dialogue.play(st.dialogues[dlgId], {
-      g, dlgId,
-      speaker: s => { const d = s === 'hero' ? hero : def(s); return { name: d.name, kind: d.kind, color: d.color }; },
+      g, dlgId, sceneTitle: siteOf(S.figs[npcId]?.tile)?.name || def(npcId)?.name,
+      speaker: s => { const d = s === 'hero' ? hero : def(s) || hero; return { name: d.name, kind: d.kind, color: d.color }; },
       onSpeaker: s => engine.cinematic({ ids: [heroId, npcId], focus: s === 'hero' ? heroId : npcId }),
       isSeen: k => !!S.seen[k], markSeen: k => { S.seen[k] = 1; },
     });

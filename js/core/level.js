@@ -113,7 +113,13 @@ function activity(a) {
   return { id: a.id, icon: a.icon || 'place', label: a.label || a.id, desc: a.desc || '', once: !!a.once, blockedByEnemies: !!a.blockedByEnemies,
     need: a.need, cond: cond(a.cond), run: g => runEffects(a.effects, g) };
 }
-const testTag = t => `<small class="dlg-test">${STATS[t.stat]?.name || t.stat}${t.diff && t.diff !== 'normal' ? ' · ' + (DIFFICULTIES[t.diff]?.label || t.diff) : ''}</small> `;
+/** Étiquette d'un choix à dés : seulement la stat testée (« 🎲 Force ») — la difficulté se devine à la formulation */
+const testTag = t => `<small class="dlg-test">🎲 ${STATS[t.stat]?.name || t.stat}</small> `;
+/** Lance le test puis applique les effets de réussite / d'échec ; renvoie le résultat */
+async function rollTest(t, g, ctx) {
+  const ok = await g.test(t.stat, t.label || STATS[t.stat]?.name, +t.mod || 0, t.diff || 'normal');
+  ctx.last = ok; await runEffects(ok ? t.successEffects : t.failEffects, g, ctx); return ok;
+}
 
 function dialogue(d) {
   const nodes = {};
@@ -121,25 +127,28 @@ function dialogue(d) {
     const ctx = {}; // résultat du dernier test de ce nœud
     const node = { s: n.s || 'hero' };
     node.t = n.variants?.length ? g => (n.variants.find(v => evalCond(v.cond, g))?.t ?? n.t ?? '') : (n.t ?? '');
-    const after = n.test ? () => (ctx.last ? n.test.success : n.test.fail) ?? null : null;
+    const after = n.test ? () => (ctx.last ? n.test.success : n.test.fail) || n.next || null : null;
     node.next = after || (n.branches?.length ? g => (n.branches.find(b => evalCond(b.cond, g))?.next ?? n.next ?? null) : (n.next ?? null));
     if (n.effects?.length || n.test) node.do = async g => {
       await runEffects(n.effects, g, ctx);
-      if (n.test) ctx.last = await g.test(n.test.stat, n.test.label || STATS[n.test.stat]?.name, +n.test.mod || 0, n.test.diff || 'normal');
+      if (n.test) await rollTest(n.test, g, ctx);
     };
     if (n.choices?.length) node.choices = n.choices.map(c => {
       const cctx = {};
-      const ch = { t: (c.test ? testTag(c.test) : '') + (c.t || ''), once: !!c.once, need: c.need, cond: cond(c.cond) };
-      ch.next = c.test ? () => (cctx.last ? c.test.success : c.test.fail) ?? null : (c.next ?? null);
+      const ch = { t: (c.test ? testTag(c.test) : '') + (c.t || ''), hint: c.hint || undefined, once: !!c.once, need: c.need, cond: cond(c.cond) };
+      ch.next = c.test ? () => (cctx.last ? c.test.success : c.test.fail) || c.next || null : (c.next ?? null);
       if (c.effects?.length || c.test) ch.do = async g => {
         await runEffects(c.effects, g, cctx);
-        if (c.test) cctx.last = await g.test(c.test.stat, c.test.label || STATS[c.test.stat]?.name, +c.test.mod || 0, c.test.diff || 'normal');
+        if (c.test) await rollTest(c.test, g, cctx);
       };
       return ch;
     });
     nodes[id] = node;
   }
-  return { start: d.start || Object.keys(d.nodes || {})[0], nodes };
+  let start = d.start || Object.keys(d.nodes || {})[0];
+  // texte d'ambiance : affiché par le narrateur avant la première réplique
+  if (d.scene?.trim()) { nodes.__scene = { s: 'narrator', t: d.scene, next: start }; start = '__scene'; }
+  return { start, nodes };
 }
 const mapObj = (o, f) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, f(v, k)]));
 

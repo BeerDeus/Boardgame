@@ -1064,6 +1064,34 @@
        "next": "voisins"
       },
       {
+       "t": "Vous nous offrez une chope pour la route ?",
+       "once": true,
+       "next": "menu",
+       "test": {
+        "stat": "volonte",
+        "diff": "facile",
+        "mod": 0,
+        "label": "Amadouer Berthe",
+        "successEffects": [
+         {
+          "type": "boost",
+          "n": 1,
+          "who": "here"
+         },
+         {
+          "type": "toast",
+          "text": "Berthe sert une tournée « pour le courage » : <b>+1 boost</b>."
+         }
+        ],
+        "failEffects": [
+         {
+          "type": "toast",
+          "text": "Berthe lève les yeux au ciel : « Après la brume, mes agneaux ! »"
+         }
+        ]
+       }
+      },
+      {
        "t": "Nous y allons.",
        "next": "fin"
       }
@@ -1118,7 +1146,8 @@
      "t": "Que la Dame Grise vous garde. Et dépêchez-vous !",
      "next": null
     }
-   }
+   },
+   "scene": "L'auberge sent la soupe aux choux et la fumée de tourbe. Derrière son comptoir, Berthe repose un gobelet en vous voyant entrer ; dehors, la cloche sonne encore."
   },
   "mathilde": {
    "start": "a",
@@ -1148,6 +1177,39 @@
        "next": "pont"
       },
       {
+       "t": "Montrez-nous une de vos bottes.",
+       "once": true,
+       "next": "menu",
+       "test": {
+        "stat": "agilite",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Parer la botte de Mathilde",
+        "successEffects": [
+         {
+          "type": "boost",
+          "n": 1,
+          "who": "active"
+         },
+         {
+          "type": "toast",
+          "text": "Vous parez de justesse. Mathilde hoche la tête : <b>+1 boost</b>."
+         }
+        ],
+        "failEffects": [
+         {
+          "type": "boost",
+          "n": -1,
+          "who": "active"
+         },
+         {
+          "type": "toast",
+          "text": "Le plat de l'épée vous cueille à l'épaule. Mathilde éclate de rire : <b>−1 boost</b>."
+         }
+        ]
+       }
+      },
+      {
        "t": "Merci, Mathilde.",
        "next": null
       }
@@ -1168,7 +1230,8 @@
      "t": "Le gardien ? Il ne parle qu'à ceux qui connaissent la Rousse. C'est comme ça qu'on l'appelait, la bâtisseuse : cheveux de braise, comme le feu de ma forge.",
      "next": "menu"
     }
-   }
+   },
+   "scene": "La chaleur de la forge vous saisit. Mathilde, bras nus et tablier roussi, frappe une dernière fois le fer rouge avant de lever les yeux vers vous."
   },
   "lise": {
    "start": "a",
@@ -1242,7 +1305,8 @@
       }
      ]
     }
-   }
+   },
+   "scene": "Sous les pommiers tordus, une fillette est recroquevillée contre un tronc. Elle renifle et vous regarde approcher avec méfiance."
   },
   "gaspard": {
    "start": "a",
@@ -1316,7 +1380,8 @@
       }
      ]
     }
-   }
+   },
+   "scene": "Près d'un feu qui fume encore, un homme taille des flèches. Il ne se lève pas, mais sa main ne s'éloigne jamais de son arc."
   },
   "gardien": {
    "start": "a",
@@ -1463,7 +1528,8 @@
       }
      ]
     }
-   }
+   },
+   "scene": "Au milieu du pont, une silhouette encapuchonnée tient une lanterne éteinte. La brume s'écarte autour d'elle sans jamais la toucher."
   },
   "sentinelle": {
    "start": "a",
@@ -1478,7 +1544,8 @@
      "t": "Ceux qui vont le rallumer.",
      "next": null
     }
-   }
+   },
+   "scene": "Au sommet de la tour, une forme décharnée se dresse devant le fanal mort. Ses orbites vides s'allument d'une lueur rouge."
   }
  },
  "talk": {

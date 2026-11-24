@@ -32,7 +32,8 @@ export function walk(L, visit) {
   for (const [id, d] of Object.entries(L.dialogues || {})) for (const [nid, n] of Object.entries(d.nodes || {})) {
     const w = `Dialogue ${id} › ${nid}`;
     eff(n.effects, w); for (const v of n.variants || []) cnd(v.cond, w); for (const b of n.branches || []) cnd(b.cond, w);
-    for (const c of n.choices || []) { cnd(c.cond, w); eff(c.effects, w); }
+    for (const c of n.choices || []) { cnd(c.cond, w); eff(c.effects, w); eff(c.test?.successEffects, w); eff(c.test?.failEffects, w); }
+    eff(n.test?.successEffects, w); eff(n.test?.failEffects, w);
   }
   for (const [k, rules] of Object.entries(L.talk || {})) for (const r of rules) cnd(r.cond, `Parler à ${k}`);
   for (const key of ['afterTalk', 'onReveal', 'onEnter', 'glasEvents', 'onDefeat']) for (const [k, list] of Object.entries(L[key] || {})) eff(list, `${key} › ${k}`);
@@ -74,7 +75,7 @@ export function checkLevel(L) {
   for (const [k, t] of Object.entries(L.tiles || {})) { if (!cells.has(k)) continue; if (t.terrain && !TERRAINS[t.terrain]) E(`terrain inconnu « ${t.terrain} »`, `Case ${k}`); if (t.zone && !zones.has(t.zone)) E(`zone « ${t.zone} » non déclarée`, `Case ${k}`); }
 
   // dialogues
-  const speakers = new Set(['hero', ...HEROES.map(h => h.id), ...cast.keys()]);
+  const speakers = new Set(['hero', 'narrator', ...HEROES.map(h => h.id), ...cast.keys()]);
   for (const [id, d] of Object.entries(dialogues)) {
     const nodes = d.nodes || {}, w = `Dialogue « ${id} »`;
     if (!nodes[d.start]) E(`nœud de départ « ${d.start} » introuvable`, w);
@@ -84,10 +85,10 @@ export function checkLevel(L) {
       const wn = `${w} › ${nid}`;
       if (!speakers.has(n.s)) E(`personnage « ${n.s} » inconnu`, wn);
       if (!n.t && !n.variants?.length) W('texte vide', wn);
-      if (n.test) { if (!STATS[n.test.stat]) E(`stat « ${n.test.stat} » inconnue`, wn); go(n.test.success, wn); go(n.test.fail, wn); }
+      if (n.test) { if (!STATS[n.test.stat]) E(`stat « ${n.test.stat} » inconnue`, wn); go(n.test.success, wn); go(n.test.fail, wn); go(n.next, wn); }
       else if (!n.choices?.length) go(n.next, wn);
       for (const b of n.branches || []) go(b.next, wn);
-      for (const c of n.choices || []) { if (c.test) { if (!STATS[c.test.stat]) E(`stat « ${c.test.stat} » inconnue`, wn); if (!DIFFICULTIES[c.test.diff || 'normal']) E('difficulté inconnue', wn); go(c.test.success, wn); go(c.test.fail, wn); } else go(c.next, wn); }
+      for (const c of n.choices || []) { if (c.test) { if (!STATS[c.test.stat]) E(`stat « ${c.test.stat} » inconnue`, wn); if (!DIFFICULTIES[c.test.diff || 'normal']) E('difficulté inconnue', wn); go(c.test.success, wn); go(c.test.fail, wn); } go(c.next, wn); }
     }
     // nœuds jamais atteints
     while (stack.length) { const k = stack.pop(); if (reached.has(k) || !nodes[k]) continue; reached.add(k); const n = nodes[k];

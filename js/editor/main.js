@@ -193,17 +193,22 @@ function panelDialogues() {
     onDelete: id => { if (confirm(`Supprimer le dialogue « ${id} » ?`)) { delete L.dialogues[id]; changed(); render(); } } });
   if (!sel) return h('div', { class: 'split' }, side, h('div', { class: 'form' }, h('p', { class: 'muted' }, 'Aucun dialogue. Créez-en un, puis reliez-le à un PNJ dans « Personnages ».')));
   const d = L.dialogues[sel], nodes = d.nodes ||= {}, nodeIds = Object.keys(nodes);
-  const who = [['hero', 'Héros actif'], ...HEROES.map(x => [x.id, `${x.name} (héros)`]), ...L.cast.map(c => [c.id, c.name || c.id])];
-  const nextSel = (o, k, label = 'Puis') => field(label, select(o[k] ?? '', nodeIds.map(n => [n, n]), v => { o[k] = v || null; changed(); }, { empty: '(fin du dialogue)' }));
-  const testFields = t => [row(field('Stat', select(t.stat, Object.entries(STATS).map(([k, v]) => [k, v.name]), v => { t.stat = v; changed(); })),
+  const who = [['narrator', 'Narrateur (ambiance)'], ['hero', 'Héros actif'], ...HEROES.map(x => [x.id, `${x.name} (héros)`]), ...L.cast.map(c => [c.id, c.name || c.id])];
+  const nextSel = (o, k, label = 'Puis', empty = '(fin du dialogue)') => field(label, select(o[k] ?? '', nodeIds.map(n => [n, n]), v => { o[k] = v || null; changed(); }, { empty }));
+  // test de stat : jet, effets de réussite / d'échec (récompense, malus…), puis suite propre à chaque issue ou suite commune
+  const testFields = (t, holder) => [row(field('Stat', select(t.stat, Object.entries(STATS).map(([k, v]) => [k, v.name]), v => { t.stat = v; changed(); })),
       field('Difficulté', select(t.diff || 'normal', Object.entries(DIFFICULTIES).map(([k, v]) => [k, `${v.label} (${v.mod > 0 ? '+' : ''}${v.mod})`]), v => { t.diff = v; changed(); })),
       fieldFor('number', t, 'mod', ctx, 'Modif. %'), fieldFor('text', t, 'label', ctx, 'Intitulé du jet')),
-    row(nextSel(t, 'success', 'Si réussite →'), nextSel(t, 'fail', 'Si échec →'))];
+    h('div', { class: 'tests2' },
+      h('div', { class: 'ok-side' }, h('div', { class: 'nested-l' }, '✓ Si réussite'), effectsEditor(t.successEffects ||= [], ctx), nextSel(t, 'success', 'Puis aller à', '(suite commune)')),
+      h('div', { class: 'ko-side' }, h('div', { class: 'nested-l' }, '✗ Si échec'), effectsEditor(t.failEffects ||= [], ctx), nextSel(t, 'fail', 'Puis aller à', '(suite commune)'))),
+    nextSel(holder, 'next', 'Suite commune (si aucune suite propre)')];
   const users = Object.entries(L.talk || {}).filter(([, rs]) => rs.some(r => r.dialogue === sel)).map(([k]) => L.cast.find(c => c.id === k)?.name || k);
   L.afterTalk ||= {};
   const form = h('div', { class: 'form' }, h('h2', {}, `Dialogue « ${sel} »`),
     h('p', { class: 'muted' }, users.length ? `Lancé en parlant à : ${users.join(', ')}.` : '⚠ Aucun PNJ ne lance ce dialogue (onglet Personnages → « Quand on lui parle ») — il peut aussi être lancé par un effet.'),
     row(idField('dialogue', sel, v => { ui.sel.dialogue = v; }, new Set(ids)), field('Nœud de départ', select(d.start, nodeIds.map(n => [n, n]), v => { d.start = v; changed(); }))),
+    field('Texte d\'ambiance (narrateur, affiché en premier)', textarea(d.scene, v => { d.scene = v; changed(); }, { rows: 3, placeholder: 'Ex. : L\'auberge sent la soupe et la fumée. Berthe essuie un gobelet sans vous quitter des yeux…' }), 'Décrit la scène avant la première réplique. Laisser vide pour commencer directement.'),
     h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Après le dialogue'), effectsEditor(L.afterTalk[sel] ||= [], ctx)));
   for (const nid of nodeIds) {
     const n = nodes[nid], mode = n.test ? 'test' : n.choices?.length ? 'choices' : 'next';
@@ -224,7 +229,7 @@ function panelDialogues() {
         changed(); render();
       })));
     if (mode === 'next') card.append(nextSel(n, 'next'));
-    if (mode === 'test') card.append(h('div', { class: 'nested is-test' }, h('div', { class: 'nested-l' }, 'Test de stat (après le texte, par le héros actif)'), ...testFields(n.test)));
+    if (mode === 'test') card.append(h('div', { class: 'nested is-test' }, h('div', { class: 'nested-l' }, 'Test de stat (après le texte, par le héros actif)'), ...testFields(n.test, n)));
     if (mode === 'choices') {
       const cb = h('div', { class: 'choices' });
       n.choices.forEach((c, i) => {
@@ -232,9 +237,9 @@ function panelDialogues() {
           h('div', { class: 'card-h' }, h('b', {}, `Choix ${i + 1}`), h('span', { class: 'sp' }),
             icoBtn('↑', 'Monter', () => { if (i) { [n.choices[i - 1], n.choices[i]] = [n.choices[i], n.choices[i - 1]]; changed(); render(); } }),
             icoBtn('✕', 'Supprimer', () => { n.choices.splice(i, 1); changed(); render(); }, 'del')),
-          fieldFor('text', c, 't', ctx, 'Texte du choix'),
+          fieldFor('text', c, 't', ctx, 'Texte du choix'), fieldFor('text', c, 'hint', ctx, 'Indice sous le choix (facultatif, ex. un ressenti)'),
           row(fieldFor('bool', c, 'once', ctx, 'Une seule fois'), field('Test de stat', checkbox(!!c.test, v => { if (v) c.test = { stat: 'force', diff: 'normal', mod: 0, label: '', success: null, fail: null }; else delete c.test; changed(); render(); }, 'Lancer les dés'))),
-          c.test ? h('div', { class: 'nested is-test' }, ...testFields(c.test)) : nextSel(c, 'next'),
+          c.test ? h('div', { class: 'nested is-test' }, ...testFields(c.test, c)) : nextSel(c, 'next'),
           h('details', {}, h('summary', {}, 'Condition et effets'), row(condEditorField(c, 'cond', 'Proposé si'), fieldFor('text', c, 'need', ctx, 'Texte si verrouillé')), fieldFor('effects', c, 'effects', ctx, 'Effets quand choisi')));
         cb.append(cc);
       });
