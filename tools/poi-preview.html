@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Aperçu · point d'intérêt</title>
+<style>html,body{margin:0;height:100%;background:#0b0908}canvas{display:block}</style>
+<script type="importmap">{ "imports": { "three": "../vendor/three/build/three.module.js", "three/addons/": "../vendor/three/examples/jsm/" } }</script>
+</head><body>
+<script type="module">
+// Aperçu du marqueur 3D de point d'intérêt (js/three/poi.js) : ?icon=place&name=Pont%20de%20Brume
+import * as THREE from 'three';
+import { makePoiMarker, animatePoi } from '../js/three/poi.js';
+const q = new URLSearchParams(location.search);
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setPixelRatio(devicePixelRatio); r.setSize(innerWidth, innerHeight);
+r.shadowMap.enabled = true; r.toneMapping = THREE.ACESFilmicToneMapping; document.body.append(r.domElement);
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x0b0908);
+const cam = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.01, 50);
+sc.add(new THREE.HemisphereLight(0xbfc6d8, 0x2a2018, 1.1));
+const sun = new THREE.DirectionalLight(0xffe2b8, 2.4); sun.position.set(-1.2, 2, 1.4); sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -1, right: 1, top: 1, bottom: -1 }); sc.add(sun);
+const ground = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 6), new THREE.MeshStandardMaterial({ color: 0x5b5a3e, roughness: 1 }));
+ground.position.y = -0.05; ground.receiveShadow = true; sc.add(ground);
+const icons = (q.get('icon') || 'place,attack,eye').split(',');
+const names = (q.get('name') || 'Hameau de Vieille-Ronce,Forge de Mathilde,Pont de Brume').split(',');
+const ms = icons.map((ic, i) => { const m = makePoiMarker(ic, 1, names[i] || ''); m.position.x = (i - (icons.length - 1) / 2) * 0.34; sc.add(m); return m; });
+const d = +(q.get('dist') || 1.25), pitch = +(q.get('pitch') || 0.5);
+cam.position.set(0, Math.sin(pitch) * d + 0.1, Math.cos(pitch) * d); cam.lookAt(0, 0.1, 0);
+const clock = new THREE.Clock();
+r.setAnimationLoop(() => { const dt = clock.getDelta(), t = clock.elapsedTime; ms.forEach(m => animatePoi(m, dt, t)); r.render(sc, cam); });
+</script></body></html>

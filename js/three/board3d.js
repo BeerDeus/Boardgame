@@ -6,6 +6,7 @@ import { makeFigure, flash, preloadGLB, applyFinish, playAnim, hasAnim } from '.
 import { settings } from '../core/settings.js';
 import { sfx } from '../core/sfx.js';
 import { iconTexture, ringTexture, radialTexture } from './textures.js';
+import { makePoiMarker, animatePoi } from './poi.js';
 
 const V = () => new THREE.Vector3();
 
@@ -54,9 +55,8 @@ export class Board3D {
     t.overlay.visible = false; t.overlay.renderOrder = 1;
     this.root.add(t.group); this.tiles.set(data.key, t);
     if (data.poi) {
-      const r = 0.075 * this.o.poiScale, side = new THREE.MeshStandardMaterial({ color: 0x8a6d3b, metalness: 0.6, roughness: 0.35 });
-      const tok = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.03, 24), [side, new THREE.MeshStandardMaterial({ map: iconTexture(data.poi.icon), roughness: 0.5 }), side]);
-      tok.castShadow = true; tok.position.set(cell.x + t.poiPos.x, t.topY + 0.015, cell.z + t.poiPos.z);
+      const tok = makePoiMarker(data.poi.icon, this.o.poiScale, data.poi.name || data.name || data.poi.label || ''); tok.userData.s = this.o.poiScale;
+      tok.position.set(cell.x + t.poiPos.x, t.topY, cell.z + t.poiPos.z);
       tok.userData.poiKey = data.key; t.poiHidden = !!data.poiHidden; tok.visible = t.revealed && !t.poiHidden; t.poi = tok; this.root.add(tok);
     }
     t.reveal(false, t.revealed);
@@ -113,7 +113,7 @@ export class Board3D {
   }
   /** Numéros affichés en continu (pendant la consigne de mise en place), puis masqués */
   showCodes(keys, on) { for (const k of keys) { if (on) this.pinnedCodes.add(k); else this.pinnedCodes.delete(k); this.showCode(k, on); } }
-  popPoi(t) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
+  popPoi(t) { const p = t.poi, s = p.userData.s || 1; p.visible = true; p.scale.setScalar(0.01); tween({ duration: 0.55, ease: ease.outBack, update: k => p.scale.setScalar(Math.max(0.01, k * s)) }); }
   highlight(reach, explore) {
     const R = new Set(reach), E = new Set(explore);
     for (const [k, t] of this.tiles) {
@@ -296,7 +296,7 @@ export class Board3D {
     const t = this.tiles.get(key); if (!t?.poi) return;
     if (poi) { if (t.poiHidden) { t.poiHidden = false; if (t.revealed) this.popPoi(t); } return; }
     const tok = t.poi; t.poi = null;
-    tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, 1 - k)) }).then(() => this.root.remove(tok));
+    const s = tok.userData.s || 1; tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, (1 - k) * s)) }).then(() => this.root.remove(tok));
   }
   screenPos(id) { const f = this.figs.get(id); if (!f) return null; return this.s.toScreen(f.position.clone().add(new THREE.Vector3(0, (f.userData.height || 0.75) * this.o.figScale, 0))); }
   setFinish(fin) { this.finish = fin; for (const f of this.figs.values()) applyFinish(f, fin); this.s.invalidate(); }
@@ -344,7 +344,7 @@ export class Board3D {
       if (an && (this.s.gfx.idleAnim || an.busy > 0 || this.moving?.has(f.userData.id))) an.mixer.update(dt);
       const orb = f.userData.inner.userData.orb; if (orb) orb.material.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6;
     }
-    for (const tl of this.tiles.values()) if (tl.poi?.visible) tl.poi.rotation.y += dt * 0.8;
+    for (const tl of this.tiles.values()) if (tl.poi?.visible) animatePoi(tl.poi, dt, t);
     for (const m of this.marks.values()) { m.position.y = m.userData.base + Math.sin(t * 2.4) * 0.05; m.rotation.y += dt * 1.5; }
   }
 }

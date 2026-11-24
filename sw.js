@@ -3,7 +3,7 @@
 //  • Assets lourds (modèles, textures, HDRI, polices) : cache d'abord + rafraîchissement en arrière-plan.
 //  • Le navigateur vérifie sw.js à chaque visite (updateViaCache: 'none') ; nouvelle version = activée
 //    immédiatement et la page se recharge toute seule. Aucune réinstallation nécessaire.
-const VERSION = 'grimoire-1795549424';
+const VERSION = 'grimoire-1795549696';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -37,6 +37,8 @@ const PRECACHE = [
 "assets/models/kaykit/Skeleton_Shield_Small_A.glb",
 "assets/models/kaykit/Skeleton_Staff.glb",
 "assets/models/kaykit/Skeleton_Warrior.glb",
+"assets/poi/marqueur-elevation.svg",
+"assets/poi/medaillon-place.svg",
 "assets/textures/brown_mud_leaves_01.jpg",
 "assets/textures/burned_ground_01.jpg",
 "assets/textures/dark_rock.jpg",
@@ -61,6 +63,7 @@ const PRECACHE = [
 "js/core/icons.js",
 "js/core/mapgen.js",
 "js/core/monsters.js",
+"js/core/poi-art.js",
 "js/core/portraits.js",
 "js/core/pwa.js",
 "js/core/scenario.js",
@@ -79,6 +82,7 @@ const PRECACHE = [
 "js/three/board3d.js",
 "js/three/figures.js",
 "js/three/impostor.js",
+"js/three/poi.js",
 "js/three/props.js",
 "js/three/rig.js",
 "js/three/stage.js",
