@@ -36,9 +36,11 @@ export function buildMap(grid, story, seed = 1) {
     tiles.set(cell.key, { key: cell.key, terrain: p.terrain, name: p.name, place: p.id, poi: p.poi ? { ...p.poi } : null });
   }
   const ph = [R() * 9, R() * 9];
-  const regions = story.regions.map(r => ({ ...r, at: [J(r.at[0]), J(r.at[1])] }));
+  const regions = (story.regions || []).map(r => ({ ...r, at: [J(r.at[0]), J(r.at[1])] }));
   for (const c of grid.cells) {
     if (tiles.has(c.key)) continue;
+    const fixed = c.col != null && story.tiles?.[`${c.col},${c.row}`]?.terrain; // terrain choisi dans l'éditeur
+    if (fixed && TERRAINS[fixed]) { const Rk = rng(hashStr(c.key) + seed), names = TERRAINS[fixed].names; tiles.set(c.key, { key: c.key, terrain: fixed, name: names[Math.floor(Rk() * names.length)], place: null, poi: null }); continue; }
     const [u, v] = uv(c), n = Math.sin(u * 9 + ph[0]) * Math.cos(v * 7 + ph[1]) * 0.18;
     let best = null, bs = 0.12;
     for (const r of regions) { const s = 1 - Math.hypot(u - r.at[0], v - r.at[1]) / r.r + n; if (s > bs) { bs = s; best = r.terrain; } }
@@ -46,8 +48,11 @@ export function buildMap(grid, story, seed = 1) {
     const names = TERRAINS[t].names, Rk = rng(hashStr(c.key) + seed);
     tiles.set(c.key, { key: c.key, terrain: t, name: names[Math.floor(Rk() * names.length)], place: null, poi: null });
   }
-  // zones verrouillées : toutes les cases situées au-delà d'un lieu (ex. de l'autre côté du pont)
+  // zones verrouillées : peintes case par case dans l'éditeur…
+  for (const c of grid.cells) { const z = c.col != null && story.tiles?.[`${c.col},${c.row}`]?.zone; if (z) tiles.get(c.key).zone = z; }
+  // … ou toutes les cases situées au-delà d'un lieu (ex. de l'autre côté du pont)
   for (const z of story.zones || []) {
+    if (!z.beyond) continue;
     const bc = grid.get(placeKey[z.beyond]); if (!bc) continue;
     const [bu] = uv(bc);
     for (const c of grid.cells) if (uv(c)[0] > bu + 1e-6) tiles.get(c.key).zone = z.id;

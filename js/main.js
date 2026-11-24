@@ -6,14 +6,9 @@ import { createUI } from './core/ui.js';
 import { createDialogue } from './core/dialogue.js';
 import { runScenario } from './core/scenario.js';
 
-const LOADERS = {
-  tabletop: () => import('./engines/tabletop.js'),
-  cards: () => import('./engines/cards.js'),
-  hex: () => import('./engines/hex.js'),
-  paper: () => import('./engines/paper.js'),
-};
+const LOADERS = { hex: () => import('./engines/hex.js') }; // seul moteur conservé (les prototypes sont dans l'historique Git)
 
-const id = new URLSearchParams(location.search).get('e') || 'tabletop';
+const id = new URLSearchParams(location.search).get('e') || 'hex';
 const meta = ENGINES.find(e => e.id === id) || ENGINES[0];
 document.title = `${meta.letter} · ${meta.title}`;
 const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.subtitle });
@@ -22,12 +17,14 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
   try {
     ui.progress(0.05, 'Moteur…');
     const mod = await LOADERS[meta.id]();
-    const { CAMPAIGN } = await import('./core/campaign.js');
-    const story0 = (await CAMPAIGN.steps[0].load()).STORY;
+    const { CAMPAIGN, draftStep } = await import('./core/campaign.js');
+    const draft = new URLSearchParams(location.search).get('level') === 'draft' ? draftStep() : null;
+    const story0 = (await (draft || CAMPAIGN.steps[0]).load()).STORY;
     const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l), story: story0 });
     ui.progress(0.85, 'Portraits…');
     try {
-      const [{ createBaker }, { STORY }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./stories/prologue.js'), import('./core/portraits.js')]);
+      const [{ createBaker }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./core/portraits.js')]);
+      const STORY = story0;
       const baker = await createBaker(128);
       const seen = new Set();
       for (const c of [...STORY.heroes, ...STORY.cast]) { if (seen.has(c.kind)) continue; seen.add(c.kind); setPortrait(c.kind, await baker.portrait(c)); }
@@ -36,7 +33,7 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
     ui.progress(0.9, 'Scénario…');
     const dialogue = createDialogue(ui.root);
     ui.engine = engine; window.__engine = engine;
-    await runScenario({ engine, ui, dialogue, engineId: meta.id, ready: () => { ui.progress(1, 'Prêt'); ui.loaded(); } });
+    await runScenario({ engine, ui, dialogue, engineId: meta.id, draft, ready: () => { ui.progress(1, 'Prêt'); ui.loaded(); } });
     window.__engine = engine;
   } catch (e) {
     console.error(e); ui.error(`Erreur : ${e.message}`);

@@ -96,14 +96,15 @@ export async function createEngine(container, { onProgress, story }) {
       const overlay = new THREE.Mesh(overlayGeo, board.reachMat); overlay.position.y = h + 0.004; col.add(overlay);
       const fog = new THREE.Sprite(new THREE.SpriteMaterial({ map: fogTex, transparent: true, depthWrite: false, opacity: 0.55, color: 0x9aa0b0 }));
       fog.scale.set(R * 3.2, R * 1.6, 1); fog.position.y = FOGY + 0.25; g.add(fog);
-      if (data.terrain === 'village') queueMicrotask(() => stage.addTorch(new THREE.Vector3(cell.x - R * 0.5, h + 0.35, cell.z + R * 0.3), 0xff8a3a, 1.6));
+      let torchLit = false; // la torche du village ne s'allume qu'une fois la tuile posée (sinon flamme dans le vide)
+      const lightTorch = () => { if (torchLit || data.terrain !== 'village') return; torchLit = true; stage.addTorch(new THREE.Vector3(cell.x - R * 0.5, h + 0.35, cell.z + R * 0.3), 0xff8a3a, 1.6); };
       const hidden = FOGY - h; // le sommet affleure juste au-dessus de l'eau
       const tile = {
-        group: g, top: col, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.45, z: -R * 0.3 },
+        group: g, top: col, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.5, z: -R * 0.32 },
         async reveal(animate, state = true, { onLand } = {}) {
           if (!animate) {
             col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; mesh.material = [side, state ? topMat : fogTop, side];
-            if (props) props.visible = state; return;
+            if (props) props.visible = state; if (state) queueMicrotask(lightTorch); return;
           }
           mesh.material = [side, topMat, side]; fog.visible = false;
           if (props) { props.visible = true; props.scale.set(1, 0.01, 1); }
@@ -112,7 +113,7 @@ export async function createEngine(container, { onProgress, story }) {
           col.position.y = H0; col.rotation.set(tx, spin, tz);
           await tween({ duration: 0.62, ease: ease.inQuad, update: k => { const s = 1 - k; col.position.y = H0 * s; col.rotation.set(tx * s, spin * s * s, tz * s); } });
           col.position.y = 0; col.rotation.set(0, 0, 0);
-          onLand?.();
+          onLand?.(); lightTorch();
           await tween({ duration: 0.34, ease: ease.linear, update: k => {
             col.position.y = Math.sin(Math.PI * k) * 0.08 * (1 - k);
             const sq = Math.sin(Math.PI * Math.min(1, k * 2)) * 0.06 * (1 - k); col.scale.set(1 + sq, 1 - sq * 1.5, 1 + sq);

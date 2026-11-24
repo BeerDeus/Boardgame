@@ -3,7 +3,7 @@
 //  • Assets lourds (modèles, textures, HDRI, polices) : cache d'abord + rafraîchissement en arrière-plan.
 //  • Le navigateur vérifie sw.js à chaque visite (updateViaCache: 'none') ; nouvelle version = activée
 //    immédiatement et la page se recharge toute seule. Aucune réinstallation nécessaire.
-const VERSION = 'grimoire-1795550496';
+const VERSION = 'grimoire-1795553114';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -51,7 +51,6 @@ const PRECACHE = [
 "assets/textures/snow_02.jpg",
 "css/fonts.css",
 "css/hub.css",
-"css/paper.css",
 "css/play.css",
 "index.html",
 "js/core/art.js",
@@ -60,7 +59,9 @@ const PRECACHE = [
 "js/core/engines-meta.js",
 "js/core/gestures.js",
 "js/core/grid.js",
+"js/core/heroes.js",
 "js/core/icons.js",
+"js/core/level.js",
 "js/core/mapgen.js",
 "js/core/monsters.js",
 "js/core/poi-art.js",
@@ -69,16 +70,12 @@ const PRECACHE = [
 "js/core/scenario.js",
 "js/core/settings.js",
 "js/core/sfx.js",
+"js/core/stats.js",
 "js/core/terrains.js",
 "js/core/tween.js",
 "js/core/ui.js",
-"js/engines/cards.js",
 "js/engines/hex.js",
-"js/engines/paper.js",
-"js/engines/tabletop.js",
 "js/main.js",
-"js/stories/_modele.js",
-"js/stories/prologue.js",
 "js/three/board3d.js",
 "js/three/figures.js",
 "js/three/impostor.js",
@@ -88,6 +85,7 @@ const PRECACHE = [
 "js/three/stage.js",
 "js/three/textures.js",
 "js/version.js",
+"levels/prologue.json",
 "manifest.webmanifest",
 "play.html",
 "vendor/three/LICENSE",

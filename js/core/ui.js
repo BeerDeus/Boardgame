@@ -1,4 +1,5 @@
 // HUD commun : barre du haut, menu de test, toasts, FPS, barre de groupe, aide, chargement.
+import { STATS } from './stats.js';
 import { figureSVG } from './art.js';
 import { icon, ICON_NAMES } from './icons.js';
 const ic = n => (ICON_NAMES.includes(n) ? icon(n) : (n ?? ''));
@@ -194,7 +195,7 @@ export function createUI({ title, subtitle }) {
         };
         const finish = () => {
           if (done) return; const v = value(); if (v == null) return; done = true; keyHandler = null;
-          const r = { roll: v, ok: v <= chance && v < 96, crit: v <= crit, fumble: v >= 96, spent };
+          const r = { roll: v, chance, ok: v <= chance && v < 96, crit: v <= crit, fumble: v >= 96, spent };
           if (r.crit) r.ok = true;
           $('.d100-res').innerHTML = `<em class="${r.ok ? 'ok' : 'ko'}">${r.crit ? 'Réussite critique !' : r.fumble ? 'Maladresse !' : r.ok ? 'Réussite' : 'Échec'}</em>`;
           dice.classList.add('resolved'); sfx[r.ok ? 'success' : 'ui']();
@@ -389,6 +390,7 @@ export function createUI({ title, subtitle }) {
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
               <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
               <span class="ps-stats">${icon('heart')} ${hh.hp} · ${icon('attack')} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
+              <span class="ps-stats ps-attrs">${Object.entries(STATS).map(([k, s]) => `<span title="${s.name}">${s.short} ${hh.skills[k] ?? '—'}</span>`).join('')}</span>
               <span class="ps-talent">${hh.talent}</span></button>`; }).join('')}</div>
             <div class="ps-foot">
               <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>

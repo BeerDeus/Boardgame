@@ -3,7 +3,7 @@
 import os, re, json, time
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 files = ['./', 'index.html', 'play.html', 'manifest.webmanifest']
-for d in ['css', 'js', 'assets', 'vendor']:
+for d in ['css', 'js', 'assets', 'vendor', 'levels']:
     for dp, _, fs in os.walk(os.path.join(root, d)):
         files += [os.path.relpath(os.path.join(dp, f), root).replace(os.sep, '/') for f in fs]
 BUILD = str(int(time.time()))

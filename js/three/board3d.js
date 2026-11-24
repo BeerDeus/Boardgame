@@ -168,7 +168,13 @@ export class Board3D {
   }
 
   // ---------- figurines ----------
-  slotPos(key, i, n) { const t = this.tiles.get(key), s = this.grid.slots(n)[i]; return new THREE.Vector3(t.cell.x + s.x, t.topY, t.cell.z + s.z); }
+  /** Emplacement d'une figurine sur sa case ; si la case porte un point d'intérêt, le groupe est décalé à l'opposé du marqueur. */
+  slotPos(key, i, n) {
+    const t = this.tiles.get(key), s = this.grid.slots(n)[i];
+    let ox = 0, oz = 0, k = 1;
+    if (t.poi && t.poiPos) { ox = -t.poiPos.x * 0.42; oz = -t.poiPos.z * 0.42; k = 0.82; }
+    return new THREE.Vector3(t.cell.x + s.x * k + ox, t.topY, t.cell.z + s.z * k + oz);
+  }
   arrange(key, skip) {
     const ids = this.occ.get(key) || [];
     ids.forEach((id, i) => {
@@ -347,7 +353,7 @@ export class Board3D {
     const t = this.tiles.get(key); if (!t?.poi) return;
     if (poi) { if (t.poiHidden) { t.poiHidden = false; if (t.revealed) this.popPoi(t); } return; }
     const tok = t.poi; t.poi = null;
-    const s = tok.userData.s || 1; tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, (1 - k) * s)) }).then(() => this.root.remove(tok));
+    const s = tok.userData.s || 1; tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, (1 - k) * s)) }).then(() => { this.root.remove(tok); this.arrange(key); });
   }
   screenPos(id) { const f = this.figs.get(id); if (!f) return null; return this.s.toScreen(f.position.clone().add(new THREE.Vector3(0, (f.userData.height || 0.75) * this.o.figScale, 0))); }
   setFinish(fin) { this.finish = fin; for (const f of this.figs.values()) applyFinish(f, fin); this.s.invalidate(); }

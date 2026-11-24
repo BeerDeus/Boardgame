@@ -407,3 +407,4 @@ body.narrating #viewport { visibility: hidden; }
 .ps-tips { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; }
 .ps-tips input { width: 18px; height: 18px; accent-color: #c9a45c; }
 .menu-foot .ver { display: block; text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
+.ps-attrs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font: 600 11px var(--head); letter-spacing: .03em; } .ps-attrs span { padding: 1px 5px; border: 1px solid var(--line); border-radius: 6px; color: var(--gold-hi); }
