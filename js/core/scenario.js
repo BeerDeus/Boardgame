@@ -10,7 +10,7 @@ import { settings, PRESETS } from './settings.js';
 import { CAMPAIGN, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, PERKS, saveCampaign, levelOf } from './campaign.js';
 import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
 
-const SAVE_V = 6;
+const SAVE_V = 7;
 const TERRAIN_CODE = { village: 'V', forest: 'F', plains: 'P', rock: 'R', swamp: 'M', ruins: 'U', burned: 'C', snow: 'N', crypt: 'X' };
 const PARTY_BONUS = { 1: 3, 2: 2, 3: 1, 4: 0 }; // glas supplémentaires selon la taille du groupe
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -23,8 +23,15 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   const campaign = loadCampaign();
 
   // ------------------------------------------------------------------ partie sauvegardée ou nouvelle
-  let S = null;
+  let S = null, resetup = false;
   try { const raw = JSON.parse(localStorage.getItem(saveKey)); if (raw?.v === SAVE_V && !raw.ended) S = raw; } catch {}
+  if (S) { // une partie existe : on demande au lieu de reprendre en silence
+    ready?.();
+    const step0 = CAMPAIGN.steps.find(x => x.id === S.step);
+    const choice = await ui.resumePrompt({ title: `${step0?.num || ''} — ${step0?.title || ''}`, round: S.round, glas: S.glas, glasMax: S.glasMax, party: S.party, when: S.savedAt });
+    if (choice === 'new') { localStorage.removeItem(saveKey); S = null; }
+    else resetup = choice === 'setup';
+  }
   const resumed = !!S;
   let st;
   if (!S) {
@@ -40,8 +47,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
         p.spent++; saveCampaign(campaign);
       }
     }
-    const pick = await ui.partySelect({ steps: CAMPAIGN.steps, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => [h.id, { level: levelOf(heroProgress(campaign, h.id).xp) }])) });
+    const pick = await ui.partySelect({ tips: settings.tips,  steps: CAMPAIGN.steps, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => [h.id, { level: levelOf(heroProgress(campaign, h.id).xp) }])) });
     st = (await CAMPAIGN.steps.find(s => s.id === pick.step).load()).STORY;
+    if (pick.tips != null) settings.set({ tips: pick.tips });
     const n = pick.party.length;
     S = { v: SAVE_V, step: pick.step, party: pick.party, difficulty: pick.difficulty, turnMode: pick.turnMode,
       glasMax: st.glasBase[pick.difficulty] + PARTY_BONUS[n], glas: 0, round: 0, order: [], turn: 0,
@@ -89,7 +97,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   S.hstats ||= {}; S.decks ||= {}; S.cond ||= {}; S.explored ||= [...S.revealed];
   const explored = new Set(S.explored);
   const revealed = new Set(S.revealed);
-  const save = () => { S.revealed = [...revealed]; S.explored = [...explored]; try { localStorage.setItem(saveKey, JSON.stringify(S)); } catch {} };
+  const save = () => { S.revealed = [...revealed]; S.explored = [...explored]; S.savedAt = Date.now(); try { localStorage.setItem(saveKey, JSON.stringify(S)); } catch {} };
   const R = { reach: new Map(), busy: false, marks: new Set(), setupTiles: [], setupFigs: [], setupTokens: [] };
 
   // ------------------------------------------------------------------ plateau
@@ -235,9 +243,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   };
   async function tip(id) {
     if (!settings.tips || !st.tutorial) return;
-    let seen = []; try { seen = JSON.parse(localStorage.getItem('grimoire.tips') || '[]'); } catch {}
-    if (seen.includes(id)) return;
-    seen.push(id); try { localStorage.setItem('grimoire.tips', JSON.stringify(seen)); } catch {}
+    S.tipsSeen ||= [];
+    if (S.tipsSeen.includes(id)) return;
+    S.tipsSeen.push(id); save();
     const [ic3, title, text] = TIPS[id];
     if (await ui.tip({ title, text, icon: ic3 })) settings.set({ tips: false });
   }
@@ -624,7 +632,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
       { title: 'Table physique', items: [
         { type: 'toggle', label: 'Consignes de mise en place', value: settings.setup, onChange: v => settings.set({ setup: v }) },
         { type: 'toggle', label: 'Conseils du tutoriel', value: settings.tips, onChange: v => settings.set({ tips: v }) },
-        { label: 'Revoir les conseils', action: () => { try { localStorage.removeItem('grimoire.tips'); } catch {} settings.set({ tips: true }); ui.toast('Les conseils réapparaîtront.'); } },
+        { label: 'Revoir les conseils', action: () => { S.tipsSeen = []; save(); settings.set({ tips: true }); ui.toast('Les conseils réapparaîtront.'); } },
+        { label: 'Refaire la mise en place de la table', action: () => act(() => fullSetup()) },
       ] },
       { title: 'Dés (D100)', items: [
         { type: 'seg', label: 'Lancer', value: settings.dice, options: [{ label: 'Physiques', value: 'physical' }, { label: 'Virtuels', value: 'virtual' }], onChange: v => settings.set({ dice: v }) },
@@ -686,5 +695,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   } else {
     ui.toast(`Partie reprise · Manche ${S.round}`, 2200);
     const h = activeDef(); engine.setRingColor?.(parseInt(h.color.slice(1), 16)); select(h.id); engine.focusFigure(h.id); refreshHUD();
+    if (resetup) await fullSetup();
+  }
+  /** Remettre toute la table en place (reprise de partie, table rangée…) */
+  async function fullSetup() {
+    R.setupTiles.push(...revealed);
+    R.setupTokens.push(...[...explored].filter(k => poiFor(tileOf(k))));
+    R.setupFigs.push(...Object.keys(S.figs).filter(id => S.figs[id].alive));
+    const was = settings.setup; settings.setup = true; await flushSetup(); settings.setup = was;
   }
 }

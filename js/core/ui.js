@@ -358,10 +358,27 @@ export function createUI({ title, subtitle }) {
         modal.querySelectorAll('[data-p]').forEach(b2 => b2.onclick = () => { modal.classList.remove('open', 'wide'); sfx.success(); res({ perk: b2.dataset.p }); });
       });
     },
-    /** Écran de campagne : étape, compagnie (1-4 héros), difficulté, ordre des tours */
-    partySelect({ steps, completed = [], heroes, glasBase, partyBonus, progress = {} }) {
+    /** Une partie est sauvegardée : reprendre, reprendre + mise en place, ou recommencer */
+    resumePrompt({ title, round, glas, glasMax, party, when }) {
       return new Promise(res => {
-        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal', mode = 'fixed', step = steps[0].id;
+        const d = when ? new Date(when).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+        modal.innerHTML = `<div class="cm-card"><div class="cm-body"><h3>${icon('journal')} Partie en cours</h3>
+          <p>${title}<br><small>Manche ${round} · glas ${glas}/${glasMax} · ${party.length} héros${d ? ` · ${d}` : ''}</small></p>
+          <div class="rs-btns"><button class="btn accent" data-r="resume">${icon('end')} Reprendre</button>
+          <button class="btn" data-r="setup">${icon('map')} Reprendre et remettre la table en place</button>
+          <button class="btn ghost" data-r="new">${icon('close')} Nouvelle partie</button></div></div></div>`;
+        modal.classList.add('open');
+        modal.querySelectorAll('[data-r]').forEach(b2 => b2.onclick = () => {
+          const r = b2.dataset.r;
+          if (r === 'new' && !confirm('Abandonner la partie en cours ?')) return;
+          modal.classList.remove('open'); res(r);
+        });
+      });
+    },
+    /** Écran de campagne : étape, compagnie (1-4 héros), difficulté, ordre des tours */
+    partySelect({ steps, completed = [], heroes, glasBase, partyBonus, progress = {}, tips = true }) {
+      return new Promise(res => {
+        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal', mode = 'fixed', step = steps[0].id, withTips = tips;
         const render = () => {
           const n = sel.size, gmax = glasBase[diff] + (partyBonus[n] ?? 0);
           modal.innerHTML = `<div class="ps-card">
@@ -376,13 +393,15 @@ export function createUI({ title, subtitle }) {
             <div class="ps-foot">
               <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>
               <div class="segs">${[['fixed', 'Ordre fixe'], ['deck', 'Ordre aléatoire']].map(([k, l]) => `<button data-m="${k}" class="${k === mode ? 'on' : ''}">${l}</button>`).join('')}</div>
+              <label class="ps-tips"><input type="checkbox" data-tips ${withTips ? 'checked' : ''}> Conseils du tutoriel</label>
               <span class="ps-sum">${icon('bell')} ${gmax} glas <small>(${n} héros : +${partyBonus[n] ?? 0})</small></span>
               <button class="btn accent" data-go ${n ? '' : 'disabled'}>Commencer (${n} héros)</button></div></div>`;
           modal.querySelectorAll('[data-h]').forEach(b2 => b2.onclick = () => { const id = b2.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
           modal.querySelectorAll('[data-d]').forEach(b2 => b2.onclick = () => { diff = b2.dataset.d; render(); });
           modal.querySelectorAll('[data-m]').forEach(b2 => b2.onclick = () => { mode = b2.dataset.m; render(); });
           modal.querySelectorAll('[data-s]').forEach(b2 => b2.onclick = () => { step = b2.dataset.s; render(); });
-          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode }); };
+          modal.querySelector('[data-tips]').onchange = e => { withTips = e.target.checked; };
+          modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode, tips: withTips }); };
         };
         render(); modal.classList.add('open', 'wide');
       });

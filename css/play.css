@@ -399,3 +399,7 @@ body.narrating #viewport { visibility: hidden; }
 .tip-ic { color: #9ccbff; } .tip-ic .ic { width: 34px; height: 34px; }
 .tip-card small { color: #9ccbff; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-family: var(--head); }
 .tip-card h3 { margin: 2px 0 4px; font-family: var(--head); font-weight: 500; color: var(--gold-hi); } .tip-card p { margin: 0 0 10px; font-size: 16px; line-height: 1.35; }
+
+.rs-btns { display: flex; flex-direction: column; gap: 6px; } .rs-btns .btn { justify-content: flex-start; }
+.ps-tips { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; }
+.ps-tips input { width: 18px; height: 18px; accent-color: #c9a45c; }
