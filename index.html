@@ -8,8 +8,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/fonts.css?v=1795562483">
-  <link rel="stylesheet" href="css/hub.css?v=1795562483">
+  <link rel="stylesheet" href="css/fonts.css?v=1795562940">
+  <link rel="stylesheet" href="css/hub.css?v=1795562940">
 </head>
 <body>
   <div class="bg" id="bg"></div>
@@ -53,9 +53,9 @@
     </div>
   </div>
   <script type="module">
-    const BUILD = '1795562483';
-    import { loadCampaignDef, campaignStatus, loadCampaign, resetCampaign } from './js/core/campaign.js?v=1795562483';
-    import { settings, PRESETS } from './js/core/settings.js?v=1795562483';
+    const BUILD = '1795562940';
+    import { loadCampaignDef, campaignStatus, loadCampaign, resetCampaign } from './js/core/campaign.js?v=1795562940';
+    import { settings, PRESETS } from './js/core/settings.js?v=1795562940';
     const $ = s => document.querySelector(s), view = $('#view'), bg = $('#bg');
     const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const abs = u => (u ? new URL(u, location.href).href : ''); // url() dans une variable CSS : chemin absolu
@@ -142,7 +142,7 @@
     const say = (t, ok) => { st.textContent = t; st.className = 'pwa-status ' + (ok ? 'ok' : 'ko'); };
     if (!window.isSecureContext) say('⚠ PWA indisponible : le site doit être servi en HTTPS', false);
     else if (!('serviceWorker' in navigator)) say('⚠ Navigateur sans service worker', false);
-    else import('./js/core/pwa.js?v=1795562483').then(({ registerPWA, consumeUpdatedFlag }) => {
+    else import('./js/core/pwa.js?v=1795562940').then(({ registerPWA, consumeUpdatedFlag }) => {
       registerPWA({ swUrl: 'sw.js?v=' + BUILD, onStatus: (s, e) => s === 'ready' ? say(consumeUpdatedFlag() ? '✓ Mis à jour · jouable hors-ligne' : '✓ À jour · jouable hors-ligne', true) : say('⚠ Service worker : ' + e?.message, false) });
     });
     const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;

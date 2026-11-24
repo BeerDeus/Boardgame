@@ -52,9 +52,9 @@ tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aper
 
 ### Priorité haute (jouabilité)
 1. **Système de combat définitif** : c'est encore « 1 jet D100 » provisoire. Pistes : dégâts selon la marge de réussite, cartes de compétence par héros, positionnement (flanc, portée).
-2. **Annuler la dernière action** (mauvais tap sur une case) : instantané de l'état avant chaque action, bouton « Annuler » tant qu'aucun dé n'a été lancé.
+2. ~~**Annuler un déplacement**~~ : fait (cases explorées, sans révélation, embuscade ni dé).
 3. **Points d'intérêt qui gênent les figurines** : le marqueur est dans un coin de la case et des figurines peuvent s'y poser. Réserver ce coin dans le placement des figurines.
-4. **Lisibilité en vue d'ensemble** : agrandir les plaques de nom quand on dézoome, regrouper les figurines d'une même case (« ×3 »).
+4. ~~**Lisibilité en vue d'ensemble**~~ : fait (plaques agrandies au dézoom, plaque « ×N » pour les figurines serrées).
 5. **Rôle du destrier** : aujourd'hui, seulement +2 déplacement pour Aldric. Pistes : porter un objet, transporter un 2ᵉ héros, mourir à la place d'Aldric.
 6. **IA des monstres** : elle vise toujours le héros le plus proche. Pistes : priorités par carte (le plus blessé, le mage), garder un lieu, fuir à 1 PV.
 

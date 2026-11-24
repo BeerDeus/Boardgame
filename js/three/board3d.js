@@ -52,6 +52,21 @@ function makeLabel(text, color, team = 'hero') {
   sp.center.set(0.5, 1.15); sp.scale.set(0.525, 0.092, 1); sp.position.y = 0.02; sp.renderOrder = 10;
   return sp;
 }
+/** Plaque de groupe « ×N » (figurines trop serrées sur une case quand on dézoome) : pastilles colorées par figurine */
+const TEAM_DOT = { npc: '#e8d8b0', mount: '#e8d8b0', enemy: '#d0402e', boss: '#ff5a3a' };
+function makeGroupLabel(list) {
+  const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 640; c.height = 112;
+  const n = list.length, dots = Math.min(n, 6), w = 150 + dots * 46, x = (640 - w) / 2;
+  const foes = list.some(d => d.team === 'enemy' || d.team === 'boss');
+  g.fillStyle = foes ? 'rgba(48,8,6,0.94)' : 'rgba(14,10,8,0.92)'; g.beginPath(); g.roundRect(x, 14, w, 84, 20); g.fill();
+  g.strokeStyle = foes ? '#d0402e' : '#c9a45c'; g.lineWidth = 7; g.stroke();
+  list.slice(0, dots).forEach((d, i) => { g.fillStyle = TEAM_DOT[d.team] || d.base || d.color || '#fff'; g.beginPath(); g.arc(x + 42 + i * 46, 56, 18, 0, Math.PI * 2); g.fill(); g.strokeStyle = '#120c08'; g.lineWidth = 4; g.stroke(); });
+  g.font = '700 72px Cinzel, Georgia, serif'; g.fillStyle = foes ? '#ffd9cf' : '#fff1cc'; g.textAlign = 'right'; g.textBaseline = 'middle';
+  g.fillText(`×${n}`, x + w - 22, 60);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  sp.center.set(0.5, 0); sp.renderOrder = 11; return sp;
+}
 /** Bulle « … » flottant au-dessus des PNJ : on les reconnaît d'un coup d'œil (on peut leur parler). */
 let bubbleTex = null;
 function makeBubble() {
@@ -77,6 +92,7 @@ export class Board3D {
     this.supports = { shadows: true };
     this.menu = [];
     this.o.baseFigScale = this.o.figScale; this.finish = settings.finish; this.marks = new Map();
+    this.groups = new Map(); this.groupsDirty = true; this.lastWpp = 0; // lisibilité au dézoom
     this.supports.postfx = !!o.postfx; this.supports.aa = true;
     this.reachMat = new THREE.MeshBasicMaterial({ color: 0xf0c060, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
     this.exploreMat = new THREE.MeshBasicMaterial({ color: 0x6fb3ff, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending, map: o.overlayTex || null });
@@ -185,8 +201,37 @@ export class Board3D {
       tween({ tag: id, duration: 0.35, ease: ease.outCubic, update: k => f.position.lerpVectors(from, to, k) });
     });
   }
-  occPush(key, id) { if (!this.occ.has(key)) this.occ.set(key, []); this.occ.get(key).push(id); }
-  occRemove(key, id) { const a = this.occ.get(key); if (a) { const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); } }
+  occPush(key, id) { if (!this.occ.has(key)) this.occ.set(key, []); this.occ.get(key).push(id); this.groupsDirty = true; }
+  occRemove(key, id) { const a = this.occ.get(key); if (a) { const i = a.indexOf(id); if (i >= 0) a.splice(i, 1); } this.groupsDirty = true; }
+  /**
+   * Lisibilité en vue d'ensemble : les plaques de nom grossissent quand on dézoome (taille minimale à l'écran),
+   * et quand les figurines d'une case sont trop serrées, leurs plaques sont remplacées par une seule « ×N ».
+   */
+  updateLegibility() {
+    const wpp = this.s.rig.worldPerPx();
+    if (!this.groupsDirty && Math.abs(wpp - this.lastWpp) / (this.lastWpp || 1) < 0.02) return;
+    this.lastWpp = wpp; this.groupsDirty = false;
+    const fs = this.o.figScale, minPx = Math.min(36, Math.max(26, this.s.renderer.domElement.clientHeight * 0.05));
+    const k = Math.max(1, Math.min(7, (minPx * wpp) / (0.092 * fs))); // facteur d'agrandissement des plaques
+    const plateW = 0.525 * fs * k * 0.62; // largeur utile d'une plaque (monde)
+    const spacing = this.grid.w * 0.21 * 1.4; // écart entre deux emplacements de figurines sur une case
+    const tight = plateW > spacing * 1.15;
+    const show = this.labels !== false;
+    const want = new Set();
+    for (const [key, ids0] of this.occ) {
+      const ids = ids0.filter(id => this.figs.has(id) && !this.figs.get(id).userData.hidden);
+      const grouped = tight && ids.length >= 2;
+      for (const id of ids) { const f = this.figs.get(id), lab = f.userData.label; if (!lab) continue; lab.scale.set(0.525 * k, 0.092 * k, 1); lab.visible = show && !grouped; }
+      if (!grouped) continue;
+      want.add(key);
+      const sig = ids.join('|'); let gl = this.groups.get(key);
+      if (gl && gl.userData.sig !== sig) { this.root.remove(gl); gl.material.map.dispose(); gl.material.dispose(); gl = null; }
+      if (!gl) { gl = makeGroupLabel(ids.map(id => this.figs.get(id).userData.data)); gl.userData.sig = sig; this.root.add(gl); this.groups.set(key, gl); }
+      const t = this.tiles.get(key); gl.position.set(t.cell.x, t.topY + 0.02, t.cell.z + this.grid.h * 0.32);
+      gl.scale.set(0.525 * fs * k, 0.092 * fs * k, 1); gl.visible = show;
+    }
+    for (const [key, gl] of this.groups) if (!want.has(key)) { this.root.remove(gl); gl.material.map.dispose(); gl.material.dispose(); this.groups.delete(key); }
+  }
 
   async addFigure(data, key, { spawn = false } = {}) {
     const f = await makeFigure(data);
@@ -287,7 +332,7 @@ export class Board3D {
     tween({ duration: 0.25, update: k => tg.position.lerpVectors(kb, tp, k) });
     await tween({ duration: 0.25, ease: ease.outCubic, update: k => f.position.lerpVectors(reach, from, k) });
   }
-  setLabels(v) { this.labels = v; for (const f of this.figs.values()) for (const k of ['label', 'bubble']) if (f.userData[k]) f.userData[k].visible = v; this.s.invalidate(); }
+  setLabels(v) { this.labels = v; for (const f of this.figs.values()) for (const k of ['label', 'bubble']) if (f.userData[k]) f.userData[k].visible = v; this.groupsDirty = true; this.s.invalidate(); }
   setRingColor(hex) { this.ring.material.color.setHex(hex); }
   setSelected(id) {
     const f = id && this.figs.get(id);
@@ -331,7 +376,7 @@ export class Board3D {
       .then(() => { if (target >= 1) mats.forEach(m => { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; }); });
   }
   setFigScale(s) {
-    s *= this.o.baseFigScale; this.o.figScale = s;
+    s *= this.o.baseFigScale; this.o.figScale = s; this.groupsDirty = true;
     for (const f of this.figs.values()) { const s0 = f.scale.x; tween({ duration: 0.3, ease: ease.outBack, update: k => f.scale.setScalar(s0 + (s - s0) * k) }); }
   }
 
@@ -393,6 +438,7 @@ export class Board3D {
     }
   }
   update(dt, t) {
+    this.updateLegibility();
     const p = 0.62 + Math.sin(t * 3.2) * 0.18; this.reachMat.opacity = p; this.exploreMat.opacity = p;
     if (this.ring.visible) { const s = 1 + Math.sin(t * 4) * 0.06; this.ring.scale.set(s, s, s); this.ring.rotation.z += dt * 0.6; }
     for (const f of this.dying) f.userData.anim?.mixer.update(dt);
