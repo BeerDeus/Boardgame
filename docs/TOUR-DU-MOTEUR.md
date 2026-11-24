@@ -46,7 +46,7 @@ tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aper
 
 ## 3. Améliorations possibles
 
-**Faits** : combat à la marge de réussite (1), points d'intérêt dégagés des figurines (3), IA des monstres (6), éditeur de carte/niveau (11), prototypes retirés (14), torches (15), stats et tests de dés dans les dialogues.
+**Faits** : combat à la marge de réussite (1), points d'intérêt dégagés des figurines (3), IA des monstres (6), éditeur de niveaux complet avec dialogues en arbre et aperçu jouable (11), prototypes retirés (14), torches (15), stats et tests de dés, emblèmes de stats, Prologue réécrit (dialogues ramifiés, chemins alternatifs).
 
 
 ### Priorité haute (jouabilité)

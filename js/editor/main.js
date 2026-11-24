@@ -7,12 +7,12 @@ import { statBadge, statChip } from '../core/stat-icons.js';
 import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
-import { dialogueTree } from './dialogue-tree.js';
+import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
 const $ = s => document.querySelector(s);
 let L = load() || emptyLevel();
-const ui = { tab: 'general', sel: {} };
+const ui = { tab: 'general', sel: {}, collapsed: new Set() };
 const ctx = { get L() { return L; }, changed, refresh: render };
 
 // ------------------------------------------------------------------ sauvegarde auto + annuler
@@ -201,10 +201,15 @@ function panelDialogues() {
   const form = h('div', { class: 'form' }, h('h2', {}, `Dialogue « ${sel} »`),
     h('p', { class: 'muted' }, users.length ? `Lancé en parlant à : ${users.join(', ')}.` : '⚠ Aucun PNJ ne lance ce dialogue (onglet Personnages → « Quand on lui parle ») — il peut aussi être lancé par un effet.'),
     row(idField('dialogue', sel, v => { ui.sel.dialogue = v; }, new Set(ids))),
-    field('Texte d\'ambiance (narrateur, affiché en premier)', textarea(d.scene, v => { d.scene = v; changed(); }, { rows: 3, placeholder: 'Ex. : L\'auberge sent la soupe et la fumée. Berthe essuie un gobelet sans vous quitter des yeux…' }), 'Décrit la scène avant la première réplique. Laisser vide pour commencer directement.'),
+    field('Texte d\'ambiance (narrateur, affiché en premier)', textarea(toMd(d.scene), v => { d.scene = toHtml(v); changed(); }, { rows: 3, placeholder: 'Ex. : L\'auberge sent la soupe et la fumée. Berthe essuie un gobelet sans vous quitter des yeux…' }), 'Décrit la scène avant la première réplique. Laisser vide pour commencer directement.'),
     h('details', {}, h('summary', {}, `Effets à la fin du dialogue (${L.afterTalk[sel]?.length || 0})`), effectsEditor(L.afterTalk[sel] ||= [], ctx)),
-    h('p', { class: 'muted tree-help' }, 'Lisez de haut en bas comme un script. Sur un choix : « ＋ Répondre » crée la réplique suivante juste dessous ; le menu « → » peut aussi renvoyer vers une réplique existante (ex. revenir au menu de questions). « 🎲 Test » fait lancer les dés : chaque issue a ses effets (récompense, malus) et sa propre suite.'),
-    dialogueTree(d, { ctx, who, changed, render }));
+    h('div', { class: 'tree-bar' },
+      btn('▶ Essayer ce dialogue', () => previewDialogue(d, { ctx, who }), 'accent'),
+      btn('Tout déplier', () => { for (const k of [...ui.collapsed]) if (k.startsWith(sel + ':')) ui.collapsed.delete(k); render(); }, 'small'),
+      btn('Replier les réponses', () => { for (const k of Object.keys(d.nodes || {})) if (k !== d.start) ui.collapsed.add(`${sel}:${k}`); render(); }, 'small'),
+      h('span', { class: 'tree-legend' }, h('i', { class: 'lg-npc' }), 'PNJ ', h('i', { class: 'lg-hero' }), 'héros ', h('i', { class: 'lg-narr' }), 'narrateur ', h('i', { class: 'lg-test' }), 'jet de dés')),
+    h('p', { class: 'muted tree-help' }, 'Se lit de haut en bas, comme un script. Sous un choix, « ＋ Répondre » écrit la réplique suivante ; le menu « → » peut aussi renvoyer vers une réplique déjà écrite (↪, ex. retour au menu). « 🎲 Ajouter un test » fait lancer les dés : chaque issue a ses effets et sa propre suite. Écrivez **gras** pour mettre en gras.'),
+    dialogueTree(d, { ctx, who, changed, render, collapsed: ui.collapsed, dlgId: sel }));
   return h('div', { class: 'split' }, side, form);
 }
 // --- quêtes et objets
