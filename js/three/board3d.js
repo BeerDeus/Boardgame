@@ -10,16 +10,61 @@ import { makePoiMarker, animatePoi } from './poi.js';
 
 const V = () => new THREE.Vector3();
 
-function makeLabel(text, color) {
-  const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 512; c.height = 112;
-  g.font = '600 52px Cinzel, Georgia, serif'; const w = Math.min(496, g.measureText(text).width + 56);
-  const x = (512 - w) / 2;
-  g.fillStyle = 'rgba(14,10,8,0.88)'; g.beginPath(); g.roundRect(x, 14, w, 84, 20); g.fill();
-  g.strokeStyle = color; g.lineWidth = 7; g.stroke();
-  g.fillStyle = '#f4e6c0'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 58);
+// Plaque de nom, différente selon le camp : héros (sombre, bordure couleur du héros + écusson étoilé),
+// PNJ (parchemin clair + pastille « PNJ »), monture, ennemis (rouge sombre + crâne).
+const LABEL = {
+  hero:  { bg: 'rgba(14,10,8,0.92)', fg: '#fff1cc', lw: 10 },
+  npc:   { bg: 'rgba(238,224,192,0.96)', fg: '#24130a', border: '#8a6a3a', lw: 5, tag: 'PNJ' },
+  mount: { bg: 'rgba(238,224,192,0.96)', fg: '#24130a', border: '#8a6a3a', lw: 5, tag: 'MONTURE' },
+  enemy: { bg: 'rgba(48,8,6,0.94)', fg: '#ffd9cf', border: '#d0402e', lw: 7 },
+};
+function makeLabel(text, color, team = 'hero') {
+  const st = LABEL[team === 'boss' ? 'enemy' : team] || LABEL.hero;
+  const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 640; c.height = 112;
+  g.font = '600 52px Cinzel, Georgia, serif'; const tw = g.measureText(text).width;
+  g.font = '700 30px Georgia, serif'; const tagW = st.tag ? g.measureText(st.tag).width + 26 : 0;
+  const badge = team === 'hero' || team === 'enemy' || team === 'boss' ? 64 : 0;
+  const w = Math.min(624, tw + 56 + (tagW ? tagW + 12 : 0) + badge), x = (640 - w) / 2;
+  g.fillStyle = st.bg; g.beginPath(); g.roundRect(x, 14, w, 84, 20); g.fill();
+  g.strokeStyle = st.border || color; g.lineWidth = st.lw; g.stroke();
+  let cx = x + 28;
+  if (team === 'hero') { // écusson rond à la couleur du héros, étoile dorée
+    g.fillStyle = color; g.beginPath(); g.arc(cx + 22, 56, 24, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#ffe29a'; g.lineWidth = 3; g.stroke();
+    g.fillStyle = '#ffe9b0'; g.beginPath();
+    for (let i = 0; i < 10; i++) { const r = i % 2 ? 7 : 16, an = -Math.PI / 2 + i * Math.PI / 5; g.lineTo(cx + 22 + Math.cos(an) * r, 56 + Math.sin(an) * r); }
+    g.fill(); cx += badge;
+  } else if (badge) { // crâne
+    g.fillStyle = '#d0402e'; g.beginPath(); g.arc(cx + 22, 56, 24, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffe0d6'; g.beginPath(); g.arc(cx + 22, 52, 13, 0, Math.PI * 2); g.fill(); g.fillRect(cx + 15, 58, 14, 10);
+    g.fillStyle = '#d0402e'; g.beginPath(); g.arc(cx + 17, 52, 4, 0, Math.PI * 2); g.arc(cx + 27, 52, 4, 0, Math.PI * 2); g.fill();
+    cx += badge;
+  }
+  if (st.tag) {
+    g.fillStyle = '#6b4a22'; g.beginPath(); g.roundRect(cx - 6, 34, tagW, 44, 10); g.fill();
+    g.fillStyle = '#fff3d6'; g.font = '700 30px Georgia, serif'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(st.tag, cx + 7, 57);
+    cx += tagW + 6;
+  }
+  g.font = '600 52px Cinzel, Georgia, serif'; g.fillStyle = st.fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, (cx + x + w - 22) / 2, 58, x + w - 22 - cx);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  sp.center.set(0.5, 1.15); sp.scale.set(0.42, 0.092, 1); sp.position.y = 0.02; sp.renderOrder = 10;
+  sp.center.set(0.5, 1.15); sp.scale.set(0.525, 0.092, 1); sp.position.y = 0.02; sp.renderOrder = 10;
+  return sp;
+}
+/** Bulle « … » flottant au-dessus des PNJ : on les reconnaît d'un coup d'œil (on peut leur parler). */
+let bubbleTex = null;
+function makeBubble() {
+  if (!bubbleTex) {
+    const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = 160; c.height = 140;
+    g.fillStyle = '#f3e6c4'; g.strokeStyle = '#8a6a3a'; g.lineWidth = 7;
+    g.beginPath(); g.roundRect(10, 10, 140, 92, 34); g.moveTo(62, 100); g.lineTo(80, 130); g.lineTo(96, 100); g.fill(); g.stroke();
+    g.fillStyle = '#f3e6c4'; g.fillRect(64, 92, 30, 12);
+    g.fillStyle = '#5a3a1a'; for (const x of [52, 80, 108]) { g.beginPath(); g.arc(x, 56, 9, 0, Math.PI * 2); g.fill(); }
+    bubbleTex = new THREE.CanvasTexture(c); bubbleTex.colorSpace = THREE.SRGBColorSpace;
+  }
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: bubbleTex, depthTest: false, transparent: true }));
+  sp.center.set(0.5, 0); sp.scale.set(0.16, 0.14, 1); sp.renderOrder = 10;
   return sp;
 }
 
@@ -149,7 +194,13 @@ export class Board3D {
     this.arrange(key, data.id);
     f.userData.restIdle = data.idle || 'idle';
     // étiquette de nom toujours lisible (sprite face caméra, sous le socle à l'écran)
-    const lab = makeLabel(data.name, data.base || data.color); lab.visible = this.labels !== false; f.add(lab); f.userData.label = lab;
+    const lab = makeLabel(data.name, data.base || data.color, data.team); lab.visible = this.labels !== false; f.add(lab); f.userData.label = lab;
+    if (data.team === 'npc') { // bulle de dialogue au-dessus de la tête
+      const bub = makeBubble(); bub.position.y = (f.userData.height || 0.7) + 0.06; bub.userData.base = bub.position.y; f.add(bub); f.userData.bubble = bub;
+    } else if (data.team === 'hero') { // halo au sol à la couleur du héros
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.3, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: new THREE.Color(data.base || data.color), transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+      ring.position.y = 0.006; ring.renderOrder = 2; f.add(ring); f.userData.heroRing = ring;
+    }
     if (spawn) {
       const y0 = f.position.y; f.scale.setScalar(0.01);
       this.dust(f.position.clone(), 10, 0.5, 0x2a2420);
@@ -230,7 +281,7 @@ export class Board3D {
     tween({ duration: 0.25, update: k => tg.position.lerpVectors(kb, tp, k) });
     await tween({ duration: 0.25, ease: ease.outCubic, update: k => f.position.lerpVectors(reach, from, k) });
   }
-  setLabels(v) { this.labels = v; for (const f of this.figs.values()) if (f.userData.label) f.userData.label.visible = v; this.s.invalidate(); }
+  setLabels(v) { this.labels = v; for (const f of this.figs.values()) for (const k of ['label', 'bubble']) if (f.userData[k]) f.userData[k].visible = v; this.s.invalidate(); }
   setRingColor(hex) { this.ring.material.color.setHex(hex); }
   setSelected(id) {
     const f = id && this.figs.get(id);
@@ -342,6 +393,8 @@ export class Board3D {
     for (const f of this.figs.values()) {
       const an = f.userData.anim;
       if (an && (this.s.gfx.idleAnim || an.busy > 0 || this.moving?.has(f.userData.id))) an.mixer.update(dt);
+      const bub = f.userData.bubble; if (bub) bub.position.y = bub.userData.base + Math.sin(t * 2.4 + f.id) * 0.02;
+      const hr = f.userData.heroRing; if (hr) hr.material.opacity = 0.42 + Math.sin(t * 2 + f.id) * 0.13;
       const orb = f.userData.inner.userData.orb; if (orb) orb.material.emissiveIntensity = 2 + Math.sin(t * 5) * 0.6;
     }
     for (const tl of this.tiles.values()) if (tl.poi?.visible) animatePoi(tl.poi, dt, t);

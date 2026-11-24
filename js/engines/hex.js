@@ -75,7 +75,7 @@ export async function createEngine(container, { onProgress, story }) {
 
   let board;
   board = new Board3D(stage, grid, {
-    figScale: 0.95, focusDist: 4, postfx: true, homeDist: Math.max(8.5, span * 0.85), cineDist: 2.6, overlayTex: hexFrameTexture(),
+    figScale: 0.95, poiScale: 1.3, focusDist: 4, postfx: true, homeDist: Math.max(8.5, span * 0.85), cineDist: 2.6, overlayTex: hexFrameTexture(),
     createTile(cell, data) {
       const h = (HEIGHT[data.terrain] || 0.3) + rng(hashStr(data.key))() * 0.05;
       const g = new THREE.Group();
