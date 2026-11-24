@@ -626,7 +626,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
         ...(seed !== 1 ? [{ label: 'Revenir à la carte du scénario', action: () => { const u = new URL(location.href); u.searchParams.delete('seed'); location.href = u; } }] : []),
       ] },
       { title: 'Application', items: [
-        { label: 'Forcer la mise à jour', action: async () => { try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); } catch {} location.replace('index.html?maj=' + Date.now()); } },
+        { label: 'Forcer la mise à jour', action: async () => { ui.toast('Mise à jour de tous les fichiers…', 4000); const { hardRefresh } = await import('./pwa.js'); await hardRefresh(); } },
       ] },
       { title: 'Caméra', items: [
         { label: 'Recentrer la vue', action: () => engine.resetCamera() },

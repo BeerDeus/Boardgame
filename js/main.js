@@ -1,5 +1,7 @@
 // Point d'entrée de play.html : charge le moteur choisi + scénario commun.
 import { ENGINES } from './core/engines-meta.js';
+import { VERSION } from './version.js';
+window.__APP_V = VERSION;
 import { createUI } from './core/ui.js';
 import { createDialogue } from './core/dialogue.js';
 import { runScenario } from './core/scenario.js';

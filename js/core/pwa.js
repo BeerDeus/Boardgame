@@ -24,3 +24,18 @@ export function registerPWA({ onStatus } = {}) {
 export function consumeUpdatedFlag() {
   try { const v = sessionStorage.getItem('grimoire.updated'); sessionStorage.removeItem('grimoire.updated'); return !!v; } catch { return false; }
 }
+
+/** Mise à jour forcée : re-télécharge chaque fichier en écrasant le cache HTTP du navigateur
+ *  (cache: 'reload'), vide le cache de l'app, met à jour le service worker, puis recharge. */
+export async function hardRefresh(onProgress = () => {}) {
+  let files = [];
+  try { files = await (await fetch('files.json', { cache: 'no-store' })).json(); } catch {}
+  files = files.filter(f => f !== './');
+  let done = 0;
+  const queue = [...files];
+  const worker = async () => { while (queue.length) { const f = queue.shift(); try { await fetch(f, { cache: 'reload' }); } catch {} onProgress(++done / Math.max(1, files.length)); } };
+  await Promise.all(Array.from({ length: 6 }, worker));
+  try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+  try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.update(); } catch {}
+  const u = new URL(location.href); u.searchParams.set('maj', Date.now()); location.replace(u);
+}

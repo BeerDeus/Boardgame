@@ -67,10 +67,10 @@
       (e.chosen ? wrap : document.getElementById('oldcards')).append(a);
     }
     import('./js/version.js?t=' + Date.now()).then(m => { document.getElementById('ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
-    document.getElementById('forceUpd').onclick = async () => {
-      try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.unregister(); } catch {}
-      try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
-      location.replace('index.html?maj=' + Date.now());
+    document.getElementById('forceUpd').onclick = async e => {
+      const b = e.target; b.disabled = true;
+      const { hardRefresh } = await import('./js/core/pwa.js?t=' + Date.now());
+      await hardRefresh(p => { b.textContent = `Mise à jour… ${Math.round(p * 100)} %`; });
     };
     const cr = document.getElementById('credits');
     document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');

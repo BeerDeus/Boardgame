@@ -11,5 +11,6 @@ sw = re.sub(r"const VERSION = '[^']*';", f"const VERSION = 'grimoire-{int(time.t
 sw = re.sub(r"const PRECACHE = \[.*?\];", "const PRECACHE = " + json.dumps(sorted(set(files)), indent=0) + ";", sw, flags=re.S)
 open(os.path.join(root, 'sw.js'), 'w').write(sw)
 stamp = time.strftime('%Y-%m-%d %H:%M', time.localtime())
+json.dump(sorted(set(files)), open(os.path.join(root, 'files.json'), 'w'))
 open(os.path.join(root, 'js', 'version.js'), 'w').write("// Mis à jour par tools/build-sw.py à chaque préparation de déploiement\nexport const VERSION = '%s';\n" % stamp)
 print(f'{len(set(files))} fichiers pré-cachés')

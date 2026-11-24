@@ -20,5 +20,23 @@
   <div id="viewport"></div>
   <div id="hud"></div>
   <script type="module" src="js/main.js"></script>
+  <script>
+    // Garde-fou : si les scripts chargés sont plus vieux que ceux du serveur (cache du navigateur), on répare.
+    setTimeout(async () => {
+      try {
+        const txt = await (await fetch('js/version.js', { cache: 'no-store' })).text();
+        const server = (txt.match(/VERSION = '([^']+)'/) || [])[1];
+        if (server && window.__APP_V !== server && !sessionStorage.getItem('grimoire.fixing')) {
+          sessionStorage.setItem('grimoire.fixing', '1');
+          const d = document.createElement('div');
+          d.style.cssText = 'position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:#0b0908;color:#ecd9a6;font:18px Georgia,serif;text-align:center;padding:20px';
+          d.textContent = 'Ancienne version détectée (' + (window.__APP_V || 'v2') + ') — mise à jour vers ' + server + '…';
+          document.body.append(d);
+          const { hardRefresh } = await import('./js/core/pwa.js?t=' + Date.now());
+          await hardRefresh(p => { d.textContent = 'Mise à jour vers ' + server + '… ' + Math.round(p * 100) + ' %'; });
+        } else if (window.__APP_V === server) sessionStorage.removeItem('grimoire.fixing');
+      } catch {}
+    }, 4000);
+  </script>
 </body>
 </html>
