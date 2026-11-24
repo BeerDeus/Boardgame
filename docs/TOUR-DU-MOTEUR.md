@@ -1,6 +1,6 @@
 # Tour du moteur — Grimoire
 
-État au 24/11/2026. Site 100 % statique (HTML/JS modules, sans build), PWA hors-ligne, déployé par Git sur Hostinger.
+État au 24/11/2026 (mis à jour après l'éditeur de niveaux). Site 100 % statique (HTML/JS modules, sans build), PWA hors-ligne, déployé par Git sur Hostinger.
 
 ## 1. Architecture
 
@@ -9,6 +9,9 @@ index.html ─ hub (choix du moteur)          play.html ─ jeu
                                                └─ js/main.js : charge le moteur + le scénario
 js/core/      règles et interface (indépendants du rendu)
   scenario.js   moteur de règles « MJ » : manches, tours, déplacement, exploration, combat, Ténèbres, fin, menu
+  level.js      format de niveau JSON : effets, conditions, dialogues → STORY (lu par scenario.js)
+  level-check.js vérification d'un niveau (éditeur + tools/validate-level.mjs)
+  stats.js / heroes.js   stats Force/Agilité/Intelligence/Volonté, difficultés ; héros de la campagne
   ui.js         HUD, modales (compagnie, consignes, dés D100, lieux, conseils), bandeaux, menu
   dialogue.js   dialogues PNJ à choix + narrations plein écran (enchaînées en fondu)
   mapgen.js     projection du scénario (lieux, zones, régions) sur la grille
@@ -26,9 +29,10 @@ js/three/     rendu 3D commun
   figures.js    figurines KayKit animées (GLB), palette « civile » des PNJ, socles
   poi.js        marqueur 3D de point d'intérêt
   props.js / textures.js / impostor.js   décors procéduraux, textures, portraits pré-rendus
-js/engines/   hex.js (retenu) · tabletop.js, cards.js, paper.js (anciens prototypes)
-js/stories/   prologue.js (+ _modele.js) — tout le contenu d'une étape
-tools/        build-sw.py (cache hors-ligne + version), validate-story.mjs, aperçus POI / figurines
+js/engines/   hex.js (seul moteur conservé)
+js/editor/    éditeur de niveaux (editor.html) : formulaires, carte hex, dialogues
+levels/       niveaux JSON (prologue.json)
+tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aperçus POI / figurines
 ```
 
 **Principe** : l'app arbitre, la table physique joue. Chaque découverte déclenche des consignes de mise en place : tuiles, jetons, figurines. Les jets se font avec de vrais dés D100.
@@ -41,6 +45,9 @@ tools/        build-sw.py (cache hors-ligne + version), validate-story.mjs, aper
 - Réglages graphiques complets, rendu à la demande économe sur mobile.
 
 ## 3. Améliorations possibles
+
+**Faits** : combat à la marge de réussite (1), points d'intérêt dégagés des figurines (3), IA des monstres (6), éditeur de carte/niveau (11), prototypes retirés (14), torches (15), stats et tests de dés dans les dialogues.
+
 
 ### Priorité haute (jouabilité)
 1. **Système de combat définitif** : c'est encore « 1 jet D100 » provisoire. Pistes : dégâts selon la marge de réussite, cartes de compétence par héros, positionnement (flanc, portée).

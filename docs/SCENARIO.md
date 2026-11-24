@@ -1,51 +1,44 @@
-# Écrire un niveau (étape de campagne)
+# Créer un niveau (étape de campagne)
 
-Un niveau = **un fichier** `js/stories/<id>.js` qui exporte `STORY`. Le moteur de règles (`js/core/scenario.js`) et l'affichage (4 moteurs) sont génériques.
+Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (`editor.html`, accessible depuis le hub). Le jeu le lit via `js/core/level.js`. Aucune programmation n'est nécessaire.
 
-1. Copier `js/stories/_modele.js` → `js/stories/etape1.js`
-2. L'ajouter dans `js/core/campaign.js` : `{ id: 'etape1', num: 'Étape I', title: '…', load: () => import('../stories/etape1.js') }`
-3. Vérifier : `node tools/validate-story.mjs js/stories/etape1.js` (références croisées, cases, dialogues, objets…)
-4. Mettre à jour le cache hors-ligne : `python3 tools/build-sw.py`
+## Démarche
+1. Hub → **Éditeur de niveaux** (sur PC de préférence). « Exemple : Prologue » ouvre le tutoriel comme modèle.
+2. Construire : **Carte** → **Lieux** → **Personnages** → **Dialogues** → **Quêtes & objets** → **Événements**.
+3. **Tester ▸** ouvre le niveau dans le jeu, dans un onglet séparé. Ni la campagne ni la partie en cours ne sont touchées.
+4. **Exporter** télécharge `<id>.json`. Pour l'ajouter au jeu :
+   - le placer dans `levels/` ;
+   - ajouter une étape dans `js/core/campaign.js` : `{ id: 'etape1', num: 'Étape I', title: '…', load: () => loadLevel('levels/etape1.json') }` ;
+   - vérifier : `node tools/validate-level.mjs levels/etape1.json` ;
+   - mettre à jour le cache : `python3 tools/build-sw.py`.
 
-## Carte (`hexMap`)
-Lignes de texte, une par rangée d'hexagones (« odd-r » : rangées impaires décalées d'une demi-case vers la droite). `o` = tuile, espace = rien (rivière, vide…). Forme libre. Les lieux visent une case avec `cell: [colonne, ligne]`. Les codes physiques des tuiles (F-03…) sont générés automatiquement (lettre du terrain + numéro).
-Les autres moteurs (carré, rect, papier) utilisent `at: [u, v]` (coordonnées 0..1) comme repli.
+Le travail est enregistré automatiquement dans le navigateur. Exporter régulièrement pour garder une copie.
 
-## Lieux (`places`)
-| Champ | Rôle |
-|---|---|
-| `id`, `name`, `terrain` | terrain : village, forest, plains, rock, swamp, ruins, burned, snow, crypt |
-| `cell` / `at` / `near` | case précise / position normalisée / à côté d'un autre lieu |
-| `start: true` | case de départ |
-| `teaser` | aperçu visible quand la tuile apparaît (son contenu reste caché) |
-| `desc` | description affichée en entrant |
-| `poi: { icon, label }` | jeton d'intérêt |
-| `hiddenUntil: 'flag'` | invisible tant que le flag n'est pas posé (ex. révélé par un PNJ) |
-| `activities` | `{ id, icon, label, desc, once, cond, need, blockedByEnemies, run: async g => … }` |
+## Statistiques et tests de dés
+- Chaque héros a **Combat** (attaques) et 4 stats, en % (`js/core/heroes.js`) :
+  - **Force** : soulever, enfoncer, intimider ;
+  - **Agilité** : esquiver, crocheter, discrétion ;
+  - **Intelligence** : savoir, énigmes, pister ;
+  - **Volonté** : peur, prière, persuasion.
+- Un test est **réussi si D100 ≤ stat + difficulté + modificateur**. Le jet est fait par le héros actif.
+  - Difficultés : Facile **+20**, Normal **0**, Difficile **−20**, Héroïque **−40**.
+  - Chaque boost ✦ dépensé avant le jet ajoute **+10**.
+  - Critique si D100 ≤ chance/5 ; maladresse à partir de 96.
+- Où placer un test :
+  - **effet « Test de stat »**, dans une activité de lieu ou un événement, avec des effets « si réussite » et « si échec » ;
+  - **choix de dialogue avec « Lancer les dés »**, qui mène à un nœud de réussite ou d'échec ;
+  - **nœud de dialogue en mode « Test de stat automatique »** : le jet a lieu après le texte.
+- Les progressions de niveau ajoutent +5 à une stat ; les avantages (`js/core/campaign.js`) ajoutent +10 à certaines.
 
-`zones: [{ id, beyond: 'pont', until: 'flag' }]` : toutes les cases au-delà d'un lieu restent invisibles jusqu'à `g.unlockZone(id)`.
+## Combat
+Toucher si D100 ≤ Combat du héros − défense de l'ennemi. **Dégâts = dégâts de base + 1 par tranche de 20 sous la chance, ×2 sur critique.** Exemple : chance 55, jet 12 → 43 de marge → +2 dégâts.
+Les monstres jouent des cartes (`js/core/monsters.js`). Ils visent le héros atteignable le plus blessé, sinon le plus proche. **Garde N** : le monstre ne s'éloigne pas à plus de N cases de son lieu.
 
-`minors` + `minorChance` : petites rencontres aléatoires posées sur les cases de terrain.
-
-## Figurines (`cast`)
-`{ id, name, kind, color, base, team: 'npc'|'enemy'|'boss'|'mount', place, role }` ; monstres : `hp, atk, def` (+ `undead`, `static`, `minParty`, `spawnOn: 'vague'`).
-Elles apparaissent quand un héros entre dans la case (ou `g.revealPlace`). Modèles disponibles : voir `GLB` dans `js/three/figures.js`. Comportement des monstres : paquets de cartes par `kind` dans `js/core/monsters.js`.
-
-## Dialogues
-```js
-monDialogue: { start: 'a', nodes: {
-  a: { s: 'pnj', t: 'Texte (ou g => texte)', next: 'b' },
-  b: { s: 'hero', t: '…', choices: [
-    { t: 'Choix', next: 'c', cond: g => g.has('cle'), need: 'Clé', once: true, do: g => … },
-  ] },
-} }
-```
-`talk: { pnj: g => 'idDialogue' | null }`, `afterTalk`, `idleLine`.
-Questions « piège » : des `choices` dont une seule est juste (les joueurs doivent avoir noté l'info).
-
-## API `g` (dans `run`, `do`, déclencheurs)
-`flag/set`, `has/give/take`, `questStart/questDone`, `test(compétence, label, mod)` (jet D100 avec boosts), `boost(n, 'active'|'here'|'all')`, `heal(n, …)`, `glas(n)`, `revealPlace(id)`, `unlockZone(id)`, `spawn(id)`, `spawnWave(tag)`, `dialogue(id, pnj)`, `narrate({title,text,image})`, `toast`, `night()`, `enemiesAt(lieu)`, `alive(id)`, `inc(compteur)`, `victory()`,
-campagne : `remember(clé, val)`, `memory(clé)`, `rep(pnj, ±n)`, `repOf(pnj)`.
-
-## Déclencheurs
-`onReveal[lieu]` (1re entrée dans la case), `onEnter[lieu]` (chaque arrivée), `glasEvents[n]`, `onDefeat[idMonstre]`, `helpers` (fonctions réutilisables `g.monHelper()`), `remember(g)` (mémoire de fin d'étape).
+## Briques du format
+- **Effets** (`EFFECTS` dans `js/core/level.js`) : message, narration, test de stat, si/alors/sinon, donner ou retirer un objet, boosts, soins, repos, glas, drapeau, quêtes, révéler un lieu, déverrouiller une zone, apparition (figurine ou vague), lancer un dialogue, nuit, cloche, réputation, mémoire de campagne, victoire.
+- **Conditions** (`CONDS`) : drapeau posé ou non, objet possédé ou non, état de quête, ennemis présents ou non au lieu, figurine en vie, réputation, mémoire de campagne, toutes / au moins une.
+- **Dialogues** : chaque nœud a un orateur et un texte, puis une suite (nœud ou fin), des **choix** (condition, une seule fois, test, effets) ou un **test**.
+  - Les **variantes** changent le texte selon une condition.
+  - Les **embranchements** changent la suite selon une condition.
+- **Personnages** : « Quand on lui parle », c'est la première règle dont la condition est vraie qui choisit le dialogue. Si aucun dialogue, le PNJ dit sa réplique.
+- **Carte** : `hexMap` (lignes « odd-r »), `tiles["col,ligne"] = { terrain, zone }`, lieux avec `cell: [col, ligne]`. Les codes des tuiles physiques (F-01…) sont attribués ligne par ligne.

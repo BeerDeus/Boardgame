@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0908">
+  <title>Grimoire · Éditeur de niveaux</title>
+  <link rel="icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/fonts.css">
+  <link rel="stylesheet" href="css/editor.css">
+</head>
+<body>
+  <header class="top">
+    <a class="home" href="index.html" title="Retour au hub">‹</a>
+    <div class="ttl"><small>Éditeur de niveaux</small><b id="title"></b></div>
+    <span class="saved" id="saved"></span>
+    <span class="sp"></span>
+    <button class="btn" id="new" type="button">Nouveau</button>
+    <button class="btn" id="example" type="button">Exemple : Prologue</button>
+    <button class="btn" id="open" type="button">Ouvrir…</button>
+    <button class="btn" id="export" type="button">Exporter (.json)</button>
+    <button class="btn" id="undo" type="button" title="Ctrl+Z">↶ Annuler</button>
+    <span class="badge" id="badge"></span>
+    <button class="btn accent" id="test" type="button">Tester ▸</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </header>
+  <nav id="nav"></nav>
+  <main id="main"></main>
+  <datalist id="dl-flags"></datalist><datalist id="dl-waves"></datalist>
+  <script type="module" src="js/editor/main.js"></script>
+</body>
+</html>
