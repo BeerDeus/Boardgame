@@ -77,3 +77,7 @@ details.card > summary b { font: 500 15px var(--head); color: var(--gold-hi); } 
 @media (max-width: 1100px) { .tests2 { grid-template-columns: 1fr; } }
 .opt-ed { border: 1px dashed #4a3a2a; border-radius: 8px; padding: 6px 10px; margin: 6px 0; }
 optgroup { color: var(--gold); font-style: normal; } option { color: var(--text); }
+.stat-badge { display: inline-block; vertical-align: middle; } .fld > span .stat-badge { margin-left: 4px; vertical-align: -4px; }
+.sc-combat { --sc: #d23b2a; } .sc-force { --sc: #e8781e; } .sc-agilite { --sc: #2fae5e; } .sc-intelligence { --sc: #2f86e0; } .sc-volonte { --sc: #9a4fd0; }
+.stat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 1px; border-radius: 12px; border: 1px solid var(--sc); background: color-mix(in srgb, var(--sc) 18%, transparent); font-weight: 600; }
+.stat-legend { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }

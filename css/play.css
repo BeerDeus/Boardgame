@@ -407,7 +407,6 @@ body.narrating #viewport { visibility: hidden; }
 .ps-tips { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text); cursor: pointer; }
 .ps-tips input { width: 18px; height: 18px; accent-color: #c9a45c; }
 .menu-foot .ver { display: block; text-align: center; color: var(--muted); font-size: 12px; margin-top: 6px; }
-.ps-attrs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; font: 600 11px var(--head); letter-spacing: .03em; } .ps-attrs span { padding: 1px 5px; border: 1px solid var(--line); border-radius: 6px; color: var(--gold-hi); }
 
 /* Dialogue : texte d'ambiance (narrateur) et choix avec dés */
 .dialogue.narr { background: linear-gradient(180deg, rgba(44,34,22,.96), rgba(20,15,10,.97)); }
@@ -416,6 +415,12 @@ body.narrating #viewport { visibility: hidden; }
 .narr-ic { display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 40% 35%, #4a3a24, #1a120c); border: 2px solid var(--gold); border-radius: 50%; }
 .narr-ic svg { width: 55%; height: 55%; stroke: var(--gold-hi); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .dlg-test { display: inline-block; font-style: normal !important; color: #9fd0ff !important; border: 1px solid rgba(111,179,255,.5); border-radius: 6px; padding: 0 5px; margin: 0 4px 2px 0; font-size: 12px !important; }
-.dlg-test .ic { width: 13px; height: 13px; vertical-align: -2px; }
-.d100-detail .ic { width: 16px; height: 16px; vertical-align: -3px; }
-.ps-attrs .ic { width: 12px; height: 12px; vertical-align: -1px; }
+/* Emblèmes de caractéristiques */
+.stat-badge { display: inline-block; vertical-align: middle; flex: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.sc-combat { --sc: #d23b2a; } .sc-force { --sc: #e8781e; } .sc-agilite { --sc: #2fae5e; } .sc-intelligence { --sc: #2f86e0; } .sc-volonte { --sc: #9a4fd0; }
+.stat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px 1px 1px; border-radius: 12px; border: 1px solid var(--sc); background: color-mix(in srgb, var(--sc) 18%, transparent); font: 600 11px var(--body); color: #f4ead2; white-space: nowrap; }
+.stat-chip em { font-style: normal; font-family: var(--head); color: #fff; }
+.ps-attrs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin: 3px 0; } .ps-attrs .stat-chip b { font-weight: 600; }
+.dlg-test { display: inline-flex !important; align-items: center; gap: 4px; border-color: var(--sc) !important; color: #fff !important; background: color-mix(in srgb, var(--sc) 25%, transparent); padding: 1px 7px 1px 1px !important; border-radius: 12px !important; }
+.d100-label { display: flex; align-items: center; gap: 8px; }
+.choice .dlg-test { align-self: flex-start; margin-bottom: 3px; font-size: 12px !important; font-weight: 600; }

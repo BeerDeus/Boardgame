@@ -3,6 +3,7 @@ import { emptyLevel, LEVEL_FORMAT } from '../core/level.js';
 import { checkLevel, walk, KINDS, TEAMS } from '../core/level-check.js';
 import { STATS, DIFFICULTIES } from '../core/stats.js';
 import { HEROES } from '../core/heroes.js';
+import { statBadge, statChip } from '../core/stat-icons.js';
 import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
@@ -196,7 +197,7 @@ function panelDialogues() {
   const who = [['narrator', 'Narrateur (ambiance)'], ['hero', 'Héros actif'], ...HEROES.map(x => [x.id, `${x.name} (héros)`]), ...L.cast.map(c => [c.id, c.name || c.id])];
   const nextSel = (o, k, label = 'Puis', empty = '(fin du dialogue)') => field(label, select(o[k] ?? '', nodeIds.map(n => [n, n]), v => { o[k] = v || null; changed(); }, { empty }));
   // test de stat : jet, effets de réussite / d'échec (récompense, malus…), puis suite propre à chaque issue ou suite commune
-  const testFields = (t, holder) => [row(field('Stat', select(t.stat, Object.entries(STATS).map(([k, v]) => [k, v.name]), v => { t.stat = v; changed(); })),
+  const testFields = (t, holder) => [row(h('label', { class: 'fld' }, h('span', { html: `Stat ${statBadge(t.stat, 18)}` }), select(t.stat, Object.entries(STATS).map(([k, v]) => [k, v.name]), v => { t.stat = v; changed(); render(); })),
       field('Difficulté', select(t.diff || 'normal', Object.entries(DIFFICULTIES).map(([k, v]) => [k, `${v.label} (${v.mod > 0 ? '+' : ''}${v.mod})`]), v => { t.diff = v; changed(); })),
       fieldFor('number', t, 'mod', ctx, 'Modif. %'), fieldFor('text', t, 'label', ctx, 'Intitulé du jet')),
     h('div', { class: 'tests2' },
@@ -322,7 +323,7 @@ function panelHelp() {
   <li><b>Dialogues</b> : nœuds de texte reliés entre eux ; un nœud se termine par une suite simple, des <b>choix</b>, ou un <b>test de stat</b> qui mène à deux nœuds (réussite / échec). Un choix peut aussi lancer les dés.</li>
   <li><b>Tester ▸</b> ouvre le niveau dans le jeu (onglet séparé, sans toucher à la campagne).</li>
   <li><b>Exporter</b> télécharge <code>&lt;id&gt;.json</code> : à placer dans <code>levels/</code> puis à ajouter à la campagne (<code>js/core/campaign.js</code>).</li></ol>
-  <h3>Tests de stat</h3><p>Réussite si D100 ≤ stat du héros actif + difficulté (Facile +20, Normal 0, Difficile −20, Héroïque −40) + modificateur. Les boosts ✦ ajoutent +10 chacun. Stats : ${Object.values(STATS).map(s => `<b>${s.name}</b> (${s.desc})`).join(', ')}.</p>
+  <h3>Tests de stat</h3><p>Réussite si D100 ≤ stat du héros actif + difficulté (Facile +20, Normal 0, Difficile −20, Héroïque −40) + modificateur. Les boosts ✦ ajoutent +10 chacun. </p><div class="stat-legend">${statChip('combat')} attaques ; ${Object.entries(STATS).map(([k, s]) => `<span>${statChip(k)} ${s.desc}</span>`).join('')}</div>
   <h3>Ce qu'on peut faire</h3><p>Effets rangés par catégorie : récit, dés et logique (test, si/sinon, hasard, fenêtre de choix, compteur), héros (boosts, soins, blessure, <b>bonus/malus de stat</b> pour le niveau ou permanent, poison/étourdi, XP, déplacement), objets et quêtes, carte (révéler, <b>déverrouiller une zone</b>, apparitions, départ d'un PNJ), partie (glas, limite de glas, victoire/défaite). Dans les textes, <code>{héros}</code> est remplacé par le nom du héros actif.</p>
   <h3>Drapeaux</h3><p>Mémoire du niveau : « Poser un drapeau » puis condition « Drapeau posé ». Leur nom est libre (ex. <code>pontOuvert</code>).</p>
   <p class="muted">Le travail est enregistré automatiquement dans ce navigateur. Exportez régulièrement pour garder une copie.</p>` });

@@ -1,5 +1,6 @@
 // HUD commun : barre du haut, menu de test, toasts, FPS, barre de groupe, aide, chargement.
 import { STATS } from './stats.js';
+import { statBadge, statChip, STAT_COLORS } from './stat-icons.js';
 import { figureSVG } from './art.js';
 import { icon, ICON_NAMES } from './icons.js';
 const ic = n => (ICON_NAMES.includes(n) ? icon(n) : (n ?? ''));
@@ -170,7 +171,7 @@ export function createUI({ title, subtitle }) {
       return new Promise(res => {
         const $ = q => dice.querySelector(q);
         let t = null, u = null, done = false, spent = 0, chance = base, crit = 1;
-        $('.d100-label').textContent = label; $('.d100-detail').innerHTML = (stat && ICON_NAMES.includes(stat) ? icon(stat) + ' ' : '') + detail;
+        $('.d100-label').innerHTML = (STAT_COLORS[stat] ? statBadge(stat, 30) + ' ' : '') + `<span>${label}</span>`; $('.d100-detail').textContent = detail;
         dice.classList.toggle('noboost', !boosts);
         const setTarget = () => {
           chance = Math.min(95, base + spent * 10); crit = Math.max(1, Math.floor(chance / 5));
@@ -362,7 +363,7 @@ export function createUI({ title, subtitle }) {
       return new Promise(res => {
         modal.innerHTML = `<div class="lp-card lu-card" style="--c:${hero.color}"><div class="lu-head"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
           <div><h3>${hero.name} — niveau supérieur !</h3><small>Choisissez 1 amélioration (définitive pour la campagne).</small></div></div>
-          <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${ICON_NAMES.includes(k.id) ? icon(k.id) + ' ' : ''}${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
+          <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${STAT_COLORS[k.id] ? statBadge(k.id, 22) + ' ' : ''}${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
           <h4>ou un avantage</h4><div class="lp-list">${perks.map(p2 => `<button class="lp-act" data-p="${p2.id}"><span class="lp-ic">${icon('boost')}</span><span><b>${p2.name}</b><small>${p2.desc}</small></span></button>`).join('')}</div></div>`;
         modal.classList.add('open', 'wide');
         modal.querySelectorAll('[data-k]').forEach(b2 => b2.onclick = () => { modal.classList.remove('open', 'wide'); sfx.success(); res({ skill: b2.dataset.k }); });
@@ -399,8 +400,8 @@ export function createUI({ title, subtitle }) {
             <div class="ps-list">${heroes.map(hh => { const pr = progress[hh.id]; return `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
               <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
-              <span class="ps-stats">${icon('heart')} ${hh.hp} · ${icon('attack')} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
-              <span class="ps-stats ps-attrs">${Object.entries(STATS).map(([k, s]) => `<span title="${s.name}">${icon(k)} ${hh.skills[k] ?? '—'}</span>`).join('')}</span>
+              <span class="ps-stats">${icon('heart')} ${hh.hp} PV · ${statBadge('combat', 15)} ${hh.skills.combat} % · ${icon('move')} ${hh.move}</span>
+              <span class="ps-attrs">${Object.keys(STATS).map(k => statChip(k, hh.skills[k] ?? '—', 16)).join('')}</span>
               <span class="ps-talent">${hh.talent}</span></button>`; }).join('')}</div>
             <div class="ps-foot">
               <div class="segs">${Object.keys(glasBase).map(k => `<button data-d="${k}" class="${k === diff ? 'on' : ''}">${k[0].toUpperCase() + k.slice(1)}</button>`).join('')}</div>

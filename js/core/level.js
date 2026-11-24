@@ -4,7 +4,7 @@
 // la même description sert à l'interpréteur ET aux formulaires de l'éditeur.
 import { HEROES } from './heroes.js';
 import { SKILL_NAMES, STATS, DIFFICULTIES } from './stats.js';
-import { icon } from './icons.js';
+import { statBadge } from './stat-icons.js';
 
 export const LEVEL_FORMAT = 1;
 
@@ -165,7 +165,7 @@ function activity(a) {
     need: a.need, cond: cond(a.cond), run: g => runEffects(a.effects, g) };
 }
 /** Étiquette d'un choix à dés : seulement la stat testée (« 🎲 Force ») — la difficulté se devine à la formulation */
-const testTag = t => `<small class="dlg-test">${icon(t.stat)} ${STATS[t.stat]?.name || t.stat}</small> `;
+const testTag = t => `<small class="dlg-test sc-${t.stat}">${statBadge(t.stat, 18, { title: false })} ${STATS[t.stat]?.name || t.stat}</small> `;
 /** Lance le test puis applique les effets de réussite / d'échec ; renvoie le résultat */
 async function rollTest(t, g, ctx) {
   const ok = await g.test(t.stat, t.label || STATS[t.stat]?.name, +t.mod || 0, t.diff || 'normal');
