@@ -101,6 +101,30 @@ export const ART = {
     <ellipse cx="250" cy="350" rx="170" ry="20" fill="#000" opacity=".25"/>
     <path d="M90 270 c0 -90 70 -150 160 -150 s160 60 160 150 c0 40 -40 60 -160 60 s-160 -20 -160 -60z" fill="url(#${u}bread)" stroke="#4a2a10" stroke-width="7"/>
     <g stroke="#f4d49a" stroke-width="8" stroke-linecap="round" opacity=".85"><path d="M150 210 l40 -40M215 195 l45 -50M285 200 l40 -40"/></g>`,
+  silex: u => `
+    <ellipse cx="250" cy="355" rx="150" ry="20" fill="#000" opacity=".25"/>
+    <path d="M130 300 C120 230 170 150 250 135 C330 120 390 180 385 250 C380 320 320 350 250 350 C190 350 140 340 130 300Z" fill="url(#${u}stone)" stroke="#0e0e14" stroke-width="7"/>
+    <path d="M170 190 C210 160 260 150 300 160" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".25" fill="none"/>
+    <path d="M200 260 l40 -25 35 30 45 -20" stroke="#0e0e14" stroke-width="4" opacity=".6" fill="none"/>
+    <g fill="#ffd36a"><path d="M395 140 l7 22 22 7 -22 7 -7 22 -7 -22 -22 -7 22 -7z"/><circle cx="420" cy="210" r="5"/><circle cx="370" cy="110" r="4"/></g>`,
+  briquet: u => `
+    <ellipse cx="250" cy="360" rx="170" ry="20" fill="#000" opacity=".25"/>
+    <path d="M90 250 C90 180 140 150 200 150 H300 C360 150 410 180 410 250" fill="none" stroke="url(#${u}metal)" stroke-width="34" stroke-linecap="round"/>
+    <path d="M90 250 C90 180 140 150 200 150 H300 C360 150 410 180 410 250" fill="none" stroke="#2a1a08" stroke-width="4" stroke-linecap="round"/>
+    <path d="M90 250 c-10 25 10 40 30 30 M410 250 c10 25 -10 40 -30 30" fill="none" stroke="url(#${u}metal)" stroke-width="22" stroke-linecap="round"/>
+    <rect x="150" y="190" width="200" height="60" rx="10" fill="#c98a4a" stroke="#3a2208" stroke-width="5"/>
+    <path d="M165 205h170M165 235h170" stroke="#8a5226" stroke-width="4"/>
+    <path d="M235 300 C220 270 250 250 255 225 C275 255 290 280 265 305Z" fill="url(#${u}fire)"/>
+    <g fill="#ffd36a"><circle cx="210" cy="275" r="6"/><circle cx="300" cy="270" r="5"/><circle cx="320" cy="300" r="4"/><circle cx="185" cy="305" r="4"/></g>`,
+  medaillon: u => `
+    <ellipse cx="250" cy="360" rx="130" ry="18" fill="#000" opacity=".25"/>
+    <path d="M190 40 C210 90 230 110 250 120 C270 110 290 90 310 40" fill="none" stroke="url(#${u}gold)" stroke-width="7" stroke-dasharray="4 6"/>
+    <circle cx="250" cy="235" r="115" fill="url(#${u}gold)" stroke="#3a2208" stroke-width="6"/>
+    <circle cx="250" cy="235" r="90" fill="#7a4a10" stroke="#3a2208" stroke-width="4"/>
+    <circle cx="250" cy="235" r="82" fill="url(#${u}gold)" opacity=".85"/>
+    <path d="M250 175 L268 215 L312 220 L278 248 L288 292 L250 270 L212 292 L222 248 L188 220 L232 215Z" fill="#5a3a10" opacity=".75"/>
+    <rect x="238" y="112" width="24" height="18" rx="5" fill="url(#${u}gold)" stroke="#3a2208" stroke-width="4"/>
+    <path d="M190 175 C210 160 230 155 250 155" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".5" fill="none"/>`,
   anneau: u => `
     <ellipse cx="250" cy="350" rx="130" ry="18" fill="#000" opacity=".25"/>
     <ellipse cx="250" cy="250" rx="120" ry="85" fill="none" stroke="url(#${u}gold)" stroke-width="34"/>
@@ -109,7 +133,7 @@ export const ART = {
     <path d="M215 160 l35 -55 35 55 -35 30z" fill="url(#${u}gem)" stroke="#1a0a2a" stroke-width="5" stroke-linejoin="round"/>
     <path d="M232 150 l18 -28" stroke="#fff" stroke-width="5" opacity=".7" stroke-linecap="round"/>`,
 };
-export const ART_NAMES = { herbes: 'Herbes', huile: 'Flacon d\'huile', eau: 'Fiole bénite', poupee: 'Poupée', cle: 'Clé', pierre: 'Pierre à feu', lettre: 'Lettre scellée', lanterne: 'Lanterne', pain: 'Pain', anneau: 'Anneau' };
+export const ART_NAMES = { herbes: 'Herbes', huile: 'Flacon d\'huile', eau: 'Fiole bénite', poupee: 'Poupée', cle: 'Clé', pierre: 'Pierre étincelante', silex: 'Silex noir', briquet: 'Briquet (pierre à feu forgée)', lettre: 'Lettre scellée', medaillon: 'Médaillon', lanterne: 'Lanterne', pain: 'Pain', anneau: 'Anneau' };
 const ICON_ART = { herb: 'herbes', flask: 'huile', drop: 'eau', person: 'poupee', key: 'cle', scroll: 'lettre' };
 
 const defs = u => `
