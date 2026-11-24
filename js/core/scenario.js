@@ -161,6 +161,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (placeActivities(f.tile).length) acts.push({ icon: 'place', label: 'Lieu', disabled: S.used.action, action: () => act(() => interactPlace()) });
     if (id === 'ysolde') acts.push({ icon: 'glow', label: 'Lueur', disabled: S.used.action, action: () => act(() => glow(id)) });
     if (id === 'aldric' && S.figs.destrier?.alive && S.figs.destrier.tile === f.tile) acts.push({ icon: 'horse', label: S.mounted ? 'Pied à terre' : 'En selle', action: () => act(() => toggleMount()) });
+    if (R.undo?.id === id) acts.push({ icon: 'back', label: 'Annuler le déplacement', action: () => act(() => undoMove(), { keepUndo: true }) });
     acts.push({ icon: 'end', label: 'Fin du tour', primary: true, pulse: S.used.move && S.used.action && S.used.attack, action: () => act(() => endTurn()) });
     ui.setActions(acts);
   }
@@ -366,7 +367,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     await tip('turn');
     if (Object.keys(S.figs).some(i => def(i).team === 'npc' && S.figs[i].alive && i !== 'destrier')) await tip('npc');
   }
-  async function endTurn() { engine.highlight([], []); S.turn++; await nextTurn(); return false; }
+  async function endTurn() { R.undo = null; engine.highlight([], []); S.turn++; await nextTurn(); return false; }
   async function darkPhase() {
     engine.setSelected(null); engine.highlight([], []); refreshHUD();
     await tip('dark');
@@ -474,6 +475,30 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     }
     const pd = siteOf(f.tile);
     if (pd && !pd.minor && st.onEnter?.[pd.id]) await st.onEnter[pd.id](g, id);
+  }
+  // ------------------------------------------------------------------ annuler un déplacement
+  // Seulement si rien n'a changé à part la position : chemin déjà exploré, aucune tuile révélée,
+  // aucune embuscade, aucun jet de dés, aucun effet de lieu (drapeaux, objets, quêtes…).
+  const stateSig = () => JSON.stringify({ ...S, figs: undefined, used: undefined, savedAt: undefined, revealed: undefined, explored: undefined, tipsSeen: undefined }) + revealed.size + '/' + explored.size;
+  function undoSnapshot(id, path) {
+    const ride = id === 'aldric' && S.mounted && S.figs.destrier?.alive;
+    return { id, path: [...path], ride, turn: S.turn, round: S.round, known: path.slice(1).every(k => explored.has(k)), safe: !path.slice(1, -1).some(k => enemiesOn(k).length), sig: stateSig(),
+      figs: JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== id && !(ride && fid === 'destrier'))) };
+  }
+  function undoAllowed(b) {
+    const f = S.figs[b.id];
+    return b.known && b.safe && f?.alive && f.tile === b.path.at(-1) && S.turn === b.turn && S.round === b.round && !S.ended && stateSig() === b.sig
+      && JSON.stringify(Object.entries(S.figs).filter(([fid]) => fid !== b.id && !(b.ride && fid === 'destrier'))) === b.figs;
+  }
+  async function undoMove() {
+    const u = R.undo; R.undo = null;
+    if (!u || active() !== u.id || !undoAllowed(u)) { ui.toast('Ce déplacement ne peut plus être annulé.'); return; }
+    const back = [...u.path].reverse(), f = S.figs[u.id];
+    engine.highlight([], []);
+    await Promise.all([engine.moveFigure(u.id, back, { follow: true }), u.ride ? engine.moveFigure('destrier', back, { follow: false }) : null]);
+    f.tile = u.path[0]; if (u.ride) S.figs.destrier.tile = u.path[0];
+    S.used.move = false;
+    ui.toast(`Déplacement annulé : remettez ${def(u.id).name} sur <b>${tileOf(u.path[0]).code}</b>.`, 3200);
   }
   async function ambush(heroId, k) {
     const foes = enemiesOn(k).map(e => def(e.id)).sort((a, b) => b.atk - a.atk), e = foes[0];
@@ -618,9 +643,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   }
 
   // ------------------------------------------------------------------ entrées
-  async function act(fn) {
+  async function act(fn, { keepUndo = false } = {}) {
     if (R.busy || dialogue.open || S.ended) return;
     R.busy = true; ui.setBusy(true);
+    if (!keepUndo) R.undo = null; // le héros fait autre chose : le déplacement n'est plus annulable
     let changedTurn = false;
     try {
       changedTurn = (await fn()) === false; await flushSetup();
@@ -668,7 +694,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         const text = `<i>${site?.desc || teaserOf(k)}</i><br>${p.length - 1} case(s)${known ? '' : ' · <b>inexploré</b>'}${danger ? `<br><b>⚠ Embuscade</b> : le chemin traverse ${danger} case(s) ennemie(s).` : ''}<br><small>Utilise le déplacement du tour.</small>`;
         return act(async () => {
           if (!(await ui.confirm({ title: `Aller : ${title} ?`, text, ok: 'Y aller', cancel: 'Annuler', danger: !!danger }))) return;
+          const before = undoSnapshot(a, p);
           await moveHero(a, p); S.used.move = true;
+          R.undo = undoAllowed(before) ? before : null;
         });
       }
       if (S.used.move && k !== af.tile) ui.toast('Déplacement déjà utilisé ce tour.');
