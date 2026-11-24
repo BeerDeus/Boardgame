@@ -424,3 +424,4 @@ body.narrating #viewport { visibility: hidden; }
 .dlg-test { display: inline-flex !important; align-items: center; gap: 4px; border-color: var(--sc) !important; color: #fff !important; background: color-mix(in srgb, var(--sc) 25%, transparent); padding: 1px 7px 1px 1px !important; border-radius: 12px !important; }
 .d100-label { display: flex; align-items: center; gap: 8px; }
 .choice .dlg-test { align-self: flex-start; margin-bottom: 3px; font-size: 12px !important; font-weight: 600; }
+.choice > .stat-badge { flex: none; }

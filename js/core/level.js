@@ -165,7 +165,7 @@ function activity(a) {
     need: a.need, cond: cond(a.cond), run: g => runEffects(a.effects, g) };
 }
 /** Étiquette d'un choix à dés : seulement la stat testée (« 🎲 Force ») — la difficulté se devine à la formulation */
-const testTag = t => `<small class="dlg-test sc-${t.stat}">${statBadge(t.stat, 18, { title: false })} ${STATS[t.stat]?.name || t.stat}</small> `;
+const testBadge = t => statBadge(t.stat, 26); // emblème seul, à gauche du choix (le nom reste en info-bulle)
 /** Lance le test puis applique les effets de réussite / d'échec ; renvoie le résultat */
 async function rollTest(t, g, ctx) {
   const ok = await g.test(t.stat, t.label || STATS[t.stat]?.name, +t.mod || 0, t.diff || 'normal');
@@ -186,7 +186,7 @@ function dialogue(d) {
     };
     if (n.choices?.length) node.choices = n.choices.map(c => {
       const cctx = {};
-      const ch = { t: (c.test ? testTag(c.test) : '') + (c.t || ''), hint: c.hint || undefined, once: !!c.once, need: c.need, cond: cond(c.cond) };
+      const ch = { t: c.t || '', badge: c.test ? testBadge(c.test) : undefined, hint: c.hint || undefined, once: !!c.once, need: c.need, cond: cond(c.cond) };
       ch.next = c.test ? () => (cctx.last ? c.test.success : c.test.fail) || c.next || null : (c.next ?? null);
       if (c.effects?.length || c.test) ch.do = async g => {
         await runEffects(c.effects, g, cctx);
