@@ -4,9 +4,9 @@
  "title": "Prologue — Le Pont de Brume",
  "tutorial": true,
  "glasBase": {
-  "facile": 11,
-  "normal": 9,
-  "difficile": 7
+  "facile": 26,
+  "normal": 22,
+  "difficile": 18
  },
  "boost": {
   "start": 2,
@@ -2974,7 +2974,7 @@
   ]
  },
  "glasEvents": {
-  "3": [
+  "8": [
    {
     "type": "night"
    },
@@ -2983,10 +2983,10 @@
     "text": "La nuit tombe. La brume s'épaissit."
    }
   ],
-  "5": [
+  "12": [
    {
     "type": "toast",
-    "text": "Cinquième glas : <b>des rôdeurs sortent de la brume !</b>"
+    "text": "Douzième glas : <b>des rôdeurs sortent de la brume !</b>"
    },
    {
     "type": "spawnWave",
