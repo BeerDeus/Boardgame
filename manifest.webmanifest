@@ -1,7 +1,7 @@
 {
-  "name": "Grimoire — moteurs de plateau",
+  "name": "Grimoire — Les Chroniques de Brumeval",
   "short_name": "Grimoire",
-  "description": "Prototypes d'affichage de plateau pour une app compagnon narrative.",
+  "description": "Application maître du jeu pour un jeu de plateau coopératif (tuiles, figurines, dés D100).",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

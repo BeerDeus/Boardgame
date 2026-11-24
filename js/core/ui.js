@@ -21,7 +21,7 @@ export function createUI({ title, subtitle }) {
   // Barre du haut
   const top = h('div', 'topbar');
   top.innerHTML = `
-    <a class="btn round" href="index.html" title="Retour au hub" aria-label="Retour au hub">${icon('back')}</a>
+    <a class="btn round" href="index.html" title="Accueil" aria-label="Accueil">${icon('back')}</a>
     <div class="title"><b>${title}</b><span>${subtitle || ''}</span></div>
     <div class="clock" hidden></div>
     <div class="spacer"></div>
@@ -248,7 +248,7 @@ export function createUI({ title, subtitle }) {
       end.innerHTML = `<div class="end-card"><h1>${title}</h1><h3>${subtitle}</h3>
         ${xp.length ? `<div class="xp-list">${xp.map(x => `<div class="xp ${x.xp ? '' : 'none'}" style="--c:${x.color}"><b>${x.name}</b><span>${x.xp ? `+${x.xp} XP` : 'Pas d\'XP'}</span><small>${x.why === 'defeat' ? 'défaite' : x.why === 'already' ? 'étape déjà gagnée' : x.why === 'test' ? 'test (non enregistré)' : ''}${x.why ? ' · ' : ''}niv. ${x.level}${x.up ? ` <em>${icon('boost')} niveau supérieur !</em>` : ''}</small></div>`).join('')}</div>` : ''}
         <table>${stats.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('')}</table>
-        <div class="end-btns"><button class="btn accent" data-r>Rejouer</button><a class="btn" href="index.html">Autres moteurs</a></div></div>`;
+        <div class="end-btns"><button class="btn accent" data-r>Rejouer</button><a class="btn" href="index.html">Accueil</a></div></div>`;
       end.querySelector('[data-r]').onclick = onReplay; end.classList.add('open');
     },
     reloadPrompt() { reload.classList.add('open'); },
@@ -429,15 +429,14 @@ export function createUI({ title, subtitle }) {
       });
     },
     /** Écran de campagne : étape, compagnie (1-4 héros), difficulté, ordre des tours */
-    partySelect({ steps, completed = [], heroes, glasBase, partyBonus, progress = {}, tips = true }) {
+    partySelect({ step: stepDef, completed = [], heroes, glasBase, partyBonus, progress = {}, tips = true }) {
       return new Promise(res => {
-        const sel = new Set(['aldric', 'ysolde']); let diff = 'normal', mode = 'fixed', step = steps[0].id, withTips = tips;
+        const sel = new Set(heroes.slice(0, 2).map(x => x.id)); let diff = 'normal', mode = 'fixed', withTips = tips;
+        const step = stepDef.id;
         const render = () => {
           const n = sel.size, gmax = glasBase[diff] + (partyBonus[n] ?? 0);
           modal.innerHTML = `<div class="ps-card">
-            <div class="ps-steps">${steps.map(s2 => `<button class="ps-step ${s2.id === step ? 'on' : ''} ${s2.soon ? 'soon' : ''} ${completed.includes(s2.id) ? 'done' : ''}" data-s="${s2.id}" ${s2.soon ? 'disabled' : ''}>
-              <small>${s2.num}</small><b>${s2.soon ? icon('lock') + ' ' : completed.includes(s2.id) ? icon('check') + ' ' : ''}${s2.title}</b>${s2.tag ? `<em>${s2.tag}</em>` : ''}</button>`).join('')}</div>
-            <h2>Composez votre compagnie</h2>
+            <div class="ps-head"><a class="btn round small" href="index.html" title="Accueil" aria-label="Accueil">${icon('back')}</a><small>${stepDef.num || ''}${stepDef.tag ? ` · ${stepDef.tag}` : ''}${completed.includes(step) ? ` · ${icon('check')} déjà gagnée` : ''}</small><h2>${stepDef.title || ''}</h2><span class="ps-sub">Composez votre compagnie</span></div>
             <div class="ps-list">${heroes.map(hh => { const pr = progress[hh.id]; return `<button class="ps-hero ${sel.has(hh.id) ? 'on' : ''}" data-h="${hh.id}" style="--c:${hh.color}">
               <div class="pimg" style="--c:${hh.color}">${figureSVG(hh.kind, hh.color, { portrait: true })}</div>
               <b>${hh.name}${pr?.level > 1 ? ` <span class="lvl">niv. ${pr.level}</span>` : ''}</b><small>${hh.role}</small>
@@ -453,7 +452,6 @@ export function createUI({ title, subtitle }) {
           modal.querySelectorAll('[data-h]').forEach(b2 => b2.onclick = () => { const id = b2.dataset.h; sel.has(id) ? sel.delete(id) : sel.add(id); sfx.ui(); render(); });
           modal.querySelectorAll('[data-d]').forEach(b2 => b2.onclick = () => { diff = b2.dataset.d; render(); });
           modal.querySelectorAll('[data-m]').forEach(b2 => b2.onclick = () => { mode = b2.dataset.m; render(); });
-          modal.querySelectorAll('[data-s]').forEach(b2 => b2.onclick = () => { step = b2.dataset.s; render(); });
           modal.querySelector('[data-tips]').onchange = e => { withTips = e.target.checked; };
           modal.querySelector('[data-go]').onclick = () => { if (!sel.size) return; modal.classList.remove('open', 'wide', 'live'); res({ step, party: heroes.map(x => x.id).filter(id => sel.has(id)), difficulty: diff, turnMode: mode, tips: withTips }); };
         };
@@ -489,7 +487,7 @@ export function createUI({ title, subtitle }) {
         }
         drawer.append(sec);
       }
-      const foot = h('div', 'menu-foot', `<a class="btn wide ghost" href="index.html">‹ Retour au hub</a><small class="ver"></small>`);
+      const foot = h('div', 'menu-foot', `<a class="btn wide ghost" href="index.html">‹ Accueil</a><small class="ver"></small>`);
       drawer.append(foot);
       import('../version.js').then(m => { foot.querySelector('.ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
     },

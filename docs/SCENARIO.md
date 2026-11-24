@@ -8,7 +8,7 @@ Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (
 3. **Tester ▸** ouvre le niveau dans le jeu, dans un onglet séparé. Ni la campagne ni la partie en cours ne sont touchées.
 4. **Exporter** télécharge `<id>.json`. Pour l'ajouter au jeu :
    - le placer dans `levels/` ;
-   - ajouter une étape dans `js/core/campaign.js` : `{ id: 'etape1', num: 'Étape I', title: '…', load: () => loadLevel('levels/etape1.json') }` ;
+   - ajouter l'étape dans `levels/campaign.json` (Acte → étapes : `{ "id": "etape1", "num": "Étape I", "title": "…", "level": "levels/etape1.json" }`) ;
    - vérifier : `node tools/validate-level.mjs levels/etape1.json` ;
    - mettre à jour le cache : `python3 tools/build-sw.py`.
 

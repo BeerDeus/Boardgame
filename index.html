@@ -4,32 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0908">
-  <title>Grimoire · Moteurs de plateau</title>
+  <title>Grimoire</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/fonts.css?v=1795562253">
-  <link rel="stylesheet" href="css/hub.css?v=1795562253">
+  <link rel="stylesheet" href="css/fonts.css?v=1795562483">
+  <link rel="stylesheet" href="css/hub.css?v=1795562483">
 </head>
 <body>
   <div class="bg" id="bg"></div>
   <main>
     <header>
-      <h1>Grimoire <span>· moteurs de plateau</span></h1>
-      <p>Application « MJ » pour un jeu de plateau coopératif avec figurines, tuiles hexagonales et dés physiques. Campagne : <b>Prologue — Le Pont de Brume</b> (tutoriel, 1-4 héros). Installable (PWA) et jouable hors-ligne.</p>
+      <h1>Grimoire</h1>
+      <p id="campTitle" class="camp">Les Chroniques de Brumeval</p>
     </header>
-    <section class="cards main" id="cards"></section>
+    <section id="view" class="view"></section>
+    <nav class="tools">
+      <a class="tool" href="editor.html">✎ Éditeur de niveaux</a>
+      <a class="tool" href="cards.html">🂠 Cartes d'objets</a>
+      <button class="tool" id="settingsBtn">⚙ Réglages</button>
+      <button class="tool dev" id="resetBtn" title="Développement : efface toute la progression">⟲ Tout réinitialiser</button>
+    </nav>
     <footer>
       <button class="btn" id="installBtn" hidden>⬇ Installer l'app</button>
       <span id="pwaStatus" class="pwa-status"></span>
       <button class="link" id="creditsBtn">Crédits & licences</button>
       <span class="ver" id="ver"></span>
       <button class="link" id="forceUpd">Forcer la mise à jour</button>
-      <span>Astuce : en plein écran + paysage sur mobile. Menu ☰ en jeu = options de test.</span>
     </footer>
   </main>
-  <div class="credits" id="credits">
-    <div class="credits-card">
+  <div class="overlay" id="settings"><div class="ov-card"><h2>Réglages</h2><div id="settingsBody"></div><button class="btn" data-close>Fermer</button></div></div>
+  <div class="overlay" id="reset"><div class="ov-card danger"><h2>Tout réinitialiser ?</h2>
+    <p>Efface <b>toute la progression de campagne</b> sur cet appareil : étapes terminées, XP, niveaux et avantages des héros, mémoire de campagne, réputation des PNJ, objets conservés, et les parties en cours.</p>
+    <p class="muted">Les réglages et le niveau en cours d'édition sont conservés. Action irréversible (outil de développement).</p>
+    <div class="ov-btns"><button class="btn ghost" data-close>Annuler</button><button class="btn danger" id="resetGo">Tout effacer</button></div></div></div>
+  <div class="overlay credits" id="credits">
+    <div class="ov-card credits-card">
       <h2>Crédits</h2>
       <ul>
         <li>Textures de terrain & HDRI : <b>Poly Haven</b> (CC0)</li>
@@ -37,57 +47,102 @@
         <li>Personnages et squelettes animés : <b>KayKit</b> Adventurers & Skeletons de Kay Lousberg (CC0) — kaylousberg.com</li>
         <li>Modèle « Fox » : Khronos glTF Sample Assets (PixelMannen CC0, rig/anim tomkranis CC-BY 4.0)</li>
         <li>Modèle « Horse » : exemples three.js (MIT)</li>
-        <li>Moteur 3D : <b>three.js</b> r187 (MIT) · Figurines, décors et illustrations SVG : procéduraux</li>
+        <li>Moteur 3D : <b>three.js</b> r187 (MIT) · Figurines, décors, cartes et illustrations SVG : procéduraux</li>
       </ul>
-      <button class="btn" id="creditsClose">Fermer</button>
+      <button class="btn" data-close>Fermer</button>
     </div>
   </div>
-  <div class="rotate-hint">Tournez l'appareil en paysage ⟲</div>
   <script type="module">
-    const BUILD = '1795562253';
-    import { ENGINES } from './js/core/engines-meta.js?v=1795562253';
-    const wrap = document.getElementById('cards'), bg = document.getElementById('bg');
-    const setBg = url => { bg.style.opacity = 0; setTimeout(() => { bg.style.backgroundImage = `url('${url}')`; bg.style.opacity = 1; }, 250); };
-    setBg(ENGINES[0].bg);
-    for (const e of ENGINES) {
-      const a = document.createElement('a');
-      a.className = 'card' + (e.chosen ? ' chosen' : ''); a.href = `play.html?e=${e.id}`;
-      a.innerHTML = `
-        <div class="thumb" style="background-image:url('${e.bg}')"><b>${e.letter}</b></div>
-        <div class="body">
-          <h2>${e.title}</h2><h3>${e.subtitle}</h3>
-          <p class="pitch">${e.pitch}</p>
-          <ul class="pros">${e.pros.map(p => `<li>${p}</li>`).join('')}</ul>
-          <ul class="cons">${e.cons.map(p => `<li>${p}</li>`).join('')}</ul>
-          <div class="tech">${e.tech}</div>
-          <span class="go">${e.chosen ? 'Jouer' : 'Essayer'} ▸</span>
-        </div>`;
-      a.addEventListener('pointerenter', () => setBg(e.bg));
-      a.addEventListener('focus', () => setBg(e.bg));
-      wrap.append(a);
+    const BUILD = '1795562483';
+    import { loadCampaignDef, campaignStatus, loadCampaign, resetCampaign } from './js/core/campaign.js?v=1795562483';
+    import { settings, PRESETS } from './js/core/settings.js?v=1795562483';
+    const $ = s => document.querySelector(s), view = $('#view'), bg = $('#bg');
+    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const abs = u => (u ? new URL(u, location.href).href : ''); // url() dans une variable CSS : chemin absolu
+    let shownBg = '';
+    const setBg = url => { if (!url || url === shownBg) return; shownBg = url; bg.style.opacity = 0; setTimeout(() => { bg.style.backgroundImage = `url('${url}')`; bg.style.opacity = 1; }, 250); };
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+    /** Étapes ayant une partie en cours */
+    const inProgress = () => { const out = new Set(); try { for (const k of Object.keys(localStorage)) if (/^grimoire\.save\.v\d+\.(?!draft)/.test(k)) { const r = JSON.parse(localStorage.getItem(k)); if (r && !r.ended && r.step) out.add(r.step); } } catch {} return out; };
+    let def;
+    try { def = await loadCampaignDef(); } catch (e) { view.innerHTML = `<p class="err">Campagne introuvable (${esc(e.message)}).</p>`; }
+    if (def) { $('#campTitle').textContent = def.title; document.title = `Grimoire · ${def.title}`; }
+
+    function render() {
+      if (!def) return;
+      const c = loadCampaign(), stt = campaignStatus(def, c.completed), going = inProgress();
+      const actId = decodeURIComponent(location.hash.slice(1));
+      const act = def.acts.find(a => a.id === actId && stt.acts[a.id].unlocked);
+      if (!act) {
+        setBg(def.acts[0]?.image || 'assets/bg/painting3.jpg');
+        view.className = 'view acts';
+        view.innerHTML = def.acts.map((a, i) => { const s = stt.acts[a.id], soon = !a.steps.some(x => !x.soon);
+          return `<button class="act ${s.unlocked ? '' : 'locked'} ${s.done ? 'done' : ''}" data-a="${esc(a.id)}" ${s.unlocked ? '' : 'disabled'} style="--img:url('${esc(abs(a.image || 'assets/bg/painting3.jpg'))}')">
+            <span class="act-img"></span><span class="act-num">${esc(a.num || 'Acte ' + ROMAN[i])}</span>
+            <span class="act-body"><b>${esc(a.title)}</b><small>${esc(a.desc || '')}</small>
+            <em>${s.unlocked ? (s.done ? '✓ Acte terminé' : `${s.count} / ${s.total} étape${s.total > 1 ? 's' : ''}`) + ' ▸' : soon ? '🔒 À venir' : '🔒 Verrouillé'}</em></span></button>`; }).join('');
+        view.querySelectorAll('[data-a]').forEach(b => { b.onclick = () => { location.hash = b.dataset.a; }; b.onpointerenter = () => { const a = def.acts.find(x => x.id === b.dataset.a); if (!b.disabled) setBg(a.image); }; });
+        return;
+      }
+      setBg(act.image);
+      view.className = 'view steps';
+      view.innerHTML = `<div class="act-head"><button class="back" id="backBtn" aria-label="Retour aux actes">‹</button><div><small>${esc(act.num || '')}</small><h2>${esc(act.title)}</h2><p>${esc(act.desc || '')}</p></div></div>
+        <div class="path"><svg class="trail" aria-hidden="true"></svg>${act.steps.map((s, i) => { const t = stt.steps[s.id];
+          const cls = t.done ? 'done' : t.unlocked ? 'open' : t.soon ? 'soon' : 'locked';
+          return `<button class="node ${cls} ${i % 2 ? 'low' : 'high'}" data-s="${esc(s.id)}" ${t.unlocked || t.done ? '' : 'disabled'}>
+            <span class="medal" style="--img:url('${esc(abs(s.image || act.image || ''))}')">${t.done ? '<i>✓</i>' : !t.unlocked ? '<i>🔒</i>' : ''}</span>
+            <small>${esc(s.num || '')}</small><b>${esc(s.soon ? 'À venir' : s.title)}</b>${s.tag ? `<em>${esc(s.tag)}</em>` : ''}${going.has(s.id) ? '<em class="going">Partie en cours</em>' : ''}
+            ${s.desc && (t.unlocked || t.done) ? `<span class="desc">${esc(s.desc)}</span>` : ''}</button>`; }).join('')}</div>`;
+      $('#backBtn').onclick = () => { location.hash = ''; };
+      view.querySelectorAll('.node[data-s]').forEach(b => { b.onclick = () => { location.href = `play.html?step=${encodeURIComponent(b.dataset.s)}`; }; });
+      requestAnimationFrame(drawTrail);
     }
-    // Éditeur de niveaux
-    const ed = document.createElement('a'); ed.className = 'card editor-card'; ed.href = 'editor.html';
-    ed.innerHTML = `<div class="thumb" style="background-image:url('assets/bg/painting2.jpg')"><b>✎</b></div><div class="body"><h2>Éditeur de niveaux</h2><h3>Créer et tester ses propres étapes</h3>
-      <p class="pitch">Carte hexagonale, lieux, PNJ, monstres, dialogues à choix, tests de stats aux dés, quêtes et événements. Sur PC de préférence.</p><span class="go">Ouvrir l'éditeur ▸</span></div>`;
-    ed.addEventListener('pointerenter', () => setBg('assets/bg/painting2.jpg'));
-    wrap.append(ed);
-    import('./js/version.js?t=' + Date.now()).then(m => { document.getElementById('ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
-    document.getElementById('forceUpd').onclick = async e => {
+    /** Chemin pointillé reliant les étapes */
+    function drawTrail() {
+      const path = view.querySelector('.path'), svg = view.querySelector('.trail'); if (!path || !svg) return;
+      const r0 = path.getBoundingClientRect();
+      const pts = [...path.querySelectorAll('.medal')].map(m => { const r = m.getBoundingClientRect(); return [r.left + r.width / 2 - r0.left, r.top + r.height / 2 - r0.top]; });
+      svg.setAttribute('viewBox', `0 0 ${r0.width} ${r0.height}`);
+      const d = pts.map(([x, y], i) => { if (!i) return `M${x} ${y}`; const [px, py] = pts[i - 1], mx = (px + x) / 2; return `C${mx} ${py} ${mx} ${y} ${x} ${y}`; }).join(' ');
+      const nodes = [...path.querySelectorAll('.node')]; let lastDone = -1; nodes.forEach((n, i) => { if (n.classList.contains('done')) lastDone = i; });
+      svg.innerHTML = `<path d="${d}" class="t-all"/>`;
+    }
+    addEventListener('hashchange', render); addEventListener('resize', drawTrail);
+    render();
+
+    // ---- Réglages (les mêmes que dans le menu du jeu)
+    const seg = (label, value, opts, on) => `<div class="row"><span>${label}</span><div class="segs" data-k="${on}">${opts.map(([v, l]) => `<button data-v="${v}" class="${String(v) === String(value) ? 'on' : ''}">${l}</button>`).join('')}</div></div>`;
+    const tog = (label, value, k) => `<label class="row"><span>${label}</span><input type="checkbox" data-t="${k}" ${value ? 'checked' : ''}></label>`;
+    function renderSettings() {
+      $('#settingsBody').innerHTML = `<h3>Table physique</h3>
+        ${seg('Dés D100', settings.dice, [['physical', 'Physiques'], ['virtual', 'Virtuels']], 'dice')}
+        ${tog('Consignes de mise en place', settings.setup, 'setup')}${tog('Conseils du tutoriel', settings.tips, 'tips')}
+        <h3>Graphismes</h3>${seg(`Qualité (détecté : ${PRESETS[settings.detected.tier].label})`, settings.preset, [['auto', 'Auto'], ...Object.entries(PRESETS).map(([k, p]) => [k, p.label])], 'preset')}
+        ${seg('Figurines', settings.finish, [['painted', 'Peintes'], ['grey', 'Grises'], ['bronze', 'Bronze']], 'finish')}
+        <h3>Audio</h3>${seg('Volume', settings.volume, [[0, '0'], [0.3, '30'], [0.7, '70'], [1, '100']], 'volume')}
+        ${tog('Vent d\'ambiance', settings.music, 'music')}${tog('Vibrations', settings.haptics, 'haptics')}`;
+      $('#settingsBody').querySelectorAll('.segs button').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k, v = b.dataset.v; settings.set({ [k]: k === 'volume' ? +v : v }); renderSettings(); });
+      $('#settingsBody').querySelectorAll('[data-t]').forEach(i => i.onchange = () => settings.set({ [i.dataset.t]: i.checked }));
+    }
+    const open = id => $(id).classList.add('open');
+    document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o || e.target.closest('[data-close]')) o.classList.remove('open'); }));
+    $('#settingsBtn').onclick = () => { renderSettings(); open('#settings'); };
+    $('#resetBtn').onclick = () => open('#reset');
+    $('#resetGo').onclick = () => { resetCampaign(); $('#reset').classList.remove('open'); location.hash = ''; render(); };
+    $('#creditsBtn').onclick = () => open('#credits');
+
+    import('./js/version.js?t=' + Date.now()).then(m => { $('#ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
+    $('#forceUpd').onclick = async e => {
       const b = e.target; b.disabled = true;
       const { hardRefresh } = await import('./js/core/pwa.js?t=' + Date.now());
       await hardRefresh(p => { b.textContent = `Mise à jour… ${Math.round(p * 100)} %`; });
     };
-    const cr = document.getElementById('credits');
-    document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');
-    document.getElementById('creditsClose').onclick = () => cr.classList.remove('open');
-    cr.onclick = e => { if (e.target === cr) cr.classList.remove('open'); };
     // ---- PWA : enregistrement, état hors-ligne, bouton d'installation
-    const st = document.getElementById('pwaStatus'), ib = document.getElementById('installBtn');
+    const st = $('#pwaStatus'), ib = $('#installBtn');
     const say = (t, ok) => { st.textContent = t; st.className = 'pwa-status ' + (ok ? 'ok' : 'ko'); };
     if (!window.isSecureContext) say('⚠ PWA indisponible : le site doit être servi en HTTPS', false);
     else if (!('serviceWorker' in navigator)) say('⚠ Navigateur sans service worker', false);
-    else import('./js/core/pwa.js?v=1795562253').then(({ registerPWA, consumeUpdatedFlag }) => {
+    else import('./js/core/pwa.js?v=1795562483').then(({ registerPWA, consumeUpdatedFlag }) => {
       registerPWA({ swUrl: 'sw.js?v=' + BUILD, onStatus: (s, e) => s === 'ready' ? say(consumeUpdatedFlag() ? '✓ Mis à jour · jouable hors-ligne' : '✓ À jour · jouable hors-ligne', true) : say('⚠ Service worker : ' + e?.message, false) });
     });
     const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;

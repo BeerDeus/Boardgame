@@ -5,7 +5,7 @@
 ## 1. Architecture
 
 ```
-index.html ─ hub (choix du moteur)          play.html ─ jeu
+index.html ─ accueil (Actes → étapes)        play.html?step=<id> ─ jeu
                                                └─ js/main.js : charge le moteur + le scénario
 js/core/      règles et interface (indépendants du rendu)
   scenario.js   moteur de règles « MJ » : manches, tours, déplacement, exploration, combat, Ténèbres, fin, menu
@@ -16,7 +16,8 @@ js/core/      règles et interface (indépendants du rendu)
   dialogue.js   dialogues PNJ à choix + narrations plein écran (enchaînées en fondu)
   mapgen.js     projection du scénario (lieux, zones, régions) sur la grille
   grid.js       grilles carrée/hex, voisins, BFS
-  campaign.js   campagne : étapes, XP, niveaux, avantages, mémoire, réputation, objets conservés
+  campaign.js   campagne (levels/campaign.json : Actes, étapes, déblocage) : XP, niveaux, avantages, mémoire, réputation, objets conservés
+  cards.js      cartes d'objets physiques (SVG 63×88 mm) ; planche d'impression cards.html
   monsters.js   paquets de cartes d'action par type de monstre (façon Gloomhaven)
   settings.js   préréglages graphiques (auto-détection), options persistées
   sfx.js        sons synthétisés (WebAudio), vent d'ambiance
@@ -31,7 +32,7 @@ js/three/     rendu 3D commun
   props.js / textures.js / impostor.js   décors procéduraux, textures, portraits pré-rendus
 js/engines/   hex.js (seul moteur conservé)
 js/editor/    éditeur de niveaux (editor.html) : formulaires, carte hex, dialogues
-levels/       niveaux JSON (prologue.json)
+levels/       niveaux JSON (prologue.json) + campaign.json (Actes et étapes)
 tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aperçus POI / figurines
 ```
 

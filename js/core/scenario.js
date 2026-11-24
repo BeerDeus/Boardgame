@@ -7,7 +7,7 @@ import { bfs } from './grid.js';
 import { TERRAINS } from './terrains.js';
 import { sfx } from './sfx.js';
 import { settings, PRESETS } from './settings.js';
-import { CAMPAIGN, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, PERKS, saveCampaign, levelOf } from './campaign.js';
+import { loadCampaignDef, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, PERKS, saveCampaign, levelOf } from './campaign.js';
 import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
 import { SKILL_NAMES, DIFFICULTIES, statKey, testChance } from './stats.js';
 import { evalCond } from './level.js';
@@ -19,12 +19,17 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const DROP_GAP = 420; // ms entre deux tuiles qui tombent (une par une)
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-export async function runScenario({ engine, ui, dialogue, engineId, ready, draft = null }) {
+const saveKeyOf = (engineId, draft) => { const seed = +(new URLSearchParams(location.search).get('seed') || 1); return draft ? `grimoire.save.draft.v${SAVE_V}` : `grimoire.save.v${SAVE_V}.${engineId}.${seed}`; };
+/** Étape de la partie sauvegardée (pour construire le bon plateau avant de proposer la reprise) */
+export function savedStepId(engineId) { try { const raw = JSON.parse(localStorage.getItem(saveKeyOf(engineId, false))); if (raw?.v === SAVE_V && !raw.ended) return raw.step; } catch {} return null; }
+
+export async function runScenario({ engine, ui, dialogue, engineId, ready, draft = null, stepId = null }) {
   // mode test (éditeur) : une seule étape, sauvegarde séparée, aucune progression de campagne
-  const STEPS = draft ? [draft] : CAMPAIGN.steps;
+  const STEPS = draft ? [draft] : (await loadCampaignDef()).steps;
   const grid = engine.grid;
   const seed = +(new URLSearchParams(location.search).get('seed') || 1);
-  const saveKey = draft ? `grimoire.save.draft.v${SAVE_V}` : `grimoire.save.v${SAVE_V}.${engineId}.${seed}`;
+  const saveKey = saveKeyOf(engineId, draft);
+  const step = STEPS.find(s => s.id === stepId && !s.soon) || STEPS.find(s => !s.soon);
   const campaign = loadCampaign();
 
   // ------------------------------------------------------------------ partie sauvegardée ou nouvelle
@@ -34,14 +39,14 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     ready?.();
     const step0 = STEPS.find(x => x.id === S.step);
     const choice = await ui.resumePrompt({ title: `${step0?.num || ''} — ${step0?.title || ''}`, round: S.round, glas: S.glas, glasMax: S.glasMax, party: S.party, when: S.savedAt });
-    if (choice === 'new') { localStorage.removeItem(saveKey); S = null; }
+    if (choice === 'new') { localStorage.removeItem(saveKey); if (S.step !== step.id) { location.reload(); return; } S = null; } // autre étape : autre plateau
     else resetup = choice === 'setup';
   }
   const resumed = !!S;
   let st;
   if (!S) {
     ready?.();
-    const def0 = (await STEPS[0].load()).STORY;
+    const def0 = (await step.load()).STORY;
     // montées de niveau en attente (entre deux étapes)
     for (const h of def0.heroes) {
       const p = heroProgress(campaign, h.id);
@@ -52,12 +57,12 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         p.spent++; saveCampaign(campaign);
       }
     }
-    const pick = await ui.partySelect({ tips: settings.tips,  steps: STEPS, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => { const p = heroProgress(campaign, h.id); return [h.id, { level: levelOf(p.xp), won: draft ? [] : [...p.won] }]; })) });
+    const pick = await ui.partySelect({ tips: settings.tips, step, completed: campaign.completed, heroes: def0.heroes, glasBase: def0.glasBase, partyBonus: PARTY_BONUS, progress: Object.fromEntries(def0.heroes.map(h => { const p = heroProgress(campaign, h.id); return [h.id, { level: levelOf(p.xp), won: draft ? [] : [...p.won] }]; })) });
     dialogue.cover?.(); // écran noir jusqu'à l'introduction (pas de plateau entre-temps)
-    st = (await STEPS.find(s => s.id === pick.step).load()).STORY;
+    st = def0;
     if (pick.tips != null) settings.set({ tips: pick.tips });
     const n = pick.party.length;
-    S = { v: SAVE_V, step: pick.step, party: pick.party, difficulty: pick.difficulty, turnMode: pick.turnMode,
+    S = { v: SAVE_V, step: step.id, party: pick.party, difficulty: pick.difficulty, turnMode: pick.turnMode,
       glasMax: st.glasBase[pick.difficulty] + PARTY_BONUS[n], glas: 0, round: 0, order: [], turn: 0,
       used: { move: false, action: false, attack: false }, revealed: [], figs: {}, boost: {}, flags: {}, inv: {}, quests: {}, seen: {}, done: [],
       counters: {}, unlocked: [], mounted: false, tod: 'dusk', ended: false, ko: [], memoryOut: {}, stats: { kills: 0, dice: 0, ko: 0, boosts: 0, t0: Date.now() }, hstats: {} };

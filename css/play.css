@@ -497,3 +497,5 @@ body.narrating #viewport { visibility: hidden; }
 .ev-r { font: 500 11px var(--head); color: var(--gold); text-transform: uppercase; letter-spacing: .1em; margin-top: 6px; }
 .ev { font-size: 14px; color: var(--text); padding: 2px 0 2px 8px; border-left: 2px solid var(--line); }
 .ev.k-item { border-left-color: #6fb3ff; } .ev.k-quest { border-left-color: var(--gold); } .ev.k-done { border-left-color: #8fc46a; } .ev.k-lost { border-left-color: #b05a4a; }
+.ps-head { align-items: center; } .ps-head .btn.round { width: 32px; height: 32px; flex: none; } .ps-head small { order: 3; } .ps-head .ic { width: 12px; height: 12px; vertical-align: -1px; }
+.ps-sub { order: 4; margin-left: auto; font: 500 13px var(--head); color: var(--gold); letter-spacing: .06em; }

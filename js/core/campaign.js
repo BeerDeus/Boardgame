@@ -4,20 +4,42 @@ import { fromData } from './level.js';
 // est conservée entre les étapes et lisible par les scénarios suivants (g.memory('clé')).
 const KEY = 'grimoire.campaign.v1';
 
-export const CAMPAIGN = {
-  title: 'Les Chroniques de Brumeval',
-  steps: [
-    { id: 'prologue', num: 'Prologue', title: 'Le Pont de Brume', tag: 'Tutoriel', url: 'levels/prologue.json', load: () => loadLevel('levels/prologue.json') },
-    { id: 'e1', num: 'Étape I', title: 'À venir', soon: true },
-    { id: 'e2', num: 'Étape II', title: 'À venir', soon: true },
-    { id: 'e3', num: 'Étape III', title: 'À venir', soon: true },
-    { id: 'e4', num: 'Étape IV', title: 'À venir', soon: true },
-    { id: 'e5', num: 'Étape V', title: 'À venir', soon: true },
-  ],
-};
-
+/** Définition de la campagne : levels/campaign.json (Actes → étapes), modifiable dans l'éditeur. */
+export const CAMPAIGN_URL = 'levels/campaign.json';
+let defP = null;
+export function loadCampaignDef(url = CAMPAIGN_URL) {
+  if (!defP) defP = fetch(url, { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error('campaign.json introuvable'); return r.json(); }).then(normalizeCampaign);
+  return defP;
+}
+/** Complète la définition : étapes à plat, fonction de chargement de chaque niveau */
+export function normalizeCampaign(d) {
+  const def = { title: d.title || 'Campagne', subtitle: d.subtitle || '', acts: (d.acts || []).map(a => ({ ...a, steps: (a.steps || []).map(s => ({ ...s, act: a.id })) })) };
+  def.steps = def.acts.flatMap(a => a.steps);
+  for (const s of def.steps) { s.soon = s.soon || !s.level; if (s.level) { s.url = s.level; s.load = () => loadLevel(s.level); } }
+  return def;
+}
+/**
+ * État de chaque acte et étape pour une progression donnée :
+ * étape débloquée si ses prérequis (« requires », sinon l'étape précédente de l'acte) sont finis ;
+ * acte débloqué si ses prérequis (sinon toutes les étapes jouables de l'acte précédent) sont finis.
+ */
+export function campaignStatus(def, completed = []) {
+  const done = new Set(completed), steps = {}, acts = {};
+  def.acts.forEach((a, ai) => {
+    const prevAct = def.acts[ai - 1];
+    const actReq = a.requires || (prevAct ? prevAct.steps.filter(s => !s.soon).map(s => s.id) : []);
+    const actOpen = !a.soon && a.steps.some(s => !s.soon) && actReq.every(id => done.has(id)) && !(prevAct && !prevAct.steps.some(s => !s.soon) && !a.requires);
+    a.steps.forEach((s, si) => {
+      const req = s.requires || (si > 0 ? [a.steps[si - 1].id] : []);
+      steps[s.id] = { done: done.has(s.id), unlocked: actOpen && !s.soon && req.every(id => done.has(id)), soon: !!s.soon };
+    });
+    const playable = a.steps.filter(s => !s.soon);
+    acts[a.id] = { unlocked: actOpen, done: playable.length > 0 && playable.every(s => done.has(s.id)), count: playable.filter(s => done.has(s.id)).length, total: playable.length };
+  });
+  return { steps, acts };
+}
 /** Fichiers de niveaux de la campagne (planche des cartes…) */
-export async function campaignLevels() { return CAMPAIGN.steps.filter(s => s.url).map(s => s.url); }
+export async function campaignLevels() { return (await loadCampaignDef()).steps.filter(s => s.url).map(s => s.url); }
 /** Charge un niveau JSON (format de l'éditeur) → { STORY } */
 const levelCache = new Map();
 export function loadLevel(url) {
@@ -53,7 +75,11 @@ export function completeStep(id, { win, memory = {}, xp = {}, stash = {} }) {
   }
   saveCampaign(c); return gains;
 }
-export function resetCampaign() { try { localStorage.removeItem(KEY); } catch {} }
+/** Efface toute la progression de campagne (étapes, XP, niveaux, avantages, mémoire, réputation,
+ *  objets conservés) et les parties en cours. */
+export function resetCampaign() {
+  try { for (const k of Object.keys(localStorage)) if (k === KEY || k.startsWith('grimoire.save.')) localStorage.removeItem(k); } catch {}
+}
 
 // ---------------------------------------------------------------- progression des héros
 export const LEVELS = [0, 50, 120, 210, 320, 450]; // XP cumulée pour atteindre niv. 1..6

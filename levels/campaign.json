@@ -1,0 +1,38 @@
+{
+ "format": 1,
+ "title": "Les Chroniques de Brumeval",
+ "subtitle": "Une campagne coopérative pour 1 à 4 héros",
+ "acts": [
+  {
+   "id": "acte1",
+   "num": "Acte I",
+   "title": "La Brume de Vieille-Ronce",
+   "desc": "Une cloche sonne sans sonneur, la brume monte du fleuve et le fanal de la Tour du Guet s'est éteint. Le hameau de Vieille-Ronce n'a plus que vous.",
+   "image": "assets/bg/painting3.jpg",
+   "steps": [
+    { "id": "prologue", "num": "Prologue", "title": "Le Pont de Brume", "tag": "Tutoriel", "level": "levels/prologue.json", "image": "assets/bg/painting1.jpg", "desc": "Rallumez le fanal de la Tour du Guet avant que la brume n'avale le hameau." },
+    { "id": "e1", "num": "Étape I", "title": "À venir", "soon": true },
+    { "id": "e2", "num": "Étape II", "title": "À venir", "soon": true },
+    { "id": "e3", "num": "Étape III", "title": "À venir", "soon": true },
+    { "id": "e4", "num": "Étape IV", "title": "À venir", "soon": true },
+    { "id": "e5", "num": "Étape V", "title": "À venir", "soon": true }
+   ]
+  },
+  {
+   "id": "acte2",
+   "num": "Acte II",
+   "title": "Les Cendres du Val",
+   "desc": "Au-delà du Pont de Brume, les villages brûlés attendent leurs héros.",
+   "image": "assets/bg/painting4.jpg",
+   "steps": []
+  },
+  {
+   "id": "acte3",
+   "num": "Acte III",
+   "title": "Le Sonneur sans visage",
+   "desc": "Celui qui fait sonner le glas attend au cœur de la brume.",
+   "image": "assets/bg/painting2.jpg",
+   "steps": []
+  }
+ ]
+}
