@@ -425,3 +425,47 @@ body.narrating #viewport { visibility: hidden; }
 .d100-label { display: flex; align-items: center; gap: 8px; }
 .choice .dlg-test { align-self: flex-start; margin-bottom: 3px; font-size: 12px !important; font-weight: 600; }
 .choice > .stat-badge { flex: none; }
+
+/* Choix des héros : jamais de défilement, mise en page compacte (paysage téléphone compris) */
+.ps-card { display: flex; flex-direction: column; gap: 6px; overflow: hidden; max-height: calc(100dvh - 16px); padding: 10px 14px; }
+.ps-card h2 { font-size: clamp(16px, 3.2vh, 22px); margin: 0; }
+.ps-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ps-head small { color: var(--muted); font-size: 13px; }
+.ps-list { margin: 0; gap: 6px; min-height: 0; }
+.ps-hero { padding: 6px; gap: 1px; min-width: 0; }
+.ps-hero .pimg { width: clamp(34px, 8vh, 56px); height: clamp(34px, 8vh, 56px); }
+.ps-hero b { font-size: 15px; line-height: 1.1; } .ps-hero small { font-size: 12px; line-height: 1.1; }
+.ps-attrs { gap: 3px; margin: 2px 0; } .ps-attrs .stat-chip b { display: none; } .ps-attrs .stat-chip { padding-right: 5px; }
+.ps-talent { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; }
+.ps-xpnote { font-size: 11px; color: #ffb36a; font-style: normal; text-align: center; line-height: 1.1; }
+.ps-foot { gap: 6px 10px; }
+.ps-foot .segs button { padding: 5px 9px; }
+.ps-foot .btn.accent { padding: 7px 14px; }
+.ps-steps { margin: 0; padding-bottom: 4px; } .ps-step { padding: 3px 8px; min-width: 0; }
+@media (max-height: 520px) {
+  .ps-card { padding: 6px 10px; gap: 4px; }
+  .ps-list { grid-template-columns: repeat(4, 1fr) !important; }
+  .ps-hero .pimg { width: 32px; height: 32px; }
+  .ps-stats { font-size: 11px; }
+  .ps-talent { -webkit-line-clamp: 2; font-size: 10.5px; line-height: 1.15; display: -webkit-box; }
+  .ps-foot { font-size: 13px; } .ps-foot .segs button { padding: 4px 7px; font-size: 12px; } .ps-tips { font-size: 12px; }
+}
+@media (max-height: 330px) { .ps-talent { display: none; } }
+/* Consignes de mise en place : fenêtre plus petite, plateau visible autour */
+.cmodal.setup { background: rgba(0,0,0,.18); align-items: center; padding: 8px; }
+.sp-card { width: min(560px, 70vw); max-height: 78vh; max-height: 78dvh; display: flex; flex-direction: column; }
+.sp-card .sp-list { overflow: auto; min-height: 0; flex: 1 1 auto; }
+.sp-card.with-map { width: min(860px, 70vw); max-height: 80vh; max-height: 80dvh; grid-template-rows: auto minmax(0, 1fr) auto auto; overflow: hidden; }
+.sp-card.with-map .sp-map { min-height: 0; display: flex; flex-direction: column; }
+.sp-card.with-map .sp-map > svg { max-height: none; flex: 1 1 auto; min-height: 0; height: 100%; }
+.sp-card.with-map .sp-list { max-height: none; height: 100%; }
+.sp-card > .muted { margin: 2px 0; font-size: 12px; }
+@media (max-width: 760px), (max-height: 480px) {
+  .sp-card, .sp-card.with-map { width: min(560px, 72vw); padding: 6px 10px; }
+  .sp-card.with-map { grid-template-columns: 1fr 1fr; }
+  .sp-card > .muted { display: none; }
+  .sp-legend { font-size: 10.5px; gap: 5px; }
+  .sp-it { padding: 3px 6px; gap: 6px; } .sp-it .pimg { width: 30px; height: 30px; } .sp-ic .ic { width: 22px; height: 22px; }
+  .sp-it b { font-size: 12.5px; } .sp-it small { font-size: 11px; } .sp-code { font-size: 13px; padding: 1px 6px; }
+  .sp-head h3 { font-size: 15px; } .sp-card .cm-btns .btn { padding: 5px 12px; }
+}

@@ -14,15 +14,23 @@ export function createDialogue(root) {
 
   window.addEventListener('keydown', e => keyHandler?.(e));
 
-  function typeText(el, text, cps = 55) {
+  /** Machine à écrire sur du HTML simple (<b>, <i>, <br>…) : la structure est posée d'emblée,
+   *  seuls les nœuds texte se remplissent lettre à lettre (les balises ne s'affichent jamais). */
+  function typeText(el, html, cps = 55) {
     return new Promise(resolve => {
-      el.textContent = ''; let i = 0, last = performance.now(), acc = 0;
-      typing = { finish() { i = text.length; el.textContent = text; } };
+      el.innerHTML = String(html ?? '').replace(/\n/g, '<br>');
+      const nodes = [], walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      while (walk.nextNode()) nodes.push({ n: walk.currentNode, t: walk.currentNode.nodeValue });
+      const total = nodes.reduce((s, x) => s + x.t.length, 0);
+      for (const x of nodes) x.n.nodeValue = '';
+      let i = 0, last = performance.now(), acc = 0;
+      const show = k => { let left = k; for (const x of nodes) { const m = Math.max(0, Math.min(x.t.length, left)); x.n.nodeValue = x.t.slice(0, m); left -= x.t.length; } };
+      typing = { finish() { i = total; show(total); } };
       const step = now => {
         acc += (now - last) / 1000 * cps; last = now;
         const n = Math.floor(acc);
-        if (n > 0) { i = Math.min(text.length, i + n); acc -= n; el.textContent = text.slice(0, i); }
-        if (i >= text.length) { typing = null; resolve(); } else requestAnimationFrame(step);
+        if (n > 0) { i = Math.min(total, i + n); acc -= n; show(i); }
+        if (i >= total) { typing = null; resolve(); } else requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
     });

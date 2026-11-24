@@ -8,8 +8,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
-  <link rel="stylesheet" href="css/fonts.css?v=1795557891">
-  <link rel="stylesheet" href="css/hub.css?v=1795557891">
+  <link rel="stylesheet" href="css/fonts.css?v=1795561538">
+  <link rel="stylesheet" href="css/hub.css?v=1795561538">
 </head>
 <body>
   <div class="bg" id="bg"></div>
@@ -44,8 +44,8 @@
   </div>
   <div class="rotate-hint">Tournez l'appareil en paysage ⟲</div>
   <script type="module">
-    const BUILD = '1795557891';
-    import { ENGINES } from './js/core/engines-meta.js?v=1795557891';
+    const BUILD = '1795561538';
+    import { ENGINES } from './js/core/engines-meta.js?v=1795561538';
     const wrap = document.getElementById('cards'), bg = document.getElementById('bg');
     const setBg = url => { bg.style.opacity = 0; setTimeout(() => { bg.style.backgroundImage = `url('${url}')`; bg.style.opacity = 1; }, 250); };
     setBg(ENGINES[0].bg);
@@ -87,7 +87,7 @@
     const say = (t, ok) => { st.textContent = t; st.className = 'pwa-status ' + (ok ? 'ok' : 'ko'); };
     if (!window.isSecureContext) say('⚠ PWA indisponible : le site doit être servi en HTTPS', false);
     else if (!('serviceWorker' in navigator)) say('⚠ Navigateur sans service worker', false);
-    else import('./js/core/pwa.js?v=1795557891').then(({ registerPWA, consumeUpdatedFlag }) => {
+    else import('./js/core/pwa.js?v=1795561538').then(({ registerPWA, consumeUpdatedFlag }) => {
       registerPWA({ swUrl: 'sw.js?v=' + BUILD, onStatus: (s, e) => s === 'ready' ? say(consumeUpdatedFlag() ? '✓ Mis à jour · jouable hors-ligne' : '✓ À jour · jouable hors-ligne', true) : say('⚠ Service worker : ' + e?.message, false) });
     });
     const standalone = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches || navigator.standalone;
