@@ -7,6 +7,7 @@ Site 100 % statique, **PWA installable et jouable hors-ligne**, prêt pour Capac
 
 - **Hostinger** : déploiement Git de cette branche à la racine (`index.html` = hub).
 - **Local** : `python3 -m http.server 8000` → http://localhost:8000
+- **Version** affichée dans le hub et le menu ; bouton **« Forcer la mise à jour »** (vide le cache et recharge) si un appareil reste bloqué sur une ancienne version.
 - **Mises à jour automatiques** : le code (HTML/JS/CSS) est toujours récupéré en réseau d'abord ; une nouvelle version est détectée à l'ouverture (et toutes les 15 min), activée et la page se recharge seule (« ✓ Nouvelle version installée »). Pas besoin de réinstaller la PWA ni de vider le cache. Hors-ligne, la dernière version en cache est utilisée.
 - Recommandé avant un déploiement (facultatif) : `python3 tools/build-sw.py` — met à jour la liste des fichiers disponibles hors-ligne et purge les anciens caches.
 - **Capacitor (plus tard)** : `webDir` = racine du dépôt, rien à builder.
@@ -40,7 +41,7 @@ L'app arbitre et raconte : elle dit quoi poser, gère PNJ, monstres, règles et 
 Le prologue affiche des **conseils contextuels** une seule fois chacun (mise en place, tour, exploration, PNJ, lieu, combat, dés et boosts, Ténèbres, fin du tour). Menu → Table physique → « Conseils du tutoriel » / « Revoir les conseils ».
 
 ## Carte hexagonale (format retenu)
-Le moteur **C (hexagonal)** est le format choisi. La carte est une **forme libre** décrite dans le scénario (`hexMap`), ici avec une rivière et un seul pont. Les lieux visent des cases précises (`cell: [colonne, ligne]`).
+Le moteur **C (hexagonal)** est le format choisi (les autres moteurs sont conservés mais abandonnés). La carte est une **forme libre** décrite dans le scénario (`hexMap`). Prologue : **14 tuiles** serrées autour du hameau (forêt au nord, branche vers l'est jusqu'au pont et à la Tour, bloc au sud), toutes avec du contenu ; les PNJ indiquent les directions (nord, sud-ouest, est…). Les lieux visent des cases précises (`cell: [colonne, ligne]`).
 
 ## Écrire un niveau
 Voir **`docs/SCENARIO.md`** : modèle `js/stories/_modele.js`, validateur `node tools/validate-story.mjs js/stories/<niveau>.js` (vérifie lieux, cases, PNJ, modèles 3D, dialogues, quêtes, objets…).

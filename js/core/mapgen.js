@@ -14,11 +14,19 @@ export function buildMap(grid, story, seed = 1) {
   const J = a => Math.min(1, Math.max(0, a + (R() - 0.5) * 2 * jitter));
 
   const tiles = new Map(), placeKey = {}, used = new Set();
+  // Carte hex dessinée mais moteur non-hex : position relative déduite de la case hex
+  let hexUV = null;
+  if (story.hexMap && !grid.offsetKey) {
+    const pts = []; story.hexMap.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ' ' && ch !== '.') pts.push([c + 0.5 * (r & 1), r * 0.866]); }));
+    const ax = pts.map(p => p[0]), az = pts.map(p => p[1]), mx = Math.min(...ax), Mx = Math.max(...ax), mz = Math.min(...az), Mz = Math.max(...az);
+    hexUV = ([c, r]) => [((c + 0.5 * (r & 1)) - mx) / (Mx - mx || 1), (r * 0.866 - mz) / (Mz - mz || 1)];
+  }
   const nearest = ([u, v]) => grid.cells.filter(c => !used.has(c.key)).reduce((best, c) => { const [a, b] = uv(c); const d = (a - u) ** 2 + (b - v) ** 2; return d < best.d ? { c, d } : best; }, { c: null, d: Infinity }).c;
 
   for (const p of story.places) {
     let cell;
     if (p.cell && grid.offsetKey && grid.has(grid.offsetKey(...p.cell))) cell = grid.get(grid.offsetKey(...p.cell)); // case précise de la carte
+    else if (p.cell && hexUV) cell = nearest(hexUV(p.cell));
     else if (p.near) {
       const base = grid.get(placeKey[p.near]), away = grid.get(placeKey[p.away] || placeKey[p.near]);
       const opts = grid.neighbors(base.key).filter(k => !used.has(k)).map(k => grid.get(k));
@@ -45,15 +53,22 @@ export function buildMap(grid, story, seed = 1) {
     for (const c of grid.cells) if (uv(c)[0] > bu + 1e-6) tiles.get(c.key).zone = z.id;
   }
   const start = placeKey[story.places.find(p => p.start).id];
+  // Carte compacte sur une grille plus grande : on ne garde que les lieux et les chemins qui les relient
+  if (hexUV) {
+    const keep = new Set(Object.values(placeKey));
+    for (const k of Object.values(placeKey)) { const p = bfs(grid, start, () => true).pathTo(k); if (p) p.forEach(x => keep.add(x)); }
+    for (const c of grid.cells) if (!keep.has(c.key)) tiles.get(c.key).void = true;
+  }
   // rencontres mineures sur les cases de terrain (toujours au moins sur les voisines du départ)
   if (story.minors?.length) {
-    const near0 = new Set(grid.neighbors(start));
+    const near0 = new Set(grid.neighbors(start)), usedM = new Set();
     for (const c of grid.cells) {
-      const t = tiles.get(c.key); if (t.place) continue;
+      const t = tiles.get(c.key); if (t.place || t.void) continue;
       const Rm = rng(hashStr('m' + c.key) + seed);
       if (!near0.has(c.key) && Rm() > (story.minorChance ?? 0.3)) continue;
-      const fit = story.minors.filter(m => !m.terrains || m.terrains.includes(t.terrain));
-      const m = (fit.length ? fit : story.minors)[Math.floor(Rm() * (fit.length || story.minors.length))];
+      let fit = story.minors.filter(m => (!m.terrains || m.terrains.includes(t.terrain)) && !usedM.has(m.id));
+      if (!fit.length) fit = story.minors.filter(m => !usedM.has(m.id)); if (!fit.length) fit = story.minors;
+      const m = fit[Math.floor(Rm() * fit.length)]; usedM.add(m.id);
       t.minor = m.id; t.poi = { icon: m.icon, label: m.name };
     }
   }

@@ -82,7 +82,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
 
   // ------------------------------------------------------------------ visibilité (brouillard total)
   const locked = k => {
-    const t = tileOf(k); if (!t) return true;
+    const t = tileOf(k); if (!t || t.void) return true;
     if (t.zone && !S.unlocked.includes(t.zone)) return true;
     const pd = t.place && placeDef(t.place);
     return !!(pd?.hiddenUntil && !S.flags[pd.hiddenUntil]);
@@ -356,7 +356,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
     const tiles = R.setupTiles.splice(0), figs = R.setupFigs.splice(0), tokens = R.setupTokens.splice(0);
     if (!settings.setup || S.ended) return;
     if (tiles.length || figs.length) await tip('setup');
-    if (tiles.length && revealed.size > 6) await tip('explore');
+    if (tiles.length && S.round >= 1) await tip('explore');
     if (tiles.length) {
       engine.highlight([], tiles); engine.focusTile(tiles[0]);
       const heroTiles = new Set(heroes().map(h => S.figs[h.id].tile)), isNew = new Set(tiles);
@@ -624,6 +624,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
         { label: 'Nouvelle partie (choix des héros)', action: () => { if (confirm('Effacer la partie en cours sur ce moteur ?')) { localStorage.removeItem(saveKey); location.reload(); } } },
         { label: 'Carte procédurale (nouvelle graine)', action: () => { const u = new URL(location.href); u.searchParams.set('seed', String(2 + Math.floor(Math.random() * 9999))); location.href = u; } },
         ...(seed !== 1 ? [{ label: 'Revenir à la carte du scénario', action: () => { const u = new URL(location.href); u.searchParams.delete('seed'); location.href = u; } }] : []),
+      ] },
+      { title: 'Application', items: [
+        { label: 'Forcer la mise à jour', action: async () => { try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.unregister(); for (const k of await caches.keys()) await caches.delete(k); } catch {} location.replace('index.html?maj=' + Date.now()); } },
       ] },
       { title: 'Caméra', items: [
         { label: 'Recentrer la vue', action: () => engine.resetCamera() },

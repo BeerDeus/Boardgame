@@ -434,8 +434,9 @@ export function createUI({ title, subtitle }) {
         }
         drawer.append(sec);
       }
-      const foot = h('div', 'menu-foot', `<a class="btn wide ghost" href="index.html">‹ Retour au hub</a>`);
+      const foot = h('div', 'menu-foot', `<a class="btn wide ghost" href="index.html">‹ Retour au hub</a><small class="ver"></small>`);
       drawer.append(foot);
+      import('../version.js').then(m => { foot.querySelector('.ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
     },
   };
   let keyHandler = null;

@@ -55,3 +55,9 @@ footer { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-si
 .pwa-status { font-size: 13px; } .pwa-status.ok { color: #8fc46a; } .pwa-status.ko { color: #ff8a7a; }
 #installBtn { padding: 6px 12px; font-size: 13px; }
 .card.chosen { border-color: #ffd27a; box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 0 2px #ffd27a; }
+.ver { color: var(--muted); font-size: 12px; opacity: .8; }
+
+.cards.main { grid-template-columns: minmax(0, 520px); justify-content: center; }
+.cards.main .card .thumb { height: clamp(80px, 24vh, 220px); }
+.old { margin-top: 4px; } .old summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.old .cards { margin-top: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); opacity: .75; }

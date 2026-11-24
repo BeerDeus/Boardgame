@@ -16,13 +16,16 @@
   <main>
     <header>
       <h1>Grimoire <span>· moteurs de plateau</span></h1>
-      <p>Application « MJ » pour un jeu de plateau coopératif avec figurines et dés physiques. 4 moteurs d'affichage, une même campagne : <b>Prologue — Le Pont de Brume</b> (tutoriel, 1-4 héros). Comparez fluidité, lisibilité et ambiance — la progression est sauvegardée par moteur. Installable (PWA) et jouable hors-ligne.</p>
+      <p>Application « MJ » pour un jeu de plateau coopératif avec figurines, tuiles hexagonales et dés physiques. Campagne : <b>Prologue — Le Pont de Brume</b> (tutoriel, 1-4 héros). Installable (PWA) et jouable hors-ligne.</p>
     </header>
-    <section class="cards" id="cards"></section>
+    <section class="cards main" id="cards"></section>
+    <details class="old"><summary>Anciens prototypes d'affichage (carré, cartes, papier) — abandonnés</summary><section class="cards" id="oldcards"></section></details>
     <footer>
       <button class="btn" id="installBtn" hidden>⬇ Installer l'app</button>
       <span id="pwaStatus" class="pwa-status"></span>
       <button class="link" id="creditsBtn">Crédits & licences</button>
+      <span class="ver" id="ver"></span>
+      <button class="link" id="forceUpd">Forcer la mise à jour</button>
       <span>Astuce : en plein écran + paysage sur mobile. Menu ☰ en jeu = options de test.</span>
     </footer>
   </main>
@@ -57,12 +60,18 @@
           <ul class="pros">${e.pros.map(p => `<li>${p}</li>`).join('')}</ul>
           <ul class="cons">${e.cons.map(p => `<li>${p}</li>`).join('')}</ul>
           <div class="tech">${e.tech}</div>
-          <span class="go">Essayer ▸</span>
+          <span class="go">${e.chosen ? 'Jouer' : 'Essayer'} ▸</span>
         </div>`;
       a.addEventListener('pointerenter', () => setBg(e.bg));
       a.addEventListener('focus', () => setBg(e.bg));
-      wrap.append(a);
+      (e.chosen ? wrap : document.getElementById('oldcards')).append(a);
     }
+    import('./js/version.js?t=' + Date.now()).then(m => { document.getElementById('ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
+    document.getElementById('forceUpd').onclick = async () => {
+      try { for (const r of await navigator.serviceWorker?.getRegistrations?.() || []) await r.unregister(); } catch {}
+      try { for (const k of await caches.keys()) await caches.delete(k); } catch {}
+      location.replace('index.html?maj=' + Date.now());
+    };
     const cr = document.getElementById('credits');
     document.getElementById('creditsBtn').onclick = () => cr.classList.add('open');
     document.getElementById('creditsClose').onclick = () => cr.classList.remove('open');
