@@ -30,6 +30,7 @@ export const EFFECTS = {
   damage:     { g: 'heros', label: 'Blesser (perte de PV)', fields: [['n', 'number', 1, 'PV perdus'], ['who', 'who', 'active', 'Qui'], ['lethal', 'bool', false, 'Peut faire tomber le héros']] },
   restHere:   { g: 'heros', label: 'Repos complet (PV max + 1 boost, case)', fields: [] },
   statBonus:  { g: 'heros', label: 'Bonus / malus de stat', fields: [['stat', 'statc', 'force', 'Stat'], ['n', 'number', 5, 'Points (%)'], ['who', 'who', 'active', 'Qui'], ['duration', 'duration', 'level', 'Durée']] },
+  dmgBonus:   { g: 'heros', label: 'Bonus de dégâts (arme…)', fields: [['n', 'number', 1, 'Dégâts'], ['who', 'who', 'active', 'Qui'], ['duration', 'duration', 'level', 'Durée']] },
   status:     { g: 'heros', label: 'État (poison, étourdi, guérison)', fields: [['status', 'hcond', 'poison', 'État'], ['who', 'who', 'active', 'Qui']] },
   xp:         { g: 'heros', label: 'XP bonus (fin du niveau)', fields: [['n', 'number', 5, 'XP'], ['who', 'who', 'all', 'Qui']] },
   moveHero:   { g: 'heros', label: 'Déplacer des héros vers un lieu', fields: [['place', 'place', '', 'Lieu'], ['who', 'who', 'active', 'Qui']] },
@@ -127,6 +128,7 @@ async function runEffect(e, g, ctx) {
     case 'damage': return g.damage(+e.n || 1, e.who || 'active', !!e.lethal);
     case 'statBonus': return g.statBonus(e.stat || 'force', +e.n || 0, e.who || 'active', e.duration || 'level');
     case 'status': return g.setStatus(e.status || 'poison', e.who || 'active');
+    case 'dmgBonus': return g.dmgBonus(+e.n || 1, e.who || 'active', e.duration || 'level');
     case 'xp': return g.addXp(+e.n || 0, e.who || 'all');
     case 'moveHero': return g.moveHeroesTo(e.place, e.who || 'active');
     case 'despawn': return g.despawn(e.cast);
@@ -186,7 +188,7 @@ function dialogue(d) {
     };
     if (n.choices?.length) node.choices = n.choices.map(c => {
       const cctx = {};
-      const ch = { t: c.t || '', badge: c.test ? testBadge(c.test) : undefined, hint: c.hint || undefined, once: !!c.once, need: c.need, cond: cond(c.cond) };
+      const ch = { t: c.t || '', badge: c.test ? testBadge(c.test) : undefined, hint: c.hint || undefined, once: !!c.once, onceSuccess: !!c.onceSuccess, lastOk: () => cctx.last, need: c.need, cond: cond(c.cond) };
       ch.next = c.test ? () => (cctx.last ? c.test.success : c.test.fail) || c.next || null : (c.next ?? null);
       if (c.effects?.length || c.test) ch.do = async g => {
         await runEffects(c.effects, g, cctx);

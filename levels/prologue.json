@@ -361,7 +361,77 @@
     2
    ],
    "desc": "L'eau est froide et noire. Quelque chose s'y tient debout.",
-   "activities": []
+   "activities": [
+    {
+     "id": "passage",
+     "icon": "key",
+     "label": "Prendre le passage des contrebandiers",
+     "desc": "Agilité : rejoindre la rive est sans passer par le Gardien.",
+     "cond": {
+      "type": "all",
+      "conds": [
+       {
+        "type": "flag",
+        "flag": "raccourci"
+       },
+       {
+        "type": "notFlag",
+        "flag": "pontOuvert"
+       }
+      ]
+     },
+     "need": "Il faudrait connaître le passage (Gaspard ?)",
+     "effects": [
+      {
+       "type": "test",
+       "stat": "agilite",
+       "diff": "normal",
+       "mod": 0,
+       "label": "Passage des contrebandiers",
+       "success": [
+        {
+         "type": "set",
+         "flag": "pontOuvert",
+         "value": true
+        },
+        {
+         "type": "set",
+         "flag": "gardienContourne",
+         "value": true
+        },
+        {
+         "type": "questDone",
+         "quest": "fanal"
+        },
+        {
+         "type": "questStart",
+         "quest": "tour"
+        },
+        {
+         "type": "unlockZone",
+         "zone": "est"
+        },
+        {
+         "type": "toast",
+         "text": "Vous longez la berge par les pierres glissantes : la <b>rive est</b> s'ouvre à vous."
+        }
+       ],
+       "fail": [
+        {
+         "type": "damage",
+         "n": 1,
+         "who": "active",
+         "lethal": false
+        },
+        {
+         "type": "toast",
+         "text": "Le Noyé vous agrippe la cheville : <b>−1 PV</b>. Réessayez au prochain tour."
+        }
+       ]
+      }
+     ]
+    }
+   ]
   },
   {
    "id": "chapelle",
@@ -1006,6 +1076,11 @@
    "title": "Atteindre la Tour du Guet",
    "hint": "Tout à l'est, après le pont et le péage.",
    "target": "tour"
+  },
+  "odon": {
+   "title": "Retrouver Odon, le frère de Berthe",
+   "hint": "Il est monté à la Tour du Guet il y a trois nuits et n'est jamais redescendu.",
+   "target": "tour"
   }
  },
  "intro": [
@@ -1032,56 +1107,113 @@
  },
  "dialogues": {
   "berthe": {
+   "scene": "L'auberge sent la soupe aux choux et la fumée de tourbe. Derrière son comptoir, Berthe repose un gobelet en vous voyant entrer ; dehors, la cloche sonne encore.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "berthe",
-     "t": "Des voyageurs ! Par la Dame, vous tombez bien. Vous entendez la cloche ? Chaque coup, la brume avance.",
-     "next": "b"
+     "t": "Par la Dame Grise, des voyageurs ! Entrez, entrez, et fermez cette porte : la brume s'invite partout, comme une belle-mère.",
+     "next": "b",
+     "variants": [
+      {
+       "cond": {
+        "type": "flag",
+        "flag": "bertheMefiante"
+       },
+       "t": "Vous revoilà… Les mains dans les poches, j'espère ? Je compte mes cuillères, maintenant."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "brann"
+       },
+       "t": "Par la Dame Grise… un colosse ! Baissez la tête, mon grand, mes poutres sont plus vieilles que vous."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "selene"
+       },
+       "t": "Des voyageurs ! …Et vous, la demoiselle aux doigts fins, gardez vos mains là où je peux les voir, d'accord ?"
+      }
+     ],
+     "branches": [
+      {
+       "cond": {
+        "type": "flag",
+        "flag": "bertheVue"
+       },
+       "next": "menu"
+      }
+     ]
     },
     "b": {
-     "s": "hero",
-     "t": "Que faut-il faire ?",
-     "next": "c"
-    },
-    "c": {
      "s": "berthe",
-     "t": "Rallumer le fanal de la Tour du Guet. Prenez le chemin de l'<b>est</b> : il passe le gué, puis le Pont de Brume. Mais le Gardien ne laisse passer que ceux qui connaissent l'histoire du pont.",
-     "next": "menu"
+     "t": "Vous entendez la cloche ? À chaque coup, la brume avance d'un champ. Le fanal de la Tour du Guet s'est éteint il y a trois nuits, et depuis… depuis, les morts marchent dans les marais.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "bertheVue",
+       "value": true
+      }
+     ]
     },
     "menu": {
      "s": "berthe",
-     "t": "Demandez-moi ce que vous voulez, mais vite.",
+     "t": "Posez vos questions, mes agneaux, mais faites vite : la soupe et la brume n'attendent personne.",
+     "next": null,
      "choices": [
       {
+       "t": "Comment rallume-t-on ce fanal ?",
+       "next": "fanal",
+       "once": true
+      },
+      {
        "t": "Racontez-nous l'histoire du pont.",
-       "once": true,
-       "next": "histoire"
+       "next": "histoire",
+       "once": true
       },
       {
-       "t": "Il faut de l'huile pour le fanal ?",
-       "once": true,
-       "next": "huile"
+       "t": "Qui d'autre pourrait nous aider ?",
+       "next": "aide",
+       "once": true
       },
       {
-       "t": "Quelqu'un d'autre peut nous aider ?",
-       "once": true,
-       "next": "gaspard"
+       "t": "Qu'est-ce qui vous fait si peur, Berthe ?",
+       "next": "peur",
+       "once": true
       },
       {
-       "t": "Et vos voisins ?",
+       "t": "Glisser discrètement la main dans le tiroir à monnaie…",
+       "next": "menu",
        "once": true,
-       "next": "voisins"
+       "cond": {
+        "type": "heroIs",
+        "hero": "selene"
+       },
+       "test": {
+        "stat": "agilite",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Voler la bourse de Berthe",
+        "success": "vol_ok",
+        "fail": "vol_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
       },
       {
        "t": "Vous nous offrez une chope pour la route ?",
-       "once": true,
        "next": "menu",
+       "once": true,
        "test": {
         "stat": "volonte",
         "diff": "facile",
         "mod": 0,
         "label": "Amadouer Berthe",
+        "success": null,
+        "fail": null,
         "successEffects": [
          {
           "type": "boost",
@@ -1102,14 +1234,75 @@
        }
       },
       {
-       "t": "Nous y allons.",
+       "t": "Nous partons. Merci, Berthe.",
        "next": "fin"
       }
      ]
     },
+    "fanal": {
+     "s": "berthe",
+     "t": "Il faut de l'huile, d'abord : prenez celle de ma réserve, ici même. Ensuite, le chemin de l'<b>est</b> : le Gué des Noyés, puis le Pont de Brume. Et là… le Gardien.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "askedOil",
+       "value": true
+      },
+      {
+       "type": "toast",
+       "text": "Vous pouvez prendre l'<b>huile</b> de l'auberge (bouton « Lieu »)."
+      }
+     ],
+     "choices": [
+      {
+       "t": "Le Gardien ? Qui est-ce ?",
+       "next": "gardien_info"
+      },
+      {
+       "t": "On passera, gardien ou pas.",
+       "next": "fanal_brave"
+      }
+     ]
+    },
+    "gardien_info": {
+     "s": "berthe",
+     "t": "Un spectre, ou un saint, selon à qui on demande. Il ne laisse passer que ceux qui connaissent le nom de celle qui a bâti le pont. L'histoire, je la connais par cœur, demandez-la-moi.",
+     "next": "menu"
+    },
+    "fanal_brave": {
+     "s": "berthe",
+     "t": "Ha ! C'est ce que disait mon défunt mari. On l'a retrouvé trois jours plus tard, accroché à une pile du pont. Écoutez une vieille femme : apprenez l'histoire.",
+     "next": "menu"
+    },
     "histoire": {
      "s": "berthe",
-     "t": "Le pont a été bâti par Aldegonde la Rousse, la première bourgmestre, l'hiver où le fleuve a gelé jusqu'au fond. On dit que son fantôme garde encore le passage… Retenez bien son nom.",
+     "t": "Ah, l'histoire ! L'hiver où le fleuve a gelé jusqu'au fond, la bourgmestre a fait bâtir le pont avant le dégel. Une femme aux cheveux de braise, têtue comme une mule, qui portait les pierres elle-même.",
+     "next": null,
+     "choices": [
+      {
+       "t": "Comment s'appelait-elle ?",
+       "next": "histoire_nom"
+      },
+      {
+       "t": "Ce pont a deux cents ans au moins… votre légende ne tient pas debout.",
+       "next": "histoire_nom",
+       "test": {
+        "stat": "intelligence",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Démêler la légende",
+        "success": "histoire_vrai",
+        "fail": "histoire_vexee",
+        "successEffects": [],
+        "failEffects": []
+       }
+      }
+     ]
+    },
+    "histoire_nom": {
+     "s": "berthe",
+     "t": "Aldegonde. <b>Aldegonde la Rousse</b>. On dit que son fantôme garde encore le passage, et qu'il ne pardonne pas qu'on écorche son nom. Retenez-le bien, et écrivez-le si votre tête est une passoire.",
      "next": "menu",
      "effects": [
       {
@@ -1119,22 +1312,48 @@
       }
      ]
     },
-    "huile": {
+    "histoire_vrai": {
      "s": "berthe",
-     "t": "Prenez celle de l'auberge, dans la réserve, ici même. Et si vous craignez les morts, la chapelle au <b>sud</b> garde de l'eau bénite.",
+     "t": "…Malin, celui-là. Bon. Ma grand-mère disait que le Gardien n'est pas Aldegonde, mais son <b>fils</b>, mort sur le chantier. Il attend qu'on parle de sa mère avec respect. Elle s'appelait <b>Aldegonde la Rousse</b>.",
      "next": "menu",
      "effects": [
       {
        "type": "set",
-       "flag": "askedOil",
+       "flag": "heardStory",
        "value": true
+      },
+      {
+       "type": "set",
+       "flag": "secretGardien",
+       "value": true
+      },
+      {
+       "type": "toast",
+       "text": "Vous connaissez le <b>secret du Gardien</b>."
       }
      ]
     },
-    "gaspard": {
+    "histoire_vexee": {
      "s": "berthe",
-     "t": "Gaspard, le chasseur, campe juste au <b>nord-est</b>, à l'orée du bois. Il connaît chaque sentier… mais les loups lui mènent la vie dure.",
+     "t": "Les dates ! On ne compte pas les années quand on raconte une légende, mon petit. Bref : elle s'appelait <b>Aldegonde la Rousse</b>. Et vous, vous êtes un rabat-joie.",
      "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "heardStory",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "berthe",
+       "n": -1
+      }
+     ]
+    },
+    "aide": {
+     "s": "berthe",
+     "t": "Mathilde, à la forge juste à l'<b>ouest</b> : bourrue, mais une lame de chez elle vaut trois soldats. Gaspard, le chasseur, campe au <b>nord-est</b>, à l'orée du bois. Et la petite Lise pleure au verger depuis ce matin… elle dit qu'elle a vu une dame dans la brume.",
+     "next": null,
      "effects": [
       {
        "type": "questStart",
@@ -1144,57 +1363,266 @@
        "type": "revealPlace",
        "place": "camp"
       }
+     ],
+     "choices": [
+      {
+       "t": "Parlez-nous de Gaspard.",
+       "next": "gaspard_info",
+       "cond": {
+        "type": "notFlag",
+        "flag": "gaspardSecret"
+       }
+      },
+      {
+       "t": "Une dame dans la brume ?",
+       "next": "lise_info",
+       "cond": {
+        "type": "notFlag",
+        "flag": "liseInfo"
+       }
+      },
+      {
+       "t": "Merci. Autre chose…",
+       "next": "menu"
+      }
      ]
     },
-    "voisins": {
+    "aide2": {
      "s": "berthe",
-     "t": "Mathilde, à la forge juste à l'<b>ouest</b>, vous aiguisera vos lames. La petite Lise pleure au verger, au <b>nord-ouest</b>. Et le moulin, au <b>sud-ouest</b>… n'y allez pas sans raison : ça gratte, là-dedans.",
+     "t": "Quoi d'autre, mes agneaux ?",
+     "next": null,
+     "choices": [
+      {
+       "t": "Parlez-nous de Gaspard.",
+       "next": "gaspard_info",
+       "cond": {
+        "type": "notFlag",
+        "flag": "gaspardSecret"
+       }
+      },
+      {
+       "t": "Une dame dans la brume ?",
+       "next": "lise_info",
+       "cond": {
+        "type": "notFlag",
+        "flag": "liseInfo"
+       }
+      },
+      {
+       "t": "Merci. Autre chose…",
+       "next": "menu"
+      }
+     ]
+    },
+    "gaspard_info": {
+     "s": "berthe",
+     "t": "Un ancien de la <b>Garde du Guet</b>. Il a quitté la tour la nuit où le fanal s'est éteint, et il ne veut pas en parler. Ne le brusquez pas… ou alors avec délicatesse.",
+     "next": "aide2",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardSecret",
+       "value": true
+      }
+     ]
+    },
+    "lise_info": {
+     "s": "berthe",
+     "t": "Une gamine, ça voit des fées partout. Mais elle a dit « une dame aux cheveux de feu, sur le pont ». Ça m'a glacé le sang, je l'avoue. Elle est au verger, au <b>nord-ouest</b>.",
+     "next": "aide2",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "liseInfo",
+       "value": true
+      }
+     ]
+    },
+    "peur": {
+     "s": "berthe",
+     "t": "Peur ? Moi ? …Mon frère, <b>Odon</b>, était capitaine de la Garde du Guet. Il est monté allumer le fanal il y a trois nuits. Il n'est jamais redescendu.",
+     "next": null,
+     "effects": [
+      {
+       "type": "questStart",
+       "quest": "odon"
+      }
+     ],
+     "choices": [
+      {
+       "t": "Nous le retrouverons, Berthe. Je vous le promets.",
+       "next": "menu",
+       "test": {
+        "stat": "volonte",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Rassurer Berthe",
+        "success": "peur_ok",
+        "fail": "peur_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Il est sans doute mort. Il faut l'accepter.",
+       "next": "peur_dur"
+      },
+      {
+       "t": "Parlons d'autre chose.",
+       "next": "menu"
+      }
+     ]
+    },
+    "peur_ok": {
+     "s": "berthe",
+     "t": "…Vous avez des yeux honnêtes. Si vous le croisez, appelez-le par son nom : <b>Odon</b>. Il a toujours répondu à son nom, même soûl comme une barrique.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "nomSentinelle",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "berthe",
+       "n": 1
+      },
+      {
+       "type": "boost",
+       "n": 1,
+       "who": "active"
+      }
+     ]
+    },
+    "peur_ko": {
+     "s": "berthe",
+     "t": "Les promesses, les voyageurs en font plein, et ils repartent tous. Allez, allez, faites ce que vous avez à faire.",
      "next": "menu"
+    },
+    "peur_dur": {
+     "s": "berthe",
+     "t": "…Peut-être. Mais on ne dit pas ça à une sœur. Finissez vos questions et sortez de ma cuisine.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "rep",
+       "npc": "berthe",
+       "n": -1
+      }
+     ]
+    },
+    "vol_ok": {
+     "s": "narrator",
+     "t": "Vos doigts trouvent une petite bourse sous les torchons : quelques pièces et un talisman. Berthe, qui essuie ses gobelets, ne s'est aperçue de rien.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "boost",
+       "n": 2,
+       "who": "active"
+      },
+      {
+       "type": "toast",
+       "text": "Bourse volée : <b>+2 boosts</b>."
+      }
+     ]
+    },
+    "vol_ko": {
+     "s": "berthe",
+     "t": "HÉ ! Les mains hors de mon tiroir, petite voleuse ! …Je vous ai à l'œil, maintenant. Et je ne suis plus d'humeur à raconter des histoires.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "rep",
+       "npc": "berthe",
+       "n": -2
+      },
+      {
+       "type": "set",
+       "flag": "bertheMefiante",
+       "value": true
+      }
+     ]
     },
     "fin": {
      "s": "berthe",
-     "t": "Que la Dame Grise vous garde. Et dépêchez-vous !",
+     "t": "Que la Dame Grise vous garde. Et si vous voyez mon Odon… rapportez-moi de ses nouvelles.",
      "next": null
     }
-   },
-   "scene": "L'auberge sent la soupe aux choux et la fumée de tourbe. Derrière son comptoir, Berthe repose un gobelet en vous voyant entrer ; dehors, la cloche sonne encore."
+   }
   },
   "mathilde": {
+   "scene": "La chaleur de la forge vous saisit. Mathilde, bras nus et tablier roussi, frappe une dernière fois le fer rouge avant de lever les yeux vers vous.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "mathilde",
-     "t": "Encore des épées à aiguiser ? Passez à l'enclume, je m'en occupe.",
-     "next": "menu"
+     "t": "Si c'est pour regarder, il y a une fenêtre. Si c'est pour parler, faites vite : le fer refroidit.",
+     "next": "menu",
+     "variants": [
+      {
+       "cond": {
+        "type": "flag",
+        "flag": "lameForgee"
+       },
+       "t": "Ma lame vous sert bien ? Ne la plantez pas dans un mur, je vous prie, elle n'aime pas ça."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "brann"
+       },
+       "t": "Tiens. Enfin un gaillard avec des bras. Toi, je t'écoute."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "ysolde"
+       },
+       "t": "Une magicienne. Vous allez encore me dire que l'acier, ça se « chante » ? Ici, ça se frappe."
+      }
+     ]
     },
     "menu": {
      "s": "mathilde",
-     "t": "Autre chose ?",
+     "t": "Alors ?",
+     "next": null,
      "choices": [
       {
+       "t": "Pouvez-vous forger quelque chose pour nous ?",
+       "next": "forge",
+       "cond": {
+        "type": "notFlag",
+        "flag": "lameForgee"
+       }
+      },
+      {
        "t": "Que savez-vous de la Tour du Guet ?",
-       "once": true,
-       "next": "tour"
+       "next": "tour",
+       "once": true
       },
       {
-       "t": "Et la cache dont on parle ?",
-       "once": true,
-       "next": "cache"
+       "t": "Et le pont ? Le Gardien ?",
+       "next": "pont",
+       "once": true
       },
       {
-       "t": "Et du pont ?",
-       "once": true,
-       "next": "pont"
+       "t": "La cache du contrebandier, vous connaissez ?",
+       "next": "cache",
+       "once": true
       },
       {
        "t": "Montrez-nous une de vos bottes.",
-       "once": true,
        "next": "menu",
+       "once": true,
        "test": {
         "stat": "agilite",
         "diff": "difficile",
         "mod": 0,
         "label": "Parer la botte de Mathilde",
+        "success": null,
+        "fail": null,
         "successEffects": [
          {
           "type": "boost",
@@ -1225,30 +1653,207 @@
       }
      ]
     },
-    "tour": {
+    "forge": {
      "s": "mathilde",
-     "t": "Mon père y montait la garde. Il disait que la Sentinelle avait été un soldat, avant. Les morts n'aiment pas l'eau bénite — la chapelle au sud en garde toujours.",
+     "t": "Forger ? Pour des inconnus ? Ha. Prouvez-moi d'abord que vous méritez une lame de Mathilde.",
+     "next": "forge_q",
+     "variants": [
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "brann"
+       },
+       "t": "Pour toi, grand gaillard, j'ai déjà une hache à moitié faite. Tends le bras."
+      }
+     ],
+     "branches": [
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "brann"
+       },
+       "next": "forge_brann"
+      }
+     ]
+    },
+    "forge_q": {
+     "s": "mathilde",
+     "t": "Alors ? Comment comptez-vous me convaincre ?",
+     "next": null,
+     "choices": [
+      {
+       "t": "Un bras de fer, ici, sur l'enclume.",
+       "next": "menu",
+       "onceSuccess": true,
+       "test": {
+        "stat": "force",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Bras de fer avec Mathilde",
+        "success": "forge_ok",
+        "fail": "forge_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Le hameau tombera si nous échouons. Votre forge avec.",
+       "next": "menu",
+       "once": true,
+       "test": {
+        "stat": "volonte",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Convaincre Mathilde",
+        "success": "forge_ok",
+        "fail": "forge_vexee",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Votre trempe est ratée : cet acier a été refroidi trop vite.",
+       "next": "menu",
+       "once": true,
+       "test": {
+        "stat": "intelligence",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Juger la lame",
+        "success": "forge_respect",
+        "fail": "forge_vexee",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Tant pis.",
+       "next": "menu"
+      }
+     ]
+    },
+    "forge_brann": {
+     "s": "mathilde",
+     "t": "Voilà. Elle mord, celle-là. Ramène-la entière, et ramène-toi entier aussi.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "dmgBonus",
+       "n": 1,
+       "who": "active",
+       "duration": "level"
+      },
+      {
+       "type": "set",
+       "flag": "lameForgee",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": 1
+      },
+      {
+       "type": "toast",
+       "text": "Lame de Mathilde : <b>+1 dégât</b> (ce niveau)."
+      }
+     ]
+    },
+    "forge_ok": {
+     "s": "mathilde",
+     "t": "…Pas mal. Pas mal du tout. Tenez : une lame trempée ce matin. Elle tranche l'os comme le pain.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "dmgBonus",
+       "n": 1,
+       "who": "active",
+       "duration": "level"
+      },
+      {
+       "type": "set",
+       "flag": "lameForgee",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": 1
+      },
+      {
+       "type": "toast",
+       "text": "Lame de Mathilde : <b>+1 dégât</b> (ce niveau)."
+      }
+     ]
+    },
+    "forge_ko": {
+     "s": "mathilde",
+     "t": "Ha ! Le poignet d'un chaton. Revenez quand vous aurez mangé de la soupe.",
      "next": "menu"
     },
-    "cache": {
+    "forge_vexee": {
      "s": "mathilde",
-     "t": "Au <b>sud-est</b>, dans l'éboulis près de la chapelle. Les contrebandiers y piégeaient leur trappe : soyez adroits.",
+     "t": "C'est tout ? Allez donc pleurer chez Berthe, elle a des mouchoirs.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": -1
+      }
+     ]
+    },
+    "forge_respect": {
+     "s": "mathilde",
+     "t": "…Vous avez raison, maudit soit-il. Personne ne l'avait vu. Prenez plutôt celle-ci : bien trempée, elle. Et ne le répétez à personne.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "dmgBonus",
+       "n": 1,
+       "who": "active",
+       "duration": "level"
+      },
+      {
+       "type": "set",
+       "flag": "lameForgee",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "mathilde",
+       "n": 2
+      },
+      {
+       "type": "toast",
+       "text": "Lame de Mathilde : <b>+1 dégât</b> (ce niveau)."
+      }
+     ]
+    },
+    "tour": {
+     "s": "mathilde",
+     "t": "Mon père y montait la garde. Il disait qu'un mort qui garde ne dort jamais. Les morts n'aiment pas l'eau bénite : la chapelle au <b>sud</b> en garde encore, si le prêtre ne l'a pas bue.",
      "next": "menu"
     },
     "pont": {
      "s": "mathilde",
-     "t": "Le gardien ? Il ne parle qu'à ceux qui connaissent la Rousse. C'est comme ça qu'on l'appelait, la bâtisseuse : cheveux de braise, comme le feu de ma forge.",
+     "t": "Le Gardien ne parle qu'à ceux qui connaissent la Rousse. C'est comme ça qu'on l'appelait, la bâtisseuse : cheveux de braise, comme le feu de ma forge. Le reste du nom, demandez à Berthe : c'est elle qui radote les légendes.",
+     "next": "menu"
+    },
+    "cache": {
+     "s": "mathilde",
+     "t": "Au <b>sud-est</b>, dans l'éboulis près de la chapelle. Les contrebandiers piégeaient leur trappe avec des aiguilles. Des doigts agiles, pas des gros bras.",
      "next": "menu"
     }
-   },
-   "scene": "La chaleur de la forge vous saisit. Mathilde, bras nus et tablier roussi, frappe une dernière fois le fer rouge avant de lever les yeux vers vous."
+   }
   },
   "lise": {
+   "scene": "Sous les pommiers tordus, une fillette est recroquevillée contre un tronc. Elle renifle et vous regarde approcher avec méfiance.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "lise",
-     "t": "J'ai perdu Brindille… ma poupée. Je jouais près du vieux moulin, au <b>sud-ouest</b> du hameau, et puis il y a eu des bruits…",
+     "t": "J'ai perdu Brindille… ma poupée. Je jouais près du vieux moulin, au <b>sud-ouest</b>, et puis il y a eu des grattements…",
      "next": "b",
      "variants": [
       {
@@ -1256,7 +1861,14 @@
         "type": "has",
         "item": "poupee"
        },
-       "t": "Ma poupée ! Vous l'avez retrouvée !"
+       "t": "Brindille ! Vous l'avez retrouvée ! Vous êtes des héros, des vrais !"
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "ysolde"
+       },
+       "t": "Vous êtes… une magicienne ? Une vraie ? Avec des étincelles ?"
       }
      ],
      "branches": [
@@ -1266,17 +1878,135 @@
         "item": "poupee"
        },
        "next": "merci"
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "ysolde"
+       },
+       "next": "magie"
       }
      ]
     },
     "b": {
-     "s": "hero",
-     "t": "Nous allons la chercher. Reste près du hameau.",
+     "s": "lise",
+     "t": "Vous allez m'aider ?",
+     "next": null,
+     "choices": [
+      {
+       "t": "Nous allons la chercher. Reste près du hameau.",
+       "next": "b_ok"
+      },
+      {
+       "t": "Raconte-moi ce que tu as vu. N'aie pas peur.",
+       "next": "b",
+       "once": true,
+       "test": {
+        "stat": "volonte",
+        "diff": "facile",
+        "mod": 0,
+        "label": "Rassurer Lise",
+        "success": "vu",
+        "fail": "peur",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Pas le temps, petite.",
+       "next": "froid"
+      }
+     ]
+    },
+    "b_ok": {
+     "s": "lise",
+     "t": "Promis ? …D'accord. Mais faites attention : au moulin, il y a des rats gros comme des chiens. Gros comme des <i>veaux</i>, même.",
      "next": null,
      "effects": [
       {
        "type": "questStart",
        "quest": "poupee"
+      }
+     ]
+    },
+    "magie": {
+     "s": "lise",
+     "t": "Montrez-moi ! Juste une petite étincelle ! S'il vous plaît !",
+     "next": null,
+     "choices": [
+      {
+       "t": "Faire danser une flamme bleue au creux de ta main.",
+       "next": "b",
+       "once": true,
+       "test": {
+        "stat": "intelligence",
+        "diff": "facile",
+        "mod": 0,
+        "label": "Petit tour de magie",
+        "success": "vu",
+        "fail": "magie_rate",
+        "successEffects": [
+         {
+          "type": "boost",
+          "n": 1,
+          "who": "active"
+         }
+        ],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Plus tard, Lise. D'abord ta poupée.",
+       "next": "b_ok"
+      }
+     ]
+    },
+    "magie_rate": {
+     "s": "narrator",
+     "t": "L'étincelle crépite, puis s'éteint dans une petite fumée qui sent le roussi. Lise éclate de rire malgré ses larmes.",
+     "next": "b"
+    },
+    "vu": {
+     "s": "lise",
+     "t": "J'ai vu une dame, sur le pont. Avec des cheveux tout rouges, comme le feu. Elle chantait une chanson avec son nom dedans : « <b>Al-de-gon-de</b>, Al-de-gon-de, le pont tient bon… »",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "heardStory",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "liseConfiance",
+       "value": true
+      }
+     ],
+     "choices": [
+      {
+       "t": "Aldegonde… Merci, Lise. Et ta poupée, on s'en occupe.",
+       "next": "b_ok"
+      },
+      {
+       "t": "Une dame ? Tu l'as rêvée, sûrement.",
+       "next": "froid"
+      }
+     ]
+    },
+    "peur": {
+     "s": "lise",
+     "t": "Non ! Je veux pas en parler ! Si on parle d'elle, elle revient !",
+     "next": "b"
+    },
+    "froid": {
+     "s": "lise",
+     "t": "…Vous êtes méchants. Comme la brume.",
+     "next": null,
+     "effects": [
+      {
+       "type": "rep",
+       "npc": "lise",
+       "n": -1
       }
      ]
     },
@@ -1313,41 +2043,137 @@
        "key": "prologue.liseAidee",
        "value": "true"
       }
+     ],
+     "branches": [
+      {
+       "cond": {
+        "type": "notFlag",
+        "flag": "liseConfiance"
+       },
+       "next": "merci2"
+      }
+     ]
+    },
+    "merci2": {
+     "s": "lise",
+     "t": "Et… je vous dis un secret, parce que vous êtes gentils. La dame du pont, elle s'appelait <b>Aldegonde</b>. Je l'ai entendue chanter.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "heardStory",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "liseConfiance",
+       "value": true
+      }
      ]
     }
-   },
-   "scene": "Sous les pommiers tordus, une fillette est recroquevillée contre un tronc. Elle renifle et vous regarde approcher avec méfiance."
+   }
+  },
+  "lise2": {
+   "scene": "",
+   "start": "a",
+   "nodes": {
+    "a": {
+     "s": "lise",
+     "t": "Brindille dit merci. Elle dit aussi que la brume a peur des cloches… et des gens courageux.",
+     "next": null
+    }
+   }
   },
   "gaspard": {
+   "scene": "Près d'un feu qui fume encore, un homme taille des flèches. Il ne se lève pas, mais sa main ne s'éloigne jamais de son arc.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "gaspard",
-     "t": "Hé ! Doucement. Vous venez du hameau ? Les loups ont pris ma tanière, juste au <b>nord</b>, derrière mon camp.",
-     "next": "b",
+     "t": "Doucement. Un pas de plus et je vous prends pour un loup. …Vous venez du hameau ?",
+     "next": "menu",
      "variants": [
+      {
+       "cond": {
+        "type": "flag",
+        "flag": "gaspardAmi"
+       },
+       "t": "Revoilà mes chasseurs de loups. Qu'est-ce qu'il vous faut ?"
+      },
       {
        "cond": {
         "type": "flag",
         "flag": "loupsMorts"
        },
-       "t": "Les loups sont morts ? Vous êtes de sacrés lascars ! Tenez, c'est pour vous."
+       "t": "Les loups sont morts ? Hé. Vous êtes de sacrés lascars, finalement."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "aldric"
+       },
+       "t": "Un chevalier. Formidable. Les chevaliers sont partis quand on avait besoin d'eux, et ils reviennent quand tout brûle."
       }
      ],
      "branches": [
       {
        "cond": {
-        "type": "flag",
-        "flag": "loupsMorts"
+        "type": "all",
+        "conds": [
+         {
+          "type": "flag",
+          "flag": "loupsMorts"
+         },
+         {
+          "type": "notFlag",
+          "flag": "gaspardAmi"
+         }
+        ]
        },
        "next": "merci"
       }
      ]
     },
-    "b": {
+    "menu": {
      "s": "gaspard",
-     "t": "Je vous la montre sur ma carte. Si vous les chassez, je vous montrerai un raccourci.",
+     "t": "Qu'est-ce que vous voulez ?",
      "next": null,
+     "choices": [
+      {
+       "t": "Les loups vous posent problème ?",
+       "next": "loups",
+       "once": true
+      },
+      {
+       "t": "Vous étiez de la Garde du Guet, non ?",
+       "next": "garde",
+       "once": true
+      },
+      {
+       "t": "Vous allez nous aider, que ça vous plaise ou non.",
+       "next": "menu",
+       "once": true,
+       "test": {
+        "stat": "force",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Intimider Gaspard",
+        "success": "intimide_ok",
+        "fail": "intimide_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "On s'en va.",
+       "next": null
+      }
+     ]
+    },
+    "loups": {
+     "s": "gaspard",
+     "t": "Ils ont pris ma tanière, au <b>nord</b>, derrière mon camp. Une meute affamée, trois bêtes au moins. Je vous la montre sur ma carte. Débarrassez-m'en, et je vous rendrai service.",
+     "next": "menu",
      "effects": [
       {
        "type": "set",
@@ -1364,14 +2190,162 @@
       }
      ]
     },
+    "garde": {
+     "s": "gaspard",
+     "t": "…Qui vous a dit ça ? Berthe, je parie. Cette femme parle plus que sa marmite ne bout.",
+     "next": null,
+     "choices": [
+      {
+       "t": "Votre fermoir de cape : l'insigne du Guet, limé pour qu'on ne le voie pas.",
+       "next": "menu",
+       "test": {
+        "stat": "intelligence",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Remarquer l'insigne",
+        "success": "aveu",
+        "fail": "nie",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Vous avez abandonné vos camarades. Racontez-nous, et réparez ça.",
+       "next": "menu",
+       "test": {
+        "stat": "volonte",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Faire parler Gaspard",
+        "success": "aveu",
+        "fail": "fache",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Ça ne nous regarde pas.",
+       "next": "menu"
+      }
+     ]
+    },
+    "aveu": {
+     "s": "gaspard",
+     "t": "…J'étais là, la nuit où le fanal s'est éteint. Le capitaine <b>Odon</b> est monté seul. Il y a eu un cri, puis une lumière rouge. Je me suis enfui. Voilà. Vous êtes contents ?",
+     "next": "aveu2",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "nomSentinelle",
+       "value": true
+      }
+     ]
+    },
+    "aveu2": {
+     "s": "gaspard",
+     "t": "Si vous montez là-haut, et que ce qui reste d'Odon garde la tour… appelez-le par son nom. Il a toujours écouté ses hommes. Et prenez ça : mes flèches de guerre. Elles volent droit.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "statBonus",
+       "stat": "combat",
+       "n": 10,
+       "who": "all",
+       "duration": "level"
+      },
+      {
+       "type": "set",
+       "flag": "gaspardAllie",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": 1
+      },
+      {
+       "type": "toast",
+       "text": "Gaspard vous équipe : <b>+10 % en Combat</b> pour tous les héros (ce niveau)."
+      }
+     ]
+    },
+    "nie": {
+     "s": "gaspard",
+     "t": "Vous voyez des choses. Le Guet, je n'y ai jamais mis les pieds. Changez de sujet.",
+     "next": "menu"
+    },
+    "fache": {
+     "s": "gaspard",
+     "t": "Dehors. DEHORS ! Et ne revenez pas me faire la morale, vous n'étiez pas là-haut.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardFache",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": -1
+      }
+     ]
+    },
+    "intimide_ok": {
+     "s": "gaspard",
+     "t": "…D'accord, d'accord. Rangez ça. Les loups, au <b>nord</b>. Et si vous les tuez, je vous dirai ce que je sais sur la tour.",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardTold",
+       "value": true
+      },
+      {
+       "type": "questStart",
+       "quest": "taniere"
+      },
+      {
+       "type": "revealPlace",
+       "place": "taniere"
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": -1
+      }
+     ]
+    },
+    "intimide_ko": {
+     "s": "gaspard",
+     "t": "Vous me menacez ? Moi ? J'ai survécu à pire que vous. Partez avant que je ne vous prenne pour du gibier.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardFache",
+       "value": true
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": -1
+      }
+     ]
+    },
     "merci": {
      "s": "gaspard",
-     "t": "Un conseil : juste après le pont, à l'<b>est</b>, il y a le vieux péage. Le coffre n'a jamais été ouvert… et la Tour est juste derrière.",
-     "next": null,
+     "t": "Tenez, c'est pour vous : la moitié de ma réserve d'herbes. Et un conseil, gratuit, ce qui est rare chez moi.",
+     "next": "merci2",
      "effects": [
       {
        "type": "questDone",
        "quest": "loups"
+      },
+      {
+       "type": "give",
+       "item": "herbes",
+       "n": 1
       },
       {
        "type": "boost",
@@ -1389,21 +2363,107 @@
        "n": 1
       }
      ]
+    },
+    "merci2": {
+     "s": "gaspard",
+     "t": "Au <b>Gué des Noyés</b>, en amont, il y a un passage de contrebandiers. On atteint la rive est sans passer par le Gardien. Le Noyé surveille, mais si vous êtes rapides…",
+     "next": "menu",
+     "effects": [
+      {
+       "type": "set",
+       "flag": "raccourci",
+       "value": true
+      },
+      {
+       "type": "toast",
+       "text": "Nouveau chemin : le <b>passage des contrebandiers</b> au Gué des Noyés."
+      }
+     ]
     }
-   },
-   "scene": "Près d'un feu qui fume encore, un homme taille des flèches. Il ne se lève pas, mais sa main ne s'éloigne jamais de son arc."
+   }
+  },
+  "gaspard_fache": {
+   "scene": "Gaspard vous tourne le dos et tend une peau sur son cadre, avec des gestes trop brusques.",
+   "start": "a",
+   "nodes": {
+    "a": {
+     "s": "gaspard",
+     "t": "Encore vous ? J'ai dit dehors.",
+     "next": null,
+     "choices": [
+      {
+       "t": "Nous sommes désolés. Le hameau a besoin de vous.",
+       "next": null,
+       "test": {
+        "stat": "volonte",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Apaiser Gaspard",
+        "success": "pardon",
+        "fail": "refus",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Tant pis pour vous.",
+       "next": null
+      }
+     ]
+    },
+    "pardon": {
+     "s": "gaspard",
+     "t": "…Bon. Asseyez-vous. Mais pas de morale.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "gaspardFache",
+       "value": false
+      },
+      {
+       "type": "rep",
+       "npc": "gaspard",
+       "n": 1
+      }
+     ]
+    },
+    "refus": {
+     "s": "gaspard",
+     "t": "Non. Revenez quand vous aurez appris à vous taire.",
+     "next": null
+    }
+   }
   },
   "gardien": {
+   "scene": "Au milieu du pont, une silhouette encapuchonnée tient une lanterne éteinte. La brume s'écarte autour d'elle sans jamais la toucher.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "gardien",
-     "t": "Halte. Nul ne traverse le Pont de Brume sans connaître celle qui l'a bâti.",
-     "next": "q"
+     "t": "Halte. Le pont se souvient de chaque pas. Nul ne traverse sans connaître celle qui l'a bâti.",
+     "next": "q",
+     "variants": [
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "aldric"
+       },
+       "t": "Halte, chevalier. Ton serment ne pèse rien ici. Seul compte le nom de celle qui a bâti ce pont."
+      },
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "ysolde"
+       },
+       "t": "Halte, porteuse de flammes. Ta magie ne m'atteint pas. Seul un nom m'ouvre ce passage."
+      }
+     ]
     },
     "q": {
      "s": "gardien",
-     "t": "Dis-moi son nom, voyageur.",
+     "t": "Dis-moi son nom, voyageur. Ou repars d'où tu viens.",
+     "next": null,
      "choices": [
       {
        "t": "Bertrade la Blanche.",
@@ -1418,9 +2478,42 @@
        "next": "faux"
       },
       {
+       "t": "Votre mère, Aldegonde. Elle serait fière de vous.",
+       "next": "mere",
+       "cond": {
+        "type": "flag",
+        "flag": "secretGardien"
+       }
+      },
+      {
+       "t": "Soutenir son regard, sans ciller.",
+       "next": "q",
+       "onceSuccess": true,
+       "test": {
+        "stat": "volonte",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Soutenir le regard du Gardien",
+        "success": "regard_ok",
+        "fail": "regard_ko",
+        "successEffects": [],
+        "failEffects": []
+       }
+      },
+      {
        "t": "Nous passerons de gré ou de force.",
+       "next": "q",
        "once": true,
-       "next": "force"
+       "test": {
+        "stat": "force",
+        "diff": "normal",
+        "mod": -10,
+        "label": "Forcer le passage",
+        "success": "forceOk",
+        "fail": "faux",
+        "successEffects": [],
+        "failEffects": []
+       }
       },
       {
        "t": "Je reviendrai.",
@@ -1430,7 +2523,7 @@
     },
     "vrai": {
      "s": "gardien",
-     "t": "Aldegonde… Oui. Cela faisait longtemps. Passe, et rallume ce fanal.",
+     "t": "Aldegonde… Cela faisait longtemps qu'on ne l'avait pas prononcé ainsi. Passe, et rallume ce fanal.",
      "next": null,
      "effects": [
       {
@@ -1467,6 +2560,108 @@
       }
      ]
     },
+    "mere": {
+     "s": "gardien",
+     "t": "…Mère. Tu sais. Alors tu sais aussi pourquoi j'attends. Passe, ami. Et prends un peu de ma lumière : la brume ne la supporte pas.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "pontOuvert",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "gardienAmi",
+       "value": true
+      },
+      {
+       "type": "remember",
+       "key": "prologue.gardienAmi",
+       "value": "true"
+      },
+      {
+       "type": "rep",
+       "npc": "gardien",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "fanal"
+      },
+      {
+       "type": "questStart",
+       "quest": "tour"
+      },
+      {
+       "type": "unlockZone",
+       "zone": "est"
+      },
+      {
+       "type": "boost",
+       "n": 2,
+       "who": "all"
+      },
+      {
+       "type": "toast",
+       "text": "Le Gardien vous bénit : <b>+2 boosts</b> pour tous."
+      }
+     ]
+    },
+    "regard_ok": {
+     "s": "gardien",
+     "t": "Tes yeux ne tremblent pas. Ceux qui craignent la brume ne la vaincront jamais… toi, peut-être. Passe.",
+     "next": null,
+     "effects": [
+      {
+       "type": "set",
+       "flag": "pontOuvert",
+       "value": true
+      },
+      {
+       "type": "set",
+       "flag": "gardienAmi",
+       "value": true
+      },
+      {
+       "type": "remember",
+       "key": "prologue.gardienAmi",
+       "value": "true"
+      },
+      {
+       "type": "rep",
+       "npc": "gardien",
+       "n": 1
+      },
+      {
+       "type": "questDone",
+       "quest": "fanal"
+      },
+      {
+       "type": "questStart",
+       "quest": "tour"
+      },
+      {
+       "type": "unlockZone",
+       "zone": "est"
+      }
+     ]
+    },
+    "regard_ko": {
+     "s": "gardien",
+     "t": "Tu baisses les yeux. Reviens quand tu sauras qui tu es.",
+     "next": null,
+     "effects": [
+      {
+       "type": "glas",
+       "n": 1
+      },
+      {
+       "type": "toast",
+       "text": "Le regard du Gardien vous glace : <b>+1 glas</b>."
+      }
+     ]
+    },
     "faux": {
      "s": "gardien",
      "t": "Faux. La brume se souviendra de ton mensonge.",
@@ -1486,18 +2681,6 @@
        "text": "Mauvaise réponse : <b>−1 boost, +1 glas</b>. Revenez avec le bon nom."
       }
      ]
-    },
-    "force": {
-     "s": "gardien",
-     "t": "Essaie donc…",
-     "test": {
-      "stat": "force",
-      "diff": "normal",
-      "mod": -10,
-      "label": "Forcer le passage",
-      "success": "forceOk",
-      "fail": "faux"
-     }
     },
     "forceOk": {
      "s": "gardien",
@@ -1538,24 +2721,131 @@
       }
      ]
     }
-   },
-   "scene": "Au milieu du pont, une silhouette encapuchonnée tient une lanterne éteinte. La brume s'écarte autour d'elle sans jamais la toucher."
+   }
   },
   "sentinelle": {
+   "scene": "Au sommet de la tour, une forme décharnée se dresse devant le fanal mort. Ses orbites vides s'allument d'une lueur rouge.",
    "start": "a",
    "nodes": {
     "a": {
      "s": "sentinelle",
-     "t": "Le fanal dort. Que la brume règne. Qui ose ?",
-     "next": "b"
+     "t": "Qui ose gravir ma tour ? Le fanal dort. Que la brume règne, et que les vivants se taisent.",
+     "next": "q",
+     "variants": [
+      {
+       "cond": {
+        "type": "notFlag",
+        "flag": "gardienAmi"
+       },
+       "t": "Des brutes, qui ont forcé le pont. Le Gardien m'a prévenu. Le fanal dort, et vous dormirez avec lui."
+      }
+     ]
     },
-    "b": {
-     "s": "hero",
-     "t": "Ceux qui vont le rallumer.",
+    "q": {
+     "s": "sentinelle",
+     "t": "Parlez vite, ou ne parlez plus.",
+     "next": null,
+     "choices": [
+      {
+       "t": "Odon ! Capitaine Odon, souvenez-vous de votre serment !",
+       "next": null,
+       "once": true,
+       "cond": {
+        "type": "flag",
+        "flag": "nomSentinelle"
+       },
+       "test": {
+        "stat": "volonte",
+        "diff": "normal",
+        "mod": 0,
+        "label": "Réveiller Odon",
+        "success": "odon_ok",
+        "fail": "odon_ko",
+        "successEffects": [
+         {
+          "type": "statBonus",
+          "stat": "combat",
+          "n": 15,
+          "who": "all",
+          "duration": "level"
+         },
+         {
+          "type": "set",
+          "flag": "odonReveille",
+          "value": true
+         },
+         {
+          "type": "toast",
+          "text": "La Sentinelle vacille : <b>+15 % en Combat</b> pour tous (ce niveau)."
+         }
+        ],
+        "failEffects": [
+         {
+          "type": "glas",
+          "n": 1
+         }
+        ]
+       }
+      },
+      {
+       "t": "Ce fanal ne s'est pas éteint tout seul. Qui vous a trahi ?",
+       "next": null,
+       "once": true,
+       "test": {
+        "stat": "intelligence",
+        "diff": "difficile",
+        "mod": 0,
+        "label": "Comprendre la trahison",
+        "success": "trahi_ok",
+        "fail": "trahi_ko",
+        "successEffects": [
+         {
+          "type": "boost",
+          "n": 1,
+          "who": "all"
+         }
+        ],
+        "failEffects": []
+       }
+      },
+      {
+       "t": "Nous allons rallumer ce fanal.",
+       "next": "fin"
+      }
+     ]
+    },
+    "odon_ok": {
+     "s": "sentinelle",
+     "t": "Odon… ce nom… Ma sœur m'appelait ainsi. NON ! Le serment est rompu, la brume me tient ! Frappez vite, avant que je redevienne ce que je suis…",
+     "next": null
+    },
+    "odon_ko": {
+     "s": "sentinelle",
+     "t": "Je ne connais pas ce nom. Je ne connais que la brume. Et la brume a faim.",
+     "next": null
+    },
+    "trahi_ok": {
+     "s": "sentinelle",
+     "t": "Trahi… oui. Le prêtre de la chapelle. Il a soufflé la flamme pour que la brume m'emporte. Allumez-la, et je pourrai enfin dormir.",
+     "next": null,
+     "effects": [
+      {
+       "type": "toast",
+       "text": "Un instant de lucidité : <b>+1 boost</b> pour tous."
+      }
+     ]
+    },
+    "trahi_ko": {
+     "s": "sentinelle",
+     "t": "Des questions ? Je n'ai plus que des réponses de pierre.",
+     "next": null
+    },
+    "fin": {
+     "s": "sentinelle",
+     "t": "Alors venez. Et tombez sur les marches, comme les autres.",
      "next": null
     }
-   },
-   "scene": "Au sommet de la tour, une forme décharnée se dresse devant le fanal mort. Ses orbites vides s'allument d'une lueur rouge."
+   }
   }
  },
  "talk": {
@@ -1575,13 +2865,29 @@
      "type": "flag",
      "flag": "poupeeRendue"
     },
-    "dialogue": ""
+    "dialogue": "lise2"
    },
    {
     "dialogue": "lise"
    }
   ],
   "gaspard": [
+   {
+    "cond": {
+     "type": "all",
+     "conds": [
+      {
+       "type": "flag",
+       "flag": "gaspardFache"
+      },
+      {
+       "type": "notFlag",
+       "flag": "loupsMorts"
+      }
+     ]
+    },
+    "dialogue": "gaspard_fache"
+   },
    {
     "dialogue": "gaspard"
    }
@@ -1600,8 +2906,7 @@
   ]
  },
  "idleLine": {
-  "gardien": "Le Gardien s'écarte en silence.",
-  "lise": "Lise serre sa poupée et vous fait un grand sourire."
+  "gardien": "Le Gardien s'écarte en silence et lève sa lanterne."
  },
  "afterTalk": {
   "berthe": [
@@ -1769,6 +3074,30 @@
    {
     "type": "toast",
     "text": "La Sentinelle s'effondre : le fanal est à vous."
+   },
+   {
+    "type": "if",
+    "cond": {
+     "type": "quest",
+     "quest": "odon",
+     "state": "active"
+    },
+    "then": [
+     {
+      "type": "questDone",
+      "quest": "odon"
+     },
+     {
+      "type": "remember",
+      "key": "prologue.odonLibere",
+      "value": "true"
+     },
+     {
+      "type": "toast",
+      "text": "Odon peut enfin reposer en paix."
+     }
+    ],
+    "else": []
    }
   ]
  },

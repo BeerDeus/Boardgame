@@ -91,6 +91,7 @@ export function applyProgress(hero, p) {
   const h = { ...hero, skills: { ...hero.skills }, boostStart: 0, boostMax: 0, level: p ? levelOf(p.xp) : 1 };
   if (!p) return h;
   for (const [k0, v] of Object.entries(p.skills || {})) { const k = statKey(k0); h.skills[k] = (h.skills[k] || 0) + v; }
+  if (p.dmg) h.dmg = (h.dmg || 1) + p.dmg;
   for (const pid of p.perks || []) {
     const perk = (PERKS[hero.kind] || []).find(x => x.id === pid); if (!perk) continue;
     for (const [k, v] of Object.entries(perk.fx)) if (k === 'skills') for (const [s, n] of Object.entries(v)) h.skills[s] = (h.skills[s] || 0) + n; else h[k] = (h[k] || 0) + v;

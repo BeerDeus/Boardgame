@@ -49,7 +49,7 @@ Toutes les briques se choisissent dans des menus de l'éditeur (`js/core/level.j
   - boosts ±, soins, **blessure** (mortelle ou non), repos ;
   - **bonus/malus de stat**, pour ce niveau ou **permanent dans la campagne** ;
   - **état** : poison, étourdi, guérison ;
-  - **XP bonus** ; **déplacer des héros vers un lieu**.
+  - **bonus de dégâts** (arme forgée…), **XP bonus**, **déplacer des héros vers un lieu**.
 - **Objets et quêtes** : donner ou retirer un objet, démarrer ou terminer une quête.
 - **Carte et figurines** : révéler un lieu ou le plus proche, **déverrouiller une zone**, apparition (figurine ou vague), **retirer une figurine** (départ, fuite).
 - **Partie** : glas ±, **limite de glas ±**, réputation, mémoire de campagne, victoire, **défaite**.
@@ -62,7 +62,9 @@ Toutes les briques se choisissent dans des menus de l'éditeur (`js/core/level.j
 - **mémoire** : réputation, mémoire de campagne ;
 - **combinaisons** : **NON**, toutes, au moins une.
 
-**Dialogues** :
+**Dialogues** (onglet Dialogues, présenté en **arbre** comme un script) :
+- Sous chaque choix, « ＋ Répondre » crée la réplique suivante en retrait. Le menu « → » peut aussi renvoyer vers une réplique existante, par exemple pour revenir au menu de questions ; elle s'affiche alors en lien « ↪ ».
+- Chaque choix peut être **toujours proposé**, proposé **une seule fois**, ou proposé **jusqu'à réussite** (un échec se retente plus tard).
 - Un **texte d'ambiance** (le narrateur décrit la scène) s'affiche avant la première réplique.
 - Chaque nœud a un orateur (PNJ, héros ou narrateur) et un texte, puis :
   - une suite simple ;

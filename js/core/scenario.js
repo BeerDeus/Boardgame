@@ -207,6 +207,14 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
       }
       if (n > 0) sfx.magic(); refreshHUD();
     },
+    dmgBonus(n, who, duration) {
+      for (const id of whoIds(who)) {
+        if (duration === 'campaign') { def(id).dmg = (def(id).dmg || 1) + n; if (!draft) { const p = heroProgress(campaign, id); p.dmg = (p.dmg || 0) + n; saveCampaign(campaign); } }
+        else { S.dmgMods ||= {}; S.dmgMods[id] = (S.dmgMods[id] || 0) + n; }
+        ui.floatText(engine.screenPos(id), `${n > 0 ? '+' : ''}${n} dégât${Math.abs(n) > 1 ? 's' : ''}`, '#ffb070');
+      }
+      sfx.magic(); refreshHUD();
+    },
     setStatus(kind, who) {
       for (const id of whoIds(who)) {
         const c = S.cond[id] ||= {};
@@ -524,7 +532,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (!r.ok) { ui.floatText(engine.screenPos(enemyId), 'Raté', '#cfc6b0'); return; }
     // dégâts = base + 1 par tranche de 20 sous la chance (marge de réussite), ×2 sur critique
     const bonus = Math.max(0, Math.floor((r.chance - r.roll) / 20));
-    let dmg = (h.dmg + bonus) * (r.crit ? 2 : 1); if (e.undead && g.has('eau')) dmg++;
+    let dmg = (h.dmg + (S.dmgMods?.[heroId] || 0) + bonus) * (r.crit ? 2 : 1); if (e.undead && g.has('eau')) dmg++;
     if (ef.shield) { const blocked = Math.min(ef.shield, dmg); dmg -= blocked; ui.floatText(engine.screenPos(enemyId), `Bouclier −${blocked}`, '#9ccbff'); await sleep(300); }
     if (dmg <= 0) return;
     sfx.hit(); ef.hp -= dmg; ui.floatText(engine.screenPos(enemyId), `-${dmg}${r.crit ? ' !' : ''}`, '#ff6a4a');
@@ -643,7 +651,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         if (d == null) { ui.toast(`Hors de portée (portée ${h.range === 1 ? 'même case ou voisine' : h.range + ' cases'}).`); engine.focusFigure(id, { soft: true }); return; }
         return act(async () => {
           const e = def(id), chance = Math.max(5, Math.min(95, skillOf(a, 'combat') - e.def));
-          const ok = await ui.confirm({ title: `Attaquer ${e.name} ?`, text: `PV ${S.figs[id].hp} · chance de toucher <b>${chance} %</b> (+10 par boost)<br>Dégâts <b>${h.dmg}</b>, <b>+1</b> par tranche de 20 sous la chance, <b>×2</b> sur critique<br><small>Utilise l'attaque du tour.</small>`, portrait: { kind: e.kind, color: e.color }, ok: 'Attaquer', cancel: 'Annuler', danger: true });
+          const ok = await ui.confirm({ title: `Attaquer ${e.name} ?`, text: `PV ${S.figs[id].hp} · chance de toucher <b>${chance} %</b> (+10 par boost)<br>Dégâts <b>${h.dmg + (S.dmgMods?.[a] || 0)}</b>, <b>+1</b> par tranche de 20 sous la chance, <b>×2</b> sur critique<br><small>Utilise l'attaque du tour.</small>`, portrait: { kind: e.kind, color: e.color }, ok: 'Attaquer', cancel: 'Annuler', danger: true });
           if (ok) await attack(a, id);
         });
       }

@@ -7,6 +7,7 @@ import { statBadge, statChip } from '../core/stat-icons.js';
 import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
+import { dialogueTree } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
 const $ = s => document.querySelector(s);
@@ -189,82 +190,23 @@ const condEditorField = (o, k, label) => h('label', { class: 'fld' }, h('span', 
 function panelDialogues() {
   const ids = Object.keys(L.dialogues);
   const sel = ids.includes(ui.sel.dialogue) ? ui.sel.dialogue : ids[0];
-  const side = sideList(ids.map(id => ({ id, label: id, sub: `${Object.keys(L.dialogues[id].nodes || {}).length} nœud(s)` })), sel, id => { ui.sel.dialogue = id; render(); }, {
+  const side = sideList(ids.map(id => ({ id, label: id, sub: `${Object.keys(L.dialogues[id].nodes || {}).length} réplique(s)` })), sel, id => { ui.sel.dialogue = id; render(); }, {
     addLabel: '+ Dialogue', onAdd: () => { const id = uniqueId(prompt('Identifiant du dialogue ?', 'dialogue') || 'dialogue', new Set(ids)); L.dialogues[id] = { start: 'a', nodes: { a: { s: L.cast.find(c => c.team === 'npc')?.id || 'hero', t: '', next: null } } }; ui.sel.dialogue = id; changed(); render(); },
     onDelete: id => { if (confirm(`Supprimer le dialogue « ${id} » ?`)) { delete L.dialogues[id]; changed(); render(); } } });
   if (!sel) return h('div', { class: 'split' }, side, h('div', { class: 'form' }, h('p', { class: 'muted' }, 'Aucun dialogue. Créez-en un, puis reliez-le à un PNJ dans « Personnages ».')));
-  const d = L.dialogues[sel], nodes = d.nodes ||= {}, nodeIds = Object.keys(nodes);
+  const d = L.dialogues[sel];
   const who = [['narrator', 'Narrateur (ambiance)'], ['hero', 'Héros actif'], ...HEROES.map(x => [x.id, `${x.name} (héros)`]), ...L.cast.map(c => [c.id, c.name || c.id])];
-  const nextSel = (o, k, label = 'Puis', empty = '(fin du dialogue)') => field(label, select(o[k] ?? '', nodeIds.map(n => [n, n]), v => { o[k] = v || null; changed(); }, { empty }));
-  // test de stat : jet, effets de réussite / d'échec (récompense, malus…), puis suite propre à chaque issue ou suite commune
-  const testFields = (t, holder) => [row(h('label', { class: 'fld' }, h('span', { html: `Stat ${statBadge(t.stat, 18)}` }), select(t.stat, Object.entries(STATS).map(([k, v]) => [k, v.name]), v => { t.stat = v; changed(); render(); })),
-      field('Difficulté', select(t.diff || 'normal', Object.entries(DIFFICULTIES).map(([k, v]) => [k, `${v.label} (${v.mod > 0 ? '+' : ''}${v.mod})`]), v => { t.diff = v; changed(); })),
-      fieldFor('number', t, 'mod', ctx, 'Modif. %'), fieldFor('text', t, 'label', ctx, 'Intitulé du jet')),
-    h('div', { class: 'tests2' },
-      h('div', { class: 'ok-side' }, h('div', { class: 'nested-l' }, '✓ Si réussite'), effectsEditor(t.successEffects ||= [], ctx), nextSel(t, 'success', 'Puis aller à', '(suite commune)')),
-      h('div', { class: 'ko-side' }, h('div', { class: 'nested-l' }, '✗ Si échec'), effectsEditor(t.failEffects ||= [], ctx), nextSel(t, 'fail', 'Puis aller à', '(suite commune)'))),
-    nextSel(holder, 'next', 'Suite commune (si aucune suite propre)')];
   const users = Object.entries(L.talk || {}).filter(([, rs]) => rs.some(r => r.dialogue === sel)).map(([k]) => L.cast.find(c => c.id === k)?.name || k);
   L.afterTalk ||= {};
   const form = h('div', { class: 'form' }, h('h2', {}, `Dialogue « ${sel} »`),
     h('p', { class: 'muted' }, users.length ? `Lancé en parlant à : ${users.join(', ')}.` : '⚠ Aucun PNJ ne lance ce dialogue (onglet Personnages → « Quand on lui parle ») — il peut aussi être lancé par un effet.'),
-    row(idField('dialogue', sel, v => { ui.sel.dialogue = v; }, new Set(ids)), field('Nœud de départ', select(d.start, nodeIds.map(n => [n, n]), v => { d.start = v; changed(); }))),
+    row(idField('dialogue', sel, v => { ui.sel.dialogue = v; }, new Set(ids))),
     field('Texte d\'ambiance (narrateur, affiché en premier)', textarea(d.scene, v => { d.scene = v; changed(); }, { rows: 3, placeholder: 'Ex. : L\'auberge sent la soupe et la fumée. Berthe essuie un gobelet sans vous quitter des yeux…' }), 'Décrit la scène avant la première réplique. Laisser vide pour commencer directement.'),
-    h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Après le dialogue'), effectsEditor(L.afterTalk[sel] ||= [], ctx)));
-  for (const nid of nodeIds) {
-    const n = nodes[nid], mode = n.test ? 'test' : n.choices?.length ? 'choices' : 'next';
-    const card = h('div', { class: 'card node ' + (nid === d.start ? 'start' : '') });
-    const renameNode = input(nid, () => {}); renameNode.addEventListener('change', () => {
-      const v = slug(renameNode.value); if (!v || v === nid || nodes[v]) { renameNode.value = nid; return; }
-      nodes[v] = n; delete nodes[nid]; if (d.start === nid) d.start = v;
-      for (const x of Object.values(nodes)) { if (x.next === nid) x.next = v; for (const c of [...(x.choices || []), ...(x.branches || []), x.test, ...(x.choices || []).map(c => c.test)]) { if (!c) continue; for (const k of ['next', 'success', 'fail']) if (c[k] === nid) c[k] = v; } }
-      changed(); render();
-    });
-    card.append(h('div', { class: 'card-h' }, h('span', { class: 'node-id' }, renameNode), nid === d.start ? h('em', {}, 'départ') : null, h('span', { class: 'sp' }),
-      icoBtn('✕', 'Supprimer le nœud', () => { if (confirm(`Supprimer le nœud « ${nid} » ?`)) { delete nodes[nid]; changed(); render(); } }, 'del')),
-      row(field('Qui parle', select(n.s, who, v => { n.s = v; changed(); }))), fieldFor('longtext', n, 't', ctx, 'Texte ({héros} = nom du héros actif)'),
-      field('Suite', select(mode, [['next', 'Continuer vers un nœud / fin'], ['choices', 'Choix des joueurs'], ['test', 'Test de stat automatique']], v => {
-        if (v === 'choices') { delete n.test; n.choices = n.choices?.length ? n.choices : [{ t: '', next: null }]; }
-        else if (v === 'test') { delete n.choices; n.test = { stat: 'force', diff: 'normal', mod: 0, label: '', success: null, fail: null }; }
-        else { delete n.choices; delete n.test; }
-        changed(); render();
-      })));
-    if (mode === 'next') card.append(nextSel(n, 'next'));
-    if (mode === 'test') card.append(h('div', { class: 'nested is-test' }, h('div', { class: 'nested-l' }, 'Test de stat (après le texte, par le héros actif)'), ...testFields(n.test, n)));
-    if (mode === 'choices') {
-      const cb = h('div', { class: 'choices' });
-      n.choices.forEach((c, i) => {
-        const cc = h('div', { class: 'choice-ed' },
-          h('div', { class: 'card-h' }, h('b', {}, `Choix ${i + 1}`), h('span', { class: 'sp' }),
-            icoBtn('↑', 'Monter', () => { if (i) { [n.choices[i - 1], n.choices[i]] = [n.choices[i], n.choices[i - 1]]; changed(); render(); } }),
-            icoBtn('✕', 'Supprimer', () => { n.choices.splice(i, 1); changed(); render(); }, 'del')),
-          fieldFor('text', c, 't', ctx, 'Texte du choix'), fieldFor('text', c, 'hint', ctx, 'Indice sous le choix (facultatif, ex. un ressenti)'),
-          row(fieldFor('bool', c, 'once', ctx, 'Une seule fois'), field('Test de stat', checkbox(!!c.test, v => { if (v) c.test = { stat: 'force', diff: 'normal', mod: 0, label: '', success: null, fail: null }; else delete c.test; changed(); render(); }, 'Lancer les dés'))),
-          c.test ? h('div', { class: 'nested is-test' }, ...testFields(c.test, c)) : nextSel(c, 'next'),
-          h('details', {}, h('summary', {}, 'Condition et effets'), row(condEditorField(c, 'cond', 'Proposé si'), fieldFor('text', c, 'need', ctx, 'Texte si verrouillé')), fieldFor('effects', c, 'effects', ctx, 'Effets quand choisi')));
-        cb.append(cc);
-      });
-      cb.append(btn('+ Choix', () => { n.choices.push({ t: '', next: null }); changed(); render(); }, 'small'));
-      card.append(cb);
-    }
-    card.append(h('details', {}, h('summary', {}, `Effets et variantes (${(n.effects?.length || 0) + (n.variants?.length || 0) + (n.branches?.length || 0)})`),
-      fieldFor('effects', n, 'effects', ctx, 'Effets au passage de ce nœud'),
-      variantsEditor(n, nodeIds)));
-    form.append(card);
-  }
-  form.append(btn('+ Nœud', () => { const id = uniqueId('n', new Set(nodeIds)); nodes[id] = { s: nodes[nodeIds[nodeIds.length - 1]]?.s || 'hero', t: '', next: null }; changed(); render(); }, 'accent'));
+    h('details', {}, h('summary', {}, `Effets à la fin du dialogue (${L.afterTalk[sel]?.length || 0})`), effectsEditor(L.afterTalk[sel] ||= [], ctx)),
+    h('p', { class: 'muted tree-help' }, 'Lisez de haut en bas comme un script. Sur un choix : « ＋ Répondre » crée la réplique suivante juste dessous ; le menu « → » peut aussi renvoyer vers une réplique existante (ex. revenir au menu de questions). « 🎲 Test » fait lancer les dés : chaque issue a ses effets (récompense, malus) et sa propre suite.'),
+    dialogueTree(d, { ctx, who, changed, render }));
   return h('div', { class: 'split' }, side, form);
 }
-function variantsEditor(n, nodeIds) {
-  const box = h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Texte différent si… (variantes)'));
-  (n.variants ||= []).forEach((v, i) => box.append(h('div', { class: 'card' }, condEditorField(v, 'cond', 'Si'), fieldFor('longtext', v, 't', ctx, 'Texte'), icoBtn('✕', 'Supprimer', () => { n.variants.splice(i, 1); changed(); render(); }, 'del'))));
-  box.append(btn('+ Variante de texte', () => { n.variants.push({ cond: { type: 'flag', flag: '' }, t: '' }); changed(); render(); }, 'small'));
-  const box2 = h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Suite différente si… (embranchements)'));
-  (n.branches ||= []).forEach((b, i) => box2.append(h('div', { class: 'card' }, row(condEditorField(b, 'cond', 'Si'), field('Aller à', select(b.next, nodeIds.map(x => [x, x]), v => { b.next = v; changed(); }, { empty: '(fin)' }))), icoBtn('✕', 'Supprimer', () => { n.branches.splice(i, 1); changed(); render(); }, 'del'))));
-  box2.append(btn('+ Embranchement', () => { n.branches.push({ cond: { type: 'flag', flag: '' }, next: null }); changed(); render(); }, 'small'));
-  return h('div', {}, box, box2);
-}
-
 // --- quêtes et objets
 function panelQuests() {
   const qs = h('div', { class: 'grid2' });

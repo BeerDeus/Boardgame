@@ -82,6 +82,7 @@ export function createDialogue(root) {
         keyHandler = null; sfx.ui();
         if (pick.once) hooks.markSeen(pick.k);
         if (pick.do) await pick.do(g);
+        if (pick.onceSuccess && pick.lastOk?.()) hooks.markSeen(pick.k); // réussi : ne se repropose plus
         if (n.do) await n.do(g);
         id = val(pick.next, g);
       } else {
