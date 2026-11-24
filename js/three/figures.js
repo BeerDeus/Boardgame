@@ -182,11 +182,12 @@ export const GLB = {
   mage:      { url: KK + 'Mage.glb', height: 0.62, anims: { ...KAY, attack: 'Spellcast_Shoot' }, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
   barbarian: { url: KK + 'Barbarian.glb', height: 0.64, anims: { ...KAY, attack: '2H_Melee_Attack_Chop' }, hide: ['1H_Axe_Offhand', 'Barbarian_Round_Shield', '1H_Axe', 'Mug'] },
   rogue:     { url: KK + 'Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, hide: HEROW },
-  npc:       { url: KK + 'Mage.glb', height: 0.56, anims: KAY, tint: 0xc9a27a, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
-  child:     { url: KK + 'Rogue.glb', height: 0.42, anims: KAY, tint: 0xf2d6a8, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
-  smith:     { url: KK + 'Knight.glb', height: 0.6, anims: KAY, tint: 0xd9b48a, hide: ['1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '2H_Sword', 'Knight_Helmet', 'Knight_Cape'] },
-  hunter:    { url: KK + 'Barbarian.glb', height: 0.6, anims: KAY, tint: 0xb8a882, hide: ['1H_Axe_Offhand', 'Barbarian_Round_Shield', '2H_Axe', 'Mug'] },
-  ferryman:  { url: KK + 'Rogue_Hooded.glb', height: 0.63, anims: KAY, tint: 0x8796a4, hide: [...HEROW, 'Knife', 'Knife_Offhand'] },
+  // PNJ « civils » : jamais de cape, de chapeau de héros ni d'arme → on ne les confond pas avec les héros
+  npc:       { url: KK + 'Barbarian.glb', height: 0.54, civil: true, anims: KAY, tint: 0xe0c49a, hide: ['1H_Axe', '1H_Axe_Offhand', '2H_Axe', 'Barbarian_Round_Shield', 'Barbarian_Hat', 'Barbarian_Cape'] }, // aubergiste, chope à la main
+  child:     { url: KK + 'Rogue.glb', height: 0.42, civil: true, anims: KAY, tint: 0xf2d6a8, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
+  smith:     { url: KK + 'Knight.glb', height: 0.6, civil: true, anims: KAY, tint: 0xd9b48a, hide: ['1H_Sword', '1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '2H_Sword', 'Knight_Helmet', 'Knight_Cape'] },
+  hunter:    { url: KK + 'Rogue.glb', height: 0.6, civil: true, anims: KAY, tint: 0xb8a882, hide: ['1H_Crossbow', 'Knife', 'Knife_Offhand', 'Throwable', 'Rogue_Cape'] }, // arbalète en main
+  ferryman:  { url: KK + 'Rogue_Hooded.glb', height: 0.63, civil: true, anims: KAY, tint: 0x8796a4, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
   skeleton:  { url: KK + 'Skeleton_Minion.glb', height: 0.58, anims: KAY, weapons: { r: 'Skeleton_Blade' } },
   skelwarrior: { url: KK + 'Skeleton_Warrior.glb', height: 0.62, anims: KAY, weapons: { r: 'Skeleton_Axe', l: 'Skeleton_Shield_Small_A' } },
   skelrogue: { url: KK + 'Skeleton_Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, weapons: { r: 'Skeleton_Blade', l: 'Skeleton_Blade' } },
@@ -200,6 +201,25 @@ export function preloadGLB(kinds) {
   const urls = new Set();
   for (const [k, d] of Object.entries(GLB)) if (!kinds || kinds.includes(k)) { urls.add(d.url); for (const w of Object.values(d.weapons || {})) urls.add(KK + w + '.glb'); }
   return Promise.all([...urls].map(u => load(u).catch(() => null)));
+}
+
+/** Palette « civile » des PNJ : texture désaturée et teintée (tons terre), pour trancher avec les couleurs vives des héros. */
+const civilCache = new Map();
+function civilMap(map, tint) {
+  const k = map.uuid + ':' + tint; if (civilCache.has(k)) return civilCache.get(k);
+  const img = map.image; if (!img?.width) return map;
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const d = g.getImageData(0, 0, c.width, c.height), p = d.data, t = new THREE.Color(tint);
+  const tr = t.r * 255, tg = t.g * 255, tb = t.b * 255;
+  for (let i = 0; i < p.length; i += 4) {
+    const l = (p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11) / 255;
+    p[i] = p[i] * 0.22 + l * tr * 0.86; p[i + 1] = p[i + 1] * 0.22 + l * tg * 0.86; p[i + 2] = p[i + 2] * 0.22 + l * tb * 0.86;
+  }
+  g.putImageData(d, 0, 0);
+  const out = new THREE.Texture(c); // texture neuve : ne jamais toucher la texture partagée avec les héros
+  for (const k of ['flipY', 'colorSpace', 'wrapS', 'wrapT', 'channel', 'magFilter', 'minFilter', 'anisotropy']) out[k] = map[k];
+  out.needsUpdate = true; civilCache.set(k, out); return out;
 }
 
 async function buildGLB(kind) {
@@ -218,7 +238,11 @@ async function buildGLB(kind) {
   const c = box2.getCenter(new THREE.Vector3()); obj.position.x -= c.x; obj.position.z -= c.z;
   const wrap = new THREE.Group(); wrap.add(obj);
   obj.traverse(m => {
-    if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.material = m.material.clone(); if (def.tint) m.material.color?.multiply(new THREE.Color(def.tint)); m.frustumCulled = false; }
+    if (m.isMesh) {
+      m.castShadow = true; m.receiveShadow = true; m.material = m.material.clone(); m.frustumCulled = false;
+      if (def.civil && m.material.map) m.material.map = civilMap(m.material.map, def.tint || 0xd8c3a0);
+      else if (def.tint) m.material.color?.multiply(new THREE.Color(def.tint));
+    }
   });
   const mixer = new THREE.AnimationMixer(obj), actions = {};
   for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);

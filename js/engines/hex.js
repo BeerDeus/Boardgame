@@ -131,15 +131,20 @@ export async function createEngine(container, { onProgress, story }) {
   composer.addPass(new RenderPass(scene, camera));
   const hT = new ShaderPass(HorizontalTiltShiftShader), vT = new ShaderPass(VerticalTiltShiftShader);
   composer.addPass(hT); composer.addPass(vT); composer.addPass(new OutputPass());
-  let blur = 2.2;
-  stage.onResize = (w, hh) => { hT.uniforms.h.value = blur / w; vT.uniforms.v.value = blur / hh; hT.uniforms.r.value = vT.uniforms.r.value = 0.55; };
+  // Effet maquette : désactivé par défaut (gênant sur téléphone). « Bords » = flou très léger, seulement tout en haut/en bas.
+  const BLUR_KEY = 'grimoire.tilt';
+  let blur = (() => { try { const v = localStorage.getItem(BLUR_KEY); return v == null ? 0 : +v; } catch { return 0; } })();
+  stage.onResize = (w, hh) => {
+    // l'intensité croît avec la distance à la ligne nette (r) : avec un flou faible, seules les extrémités sont touchées
+    hT.uniforms.h.value = blur / w; vT.uniforms.v.value = blur / hh; hT.uniforms.r.value = vT.uniforms.r.value = 0.5;
+  };
   stage.onResize(container.clientWidth, container.clientHeight);
-  const setTilt = v => { stage.composer = v ? composer : null; if (v) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(container.clientWidth, container.clientHeight); } };
+  const setTilt = v => { v = v && blur > 0; stage.composer = v ? composer : null; if (v) { composer.setPixelRatio(renderer.getPixelRatio()); composer.setSize(container.clientWidth, container.clientHeight); } };
   setTilt(settings.gfx.postfx);
   stage.onSettings = gfx => setTilt(gfx.postfx);
 
   board.menu.push({ title: 'Diorama', items: [
-    { type: 'seg', label: 'Flou', value: 2.2, options: [{ label: 'Léger', value: 1.2 }, { label: 'Moyen', value: 2.2 }, { label: 'Fort', value: 3.5 }], onChange: v => { blur = v; stage.onResize(container.clientWidth, container.clientHeight); } },
+    { type: 'seg', label: 'Flou maquette', value: blur, options: [{ label: 'Aucun', value: 0 }, { label: 'Bords', value: 0.6 }, { label: 'Moyen', value: 1.6 }, { label: 'Fort', value: 3 }], onChange: v => { blur = v; try { localStorage.setItem(BLUR_KEY, String(v)); } catch {} stage.onResize(container.clientWidth, container.clientHeight); setTilt(settings.gfx.postfx); stage.invalidate?.(4); } },
     ...(story?.tileArt ? [{ type: 'toggle', label: 'Tuiles peintes (illustration) — recharge', value: !!art, onChange: v => { try { localStorage.setItem('grimoire.tileArt', v ? '1' : '0'); } catch {} location.reload(); } }] : []),
     { type: 'toggle', label: 'Rotation par crans de 60°', value: false, onChange: v => (stage.rig.o.snapYaw = v ? Math.PI / 3 : 0) },
   ] });
