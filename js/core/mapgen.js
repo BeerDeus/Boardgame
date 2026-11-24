@@ -44,6 +44,18 @@ export function buildMap(grid, story, seed = 1) {
     for (const c of grid.cells) if (uv(c)[0] > bu + 1e-6) tiles.get(c.key).zone = z.id;
   }
   const start = placeKey[story.places.find(p => p.start).id];
+  // rencontres mineures sur les cases de terrain (toujours au moins sur les voisines du départ)
+  if (story.minors?.length) {
+    const near0 = new Set(grid.neighbors(start));
+    for (const c of grid.cells) {
+      const t = tiles.get(c.key); if (t.place) continue;
+      const Rm = rng(hashStr('m' + c.key) + seed);
+      if (!near0.has(c.key) && Rm() > (story.minorChance ?? 0.3)) continue;
+      const fit = story.minors.filter(m => !m.terrains || m.terrains.includes(t.terrain));
+      const m = (fit.length ? fit : story.minors)[Math.floor(Rm() * (fit.length || story.minors.length))];
+      t.minor = m.id; t.poi = { icon: m.icon, label: m.name };
+    }
+  }
   // sanity : tout est atteignable (aucune case infranchissable pour l'instant)
   const reach = bfs(grid, start, () => true).dist;
   if (reach.size !== grid.cells.length) console.warn('Carte non connexe');

@@ -184,6 +184,7 @@ export const GLB = {
   rogue:     { url: KK + 'Rogue.glb', height: 0.6, anims: { ...KAY, attack: 'Dualwield_Melee_Attack_Stab' }, hide: HEROW },
   npc:       { url: KK + 'Mage.glb', height: 0.56, anims: KAY, tint: 0xc9a27a, hide: ['Spellbook', 'Spellbook_open', '1H_Wand'] },
   child:     { url: KK + 'Rogue.glb', height: 0.42, anims: KAY, tint: 0xf2d6a8, hide: [...HEROW, 'Knife', 'Knife_Offhand', 'Rogue_Cape'] },
+  smith:     { url: KK + 'Knight.glb', height: 0.6, anims: KAY, tint: 0xd9b48a, hide: ['1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '2H_Sword', 'Knight_Helmet', 'Knight_Cape'] },
   hunter:    { url: KK + 'Barbarian.glb', height: 0.6, anims: KAY, tint: 0xb8a882, hide: ['1H_Axe_Offhand', 'Barbarian_Round_Shield', '2H_Axe', 'Mug'] },
   ferryman:  { url: KK + 'Rogue_Hooded.glb', height: 0.63, anims: KAY, tint: 0x8796a4, hide: [...HEROW, 'Knife', 'Knife_Offhand'] },
   skeleton:  { url: KK + 'Skeleton_Minion.glb', height: 0.58, anims: KAY, weapons: { r: 'Skeleton_Blade' } },

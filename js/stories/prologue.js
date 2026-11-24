@@ -35,6 +35,20 @@ export const STORY = {
         { id: 'well', icon: 'boost', label: 'Faire un vœu au puits', once: true, desc: '+1 boost à chaque héros présent.', run: g => { g.boost(1, 'here'); g.toast('Une pièce tinte au fond du puits…'); } },
         { id: 'oil', icon: 'flask', label: 'Prendre l\'huile de lampe', once: true, cond: g => g.flag('askedOil'), need: 'En parler à Berthe', desc: 'Il en faudra pour le fanal.', run: g => g.give('huile') },
       ] },
+    { id: 'forge', name: 'Forge de Mathilde', terrain: 'village', near: 'hameau', poi: { icon: 'attack', label: 'Forge' },
+      desc: 'L\'enclume résonne encore. Mathilde, la forgeronne, n\'a pas peur de la brume.',
+      activities: [
+        { id: 'aiguiser', icon: 'attack', label: 'Faire aiguiser les armes', once: true, desc: '+1 boost à chaque héros présent.', run: g => { g.boost(1, 'here'); g.toast('Les lames chantent sous la meule.'); } },
+        { id: 'renfort', icon: 'shield', label: 'Aider à la forge', once: true, desc: 'Force : réussite = +2 PV et +1 boost au héros actif.', run: async g => { if (await g.test('force', 'Tenir l\'enclume')) { g.heal(2); g.boost(1); g.rep('mathilde', 1); } else g.toast('Le marteau vous échappe. Mathilde soupire.'); } },
+      ] },
+    { id: 'moulin', name: 'Moulin abandonné', terrain: 'plains', near: 'hameau', poi: { icon: 'eye', label: 'Moulin' },
+      desc: 'Les ailes ne tournent plus. Quelque chose gratte derrière les sacs de farine.',
+      activities: [{ id: 'fouilleMoulin', icon: 'eye', label: 'Fouiller le moulin', once: true, desc: 'Discrétion : sans réveiller ce qui gratte…', run: async g => {
+        if (await g.test('discretion', 'Fouiller sans bruit')) { g.give('poupee'); g.give('herbes'); }
+        else { g.toast('Des rats géants surgissent des sacs !', 2600); await g.spawnWave('rats'); g.give('poupee'); }
+      } }] },
+    { id: 'verger', name: 'Verger de la Combe', terrain: 'forest', near: 'hameau',
+      desc: 'Des pommiers tordus. Une fillette pleure, assise contre un tronc.' },
     { id: 'camp', name: 'Camp du chasseur', terrain: 'forest', at: [0.3, 0.18],
       desc: 'Un feu qui fume encore, des peaux qui sèchent. Un homme taille des flèches.' },
     { id: 'taniere', name: 'Tanière des loups', terrain: 'forest', at: [0.05, 0.02], hiddenUntil: 'gaspardTold',
@@ -78,6 +92,10 @@ export const STORY = {
   cast: [
     { id: 'berthe', name: 'Berthe', kind: 'npc', color: '#c9a45c', base: '#d4a84a', team: 'npc', place: 'hameau', role: 'Aubergiste du hameau' },
     { id: 'destrier', name: 'Destrier', kind: 'horse', color: '#5a3d2a', base: '#8a6a44', team: 'mount', place: 'hameau', role: 'Cheval de guerre (Aldric)' },
+    { id: 'mathilde', name: 'Mathilde', kind: 'smith', color: '#b87a4a', base: '#d4a84a', team: 'npc', place: 'forge', role: 'Forgeronne du hameau' },
+    { id: 'lise', name: 'Lise', kind: 'child', color: '#c9a45c', base: '#d4a84a', team: 'npc', place: 'verger', idle: 'sit', role: 'Fillette du hameau' },
+    { id: 'rat1', name: 'Rat géant', kind: 'wolf', color: '#8a1c1c', base: '#6a1616', team: 'enemy', place: 'moulin', spawnOn: 'rats', hp: 1, atk: 30, def: 0 },
+    { id: 'rat2', name: 'Rat géant', kind: 'wolf', color: '#8a1c1c', base: '#6a1616', team: 'enemy', place: 'moulin', spawnOn: 'rats', hp: 1, atk: 30, def: 0, minParty: 2 },
     { id: 'gaspard', name: 'Gaspard', kind: 'hunter', color: '#7a8a4a', base: '#d4a84a', team: 'npc', place: 'camp', hidden: true, role: 'Chasseur' },
     { id: 'gardien', name: 'Le Gardien', kind: 'ferryman', color: '#5f7f8f', base: '#d4a84a', team: 'npc', place: 'pont', hidden: true, role: 'Gardien du Pont de Brume' },
     { id: 'loup1', name: 'Loup', kind: 'fox', color: '#8a1c1c', base: '#6a1616', team: 'enemy', place: 'taniere', hidden: true, hp: 2, atk: 40, def: 5 },
@@ -95,11 +113,30 @@ export const STORY = {
     herbes: { name: 'Herbes de soin', icon: 'herb', desc: 'Toucher : soigne 3 PV au héros actif (gratuit). Conservées entre les étapes.', usable: true, keep: true },
     huile: { name: 'Huile de lampe', icon: 'flask', desc: 'Pour rallumer le fanal de la Tour du Guet.' },
     eau: { name: 'Eau bénite', icon: 'drop', desc: '+1 dégât contre les morts-vivants.' },
+    poupee: { name: 'Poupée de chiffon', icon: 'person', desc: 'Lise l\'a perdue près du moulin.' },
   },
+
+  // Rencontres mineures posées sur les cases de terrain (jeton d'intérêt) — toujours autour du départ
+  minorChance: 0.3,
+  minors: [
+    { id: 'baies', name: 'Buisson de baies', icon: 'herb', terrains: ['forest', 'plains'], desc: 'Des baies sauvages, mûres et sucrées.',
+      activities: [{ id: 'cueillir', icon: 'herb', label: 'Cueillir des baies', once: true, desc: '+2 PV au héros actif.', run: g => g.heal(2) }] },
+    { id: 'charrette', name: 'Charrette renversée', icon: 'eye', terrains: ['plains', 'rock', 'burned', 'village'], desc: 'Une charrette de marchand, renversée dans le fossé.',
+      activities: [{ id: 'fouillerCh', icon: 'eye', label: 'Fouiller la charrette', once: true, desc: 'Discrétion : trouver quelque chose d\'utile.', run: async g => { if (await g.test('discretion', 'Fouiller la charrette')) g.give('herbes'); else g.toast('Rien que des débris et des toiles moisies.'); } }] },
+    { id: 'autel', name: 'Autel de pierre', icon: 'cross', terrains: ['forest', 'rock', 'snow', 'ruins', 'swamp'], desc: 'Un vieil autel couvert de mousse.',
+      activities: [{ id: 'recueil', icon: 'cross', label: 'Se recueillir', once: true, desc: '+1 boost au héros actif.', run: g => g.boost(1) }] },
+    { id: 'cairnv', name: 'Cairn du voyageur', icon: 'rune', terrains: ['rock', 'snow', 'plains', 'burned'], desc: 'Un empilement de pierres gravées.',
+      activities: [{ id: 'lire', icon: 'rune', label: 'Lire les inscriptions', once: true, desc: 'Un indice… à noter.', run: g => g.narrate({ title: 'Inscription', image: 'assets/bg/painting3.jpg', text: '« Au-delà du pont, la Sentinelle veille. Elle ne craint ni l\'acier ni le feu, mais l\'eau bénie la fait chanceler. » Gravé d\'une main tremblante.' }) }] },
+    { id: 'source', name: 'Source claire', icon: 'drop', terrains: ['forest', 'swamp', 'plains', 'snow'], desc: 'Une source glacée jaillit entre les racines.',
+      activities: [{ id: 'boire', icon: 'drop', label: 'Boire à la source', once: true, desc: 'Héros présents : +1 PV.', run: g => g.heal(1, 'here') }] },
+    { id: 'traces', name: 'Traces fraîches', icon: 'eye', terrains: ['forest', 'swamp', 'plains'], desc: 'Des empreintes s\'enfoncent dans la boue.',
+      activities: [{ id: 'pister', icon: 'eye', label: 'Suivre les traces', once: true, desc: 'Savoir : révèle le lieu le plus proche.', run: async g => { if (await g.test('savoir', 'Pister')) await g.revealNearestPlace(); else g.toast('Les traces se perdent dans la boue.'); } }] },
+  ],
 
   quests: {
     berthe: { title: 'Parler à Berthe', hint: 'L\'aubergiste du hameau sait ce qui se passe.', target: 'hameau' },
     fanal: { title: 'Rallumer le fanal de la Tour du Guet', hint: 'Il faut de l\'huile, et passer le Pont de Brume (à l\'est).', target: 'pont' },
+    poupee: { title: 'Retrouver la poupée de Lise', hint: 'Elle l\'a perdue près du vieux moulin.', target: 'moulin' },
     loups: { title: 'Aider Gaspard le chasseur', hint: 'Il campe dans la forêt au nord.', target: 'camp' },
     taniere: { title: 'Chasser les loups de la tanière', hint: 'Gaspard vous l\'a montrée sur sa carte.', target: 'taniere' },
     tour: { title: 'Atteindre la Tour du Guet', hint: 'Le gardien vous a laissés passer.', target: 'tour' },
@@ -123,12 +160,29 @@ export const STORY = {
         { t: 'Racontez-nous l\'histoire du pont.', once: true, next: 'histoire' },
         { t: 'Il faut de l\'huile pour le fanal ?', once: true, next: 'huile' },
         { t: 'Quelqu\'un d\'autre peut nous aider ?', once: true, next: 'gaspard' },
+        { t: 'Et vos voisins ?', once: true, next: 'voisins' },
         { t: 'Nous y allons.', next: 'fin' },
       ] },
       histoire: { s: 'berthe', t: 'Le pont a été bâti par Aldegonde la Rousse, la première bourgmestre, l\'hiver où le fleuve a gelé jusqu\'au fond. On dit que son fantôme garde encore le passage… Retenez bien son nom.', next: 'menu', do: g => g.set('heardStory') },
       huile: { s: 'berthe', t: 'Prenez celle de l\'auberge, dans la réserve. Servez-vous en passant.', next: 'menu', do: g => g.set('askedOil') },
       gaspard: { s: 'berthe', t: 'Gaspard, le chasseur, campe au nord dans la forêt. Il connaît chaque sentier… mais les loups lui mènent la vie dure.', next: 'menu', do: g => { g.questStart('loups'); g.revealPlace('camp'); } },
+      voisins: { s: 'berthe', t: 'Mathilde, à la forge, vous aiguisera vos lames. Et la petite Lise pleure au verger depuis ce matin… Le moulin, n\'y allez pas sans raison : ça gratte, là-dedans.', next: 'menu' },
       fin: { s: 'berthe', t: 'Que la Dame Grise vous garde. Et dépêchez-vous !', next: null },
+    } },
+    mathilde: { start: 'a', nodes: {
+      a: { s: 'mathilde', t: 'Encore des épées à aiguiser ? Passez à l\'enclume, je m\'en occupe.', next: 'menu' },
+      menu: { s: 'mathilde', t: 'Autre chose ?', choices: [
+        { t: 'Que savez-vous de la Tour du Guet ?', once: true, next: 'tour' },
+        { t: 'Et du pont ?', once: true, next: 'pont' },
+        { t: 'Merci, Mathilde.', next: null },
+      ] },
+      tour: { s: 'mathilde', t: 'Mon père y montait la garde. Il disait que la Sentinelle avait été un soldat, avant. Les morts n\'aiment pas l\'eau bénite — la chapelle au sud en garde toujours.', next: 'menu' },
+      pont: { s: 'mathilde', t: 'Le gardien ? Il ne parle qu\'à ceux qui connaissent la Rousse. C\'est comme ça qu\'on l\'appelait, la bâtisseuse : cheveux de braise, comme le feu de ma forge.', next: 'menu' },
+    } },
+    lise: { start: 'a', nodes: {
+      a: { s: 'lise', t: g => g.has('poupee') ? 'Ma poupée ! Vous l\'avez retrouvée !' : 'J\'ai perdu Brindille… ma poupée. Je jouais près du vieux moulin, et puis il y a eu des bruits…', next: g => g.has('poupee') ? 'merci' : 'b' },
+      b: { s: 'hero', t: 'Nous allons la chercher. Reste près du hameau.', next: null, do: g => g.questStart('poupee') },
+      merci: { s: 'lise', t: 'Tenez, c\'est mon porte-bonheur. Grand-mère dit qu\'il chasse la brume !', next: null, do: g => { g.take('poupee'); g.questDone('poupee'); g.boost(1, 'all'); g.rep('lise', 1); g.set('poupeeRendue'); g.remember('prologue.liseAidee'); } },
     } },
     gaspard: { start: 'a', nodes: {
       a: { s: 'gaspard', t: g => g.flag('loupsMorts') ? 'Les loups sont morts ? Vous êtes de sacrés lascars ! Tenez, c\'est pour vous.' : 'Hé ! Doucement. Vous venez du hameau ? Les loups ont pris ma tanière, au nord-ouest.', next: g => g.flag('loupsMorts') ? 'merci' : 'b' },
@@ -155,9 +209,9 @@ export const STORY = {
     } },
   },
 
-  talk: { berthe: g => 'berthe', gaspard: g => 'gaspard', gardien: g => (g.flag('pontOuvert') ? null : 'gardien') },
+  talk: { berthe: g => 'berthe', mathilde: g => 'mathilde', lise: g => (g.flag('poupeeRendue') ? null : 'lise'), gaspard: g => 'gaspard', gardien: g => (g.flag('pontOuvert') ? null : 'gardien') },
   afterTalk: { berthe: async g => { g.questDone('berthe'); g.questStart('fanal'); } },
-  idleLine: { gardien: () => 'Le Gardien s\'écarte en silence.' },
+  idleLine: { gardien: () => 'Le Gardien s\'écarte en silence.', lise: () => 'Lise serre sa poupée et vous fait un grand sourire.' },
   onReveal: {
     pont: async g => g.toast('Une silhouette encapuchonnée garde le pont.', 2600),
     taniere: async g => g.toast('Des grognements montent de la tanière.', 2600),

@@ -55,6 +55,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   const tileOf = k => map.tiles.get(k);
   const placeOf = k => tileOf(k)?.place;
   const placeDef = id => st.places.find(p => p.id === id);
+  /** Site d'une case : lieu du scénario, ou rencontre mineure (activités propres à la case) */
+  const siteOf = k => {
+    const t = tileOf(k); if (!t) return null;
+    if (t.place) return placeDef(t.place);
+    if (t.minor) { const m = st.minors.find(x => x.id === t.minor); return m && { ...m, minor: true, activities: m.activities.map(a => ({ ...a, id: `${a.id}@${k}` })) }; }
+    return null;
+  };
   const def = id => st.heroes.find(h => h.id === id) || st.cast.find(c => c.id === id);
   const nParty = S.party.length;
   const scaledHp = c => Math.max(1, (c.hp || 1) + (nParty >= 3 ? 1 : 0) - (nParty === 1 ? 1 : 0));
@@ -120,7 +127,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
     R.marks = want;
   }
   function placeActivities(key) {
-    const pd = placeDef(placeOf(key)); if (!pd?.activities) return [];
+    const pd = siteOf(key); if (!pd?.activities) return [];
     return pd.activities.filter(a => !(a.once && S.done.includes(a.id))).map(a => {
       let disabled = null;
       if (a.cond && !a.cond(g)) disabled = `Requiert : ${a.need || '?'}`;
@@ -185,6 +192,18 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
     },
     async spawn(id) { await spawn(id); await flushSetup(); },
     async spawnWave(tag) { for (const c of st.cast) if (c.spawnOn === tag && inParty(c)) await spawn(c.id); await flushSetup(); },
+    /** Soins : who = 'active' | 'here' | 'all' */
+    heal(n, who = 'active') {
+      const a = active(), ids = who === 'all' ? heroes().map(h => h.id) : who === 'here' ? heroes().filter(h => S.figs[h.id].tile === S.figs[a].tile).map(h => h.id) : [a];
+      for (const id of ids) { const f = S.figs[id], mx = def(id).hp, b = f.hp; f.hp = Math.min(mx, f.hp + n); if (f.hp > b) ui.floatText(engine.screenPos(id), `+${f.hp - b} PV`, '#8fe07a'); }
+      refreshHUD();
+    },
+    async revealNearestPlace() {
+      const from = grid.get(S.figs[active()].tile);
+      const cand = st.places.map(p => map.placeKey[p.id]).filter(k => k && !revealed.has(k) && !locked(k)).sort((a, b) => { const A = grid.get(a), B = grid.get(b); return Math.hypot(A.x - from.x, A.z - from.z) - Math.hypot(B.x - from.x, B.z - from.z); });
+      if (!cand.length) { ui.toast('Les traces ne mènent nulle part de nouveau.'); return; }
+      ui.toast(`Les traces mènent à <b>${tileOf(cand[0]).name}</b>.`); await reveal(cand[0]); await flushSetup();
+    },
     async restHere() {
       const k = S.figs[active()].tile;
       for (const h of heroes()) if (S.figs[h.id].tile === k) { S.figs[h.id].hp = h.hp; ui.floatText(engine.screenPos(h.id), 'PV max', '#8fe07a'); }
@@ -295,7 +314,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
       const mapView = { type: grid.type, cells: [...revealed].map(k => { const c = grid.get(k), t = tileOf(k), pd = t.place && placeDef(t.place);
         return { x: c.x, z: c.z, w: grid.w, h: grid.h, code: t.code, color: TERRAINS[t.terrain].tint, isNew: isNew.has(k), hero: heroTiles.has(k), place: pd ? pd.name.split(' ').slice(-1)[0] : '' }; }) };
       await ui.setupPrompt({ title: tiles.length > 1 ? `Placez ${tiles.length} tuiles` : 'Placez la tuile', mapView, note: 'Posez chaque tuile en surbrillance contre les tuiles déjà sur la table, comme sur le plan (et sur le plateau à l\'écran).',
-        items: tiles.map(k => { const t = tileOf(k), pd = t.place && placeDef(t.place); return { icon: 'map', code: t.code, title: pd ? pd.name : TERRAINS[t.terrain].label, sub: pd ? 'Lieu — posez aussi un jeton d\'intérêt dessus' : 'Tuile de terrain' }; }) });
+        items: tiles.map(k => { const t = tileOf(k), pd = siteOf(k); return { icon: pd ? (pd.poi?.icon || pd.icon || 'place') : 'map', code: t.code, title: pd ? pd.name : TERRAINS[t.terrain].label, sub: pd ? (pd.minor ? `${TERRAINS[t.terrain].label} — posez un jeton d'intérêt (rencontre)` : 'Lieu — posez aussi un jeton d\'intérêt dessus') : 'Tuile de terrain' }; }) });
     }
     if (figs.length) {
       engine.focusFigure(figs[0], { soft: true });
@@ -316,9 +335,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
       await revealAround(path[i]); await flushSetup();
       if (i < last && enemiesOn(path[i]).length) { await ambush(id, path[i]); if (!f.alive) return; }
     }
-    const pd = placeDef(placeOf(f.tile));
-    if (pd?.desc && !S.flags['seen_' + pd.id]) { S.flags['seen_' + pd.id] = 1; ui.toast(`<b>${pd.name}</b> — ${pd.desc}`, 4500); }
-    if (pd && st.onEnter?.[pd.id]) await st.onEnter[pd.id](g, id);
+    const pd = siteOf(f.tile), seenK = 'seen_' + (pd?.minor ? f.tile : pd?.id);
+    if (pd?.desc && !S.flags[seenK]) { S.flags[seenK] = 1; ui.toast(`<b>${pd.name}</b> — ${pd.desc}${placeActivities(f.tile).length ? '<br><small>Touchez la case ou « Lieu » pour interagir.</small>' : ''}`, 4500); }
+    if (pd && !pd.minor && st.onEnter?.[pd.id]) await st.onEnter[pd.id](g, id);
   }
   async function ambush(heroId, k) {
     const foes = enemiesOn(k).map(e => def(e.id)).sort((a, b) => b.atk - a.atk), e = foes[0];
@@ -332,7 +351,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready }) {
   // ------------------------------------------------------------------ actions
   async function interactPlace() {
     if (S.used.action) { ui.toast('Action déjà utilisée ce tour.'); return; }
-    const k = S.figs[active()].tile, pd = placeDef(placeOf(k));
+    const k = S.figs[active()].tile, pd = siteOf(k);
     const n = await ui.locationPanel({
       title: pd.name, desc: pd.desc, hero: activeDef(),
       list: () => placeActivities(k),
