@@ -76,7 +76,7 @@ export async function createEngine(container, { onProgress }) {
     el.style.transform = `translate3d(${p.x - TS / 2}px, ${p.y - TS / 2}px, 0)`;
     el.style.width = el.style.height = `${TS}px`;
     el.innerHTML = `<div class="pin"><div class="pface front" style="background-image:url('${texUrl(TERRAINS[data.terrain].tex)}')">${tileIconsSVG(data.terrain, R)}<div class="pname">${data.name}</div></div><div class="pface back"></div></div><div class="pov"></div>`;
-    if (data.poi) { const t = h('div', 'ppoi', ICON_NAMES.includes(data.poi.icon) ? icon(data.poi.icon) : data.poi.icon); t.dataset.poi = data.key; el.append(t); }
+    if (data.poi) { const t = h('div', 'ppoi' + (data.poiHidden ? ' phid' : ''), ICON_NAMES.includes(data.poi.icon) ? icon(data.poi.icon) : data.poi.icon); t.dataset.poi = data.key; el.append(t); }
     boardEl.append(el); tiles.set(data.key, { el, data, c, revealed: !!data.revealed });
   }
   async function revealTile(key, { focus = true } = {}) {
@@ -251,7 +251,7 @@ export async function createEngine(container, { onProgress }) {
       if (!on) { m?.remove(); return; }
       if (!m) { m = h('div', 'pmark', '<div class="pm-in"><i></i></div>'); t.el.append(m); }
     },
-    setPoi(key, poi) { if (!poi) tiles.get(key)?.el.querySelector('.ppoi')?.classList.add('gone'); },
+    setPoi(key, poi) { const e = tiles.get(key)?.el.querySelector('.ppoi'); if (!e) return; if (poi) e.classList.remove('phid'); else e.classList.add('gone'); },
     menu: [{ title: 'Papier', items: [
       ...(baker ? [{ type: 'seg', label: 'Figurines', value: '3d', options: [{ label: '3D', value: '3d' }, { label: 'Standees', value: 'card' }], onChange: v => root.classList.toggle('mode-card', v === 'card') }] : []),
       { type: 'toggle', label: 'Face caméra', value: true, onChange: v => root.classList.toggle('upright', !v) },

@@ -27,10 +27,11 @@ function hexFrameTexture() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-export async function createEngine(container, { onProgress }) {
+export async function createEngine(container, { onProgress, story }) {
   const R = 0.62;
-  const grid = hexGrid({ radius: 3, size: R, gap: 0.035 });
-  const stage = await createStage(container, { fov: 35, rig: { minDist: 2.4, maxDist: 11, pitchNear: 0.5, pitchFar: 1.1, bounds: grid.bounds } });
+  const grid = story?.hexMap ? hexGrid({ mask: story.hexMap, size: R, gap: 0.035 }) : hexGrid({ radius: 3, size: R, gap: 0.035 });
+  const span = Math.max(grid.bounds.maxX - grid.bounds.minX, grid.bounds.maxZ - grid.bounds.minZ);
+  const stage = await createStage(container, { fov: 35, rig: { minDist: 2.4, maxDist: Math.max(11, span * 1.05), pitchNear: 0.5, pitchFar: 1.1, bounds: grid.bounds } });
   onProgress(0.15, 'Textures…');
   await Promise.all([...Object.keys(TERRAINS).map(t => terrainTex(t)), stage.setTimeOfDay('dusk', true)]);
   onProgress(0.45, 'Île…');
@@ -54,7 +55,7 @@ export async function createEngine(container, { onProgress }) {
 
   let board;
   board = new Board3D(stage, grid, {
-    figScale: 0.95, focusDist: 4, postfx: true, homeDist: 8.5, cineDist: 2.6, overlayTex: hexFrameTexture(),
+    figScale: 0.95, focusDist: 4, postfx: true, homeDist: Math.max(8.5, span * 0.85), cineDist: 2.6, overlayTex: hexFrameTexture(),
     createTile(cell, data) {
       const h = (HEIGHT[data.terrain] || 0.3) + rng(hashStr(data.key))() * 0.05;
       const g = new THREE.Group();

@@ -129,7 +129,8 @@ export function createUI({ title, subtitle }) {
       for (const f of list) {
         const pips = f.max ? `<div class="hp">${Array.from({ length: f.max }, (_, i) => `<i class="${i < f.hp ? 'on' : ''}"></i>`).join('')}</div>` : '';
         const boosts = f.boostMax ? `<div class="bst">${Array.from({ length: f.boostMax }, (_, i) => `<i class="${i < f.boost ? 'on' : ''}">${icon('boost')}</i>`).join('')}</div>` : '';
-        const b = h('button', 'portrait' + (f.ko ? ' ko' : '') + (f.turn ? ' turn' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? `<em>${icon('horse')}</em>` : ''}</div><span>${f.name}</span>${pips}${boosts}`);
+        const conds = `${f.poison ? `<u class="cd poison" title="Empoisonné">${icon('drop')}</u>` : ''}${f.stun ? `<u class="cd stun" title="Étourdi">${icon('lock')}</u>` : ''}`;
+        const b = h('button', 'portrait' + (f.ko ? ' ko' : '') + (f.turn ? ' turn' : ''), `<div class="pimg" style="--c:${f.color}">${figureSVG(f.kind, f.color, { portrait: true })}${f.mounted ? `<em>${icon('horse')}</em>` : ''}${conds}</div><span>${f.name}</span>${pips}${boosts}`);
         b.dataset.id = f.id; b.onclick = () => onPick(f.id); party.append(b);
         b.style.setProperty('--hc', f.color);
       }
@@ -274,6 +275,31 @@ export function createUI({ title, subtitle }) {
           ${note ? `<p class="muted">${note}</p>` : ''}<div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div>`;
         modal.classList.add('open', 'setup'); sfx.ui();
         const close = () => { modal.classList.remove('open', 'setup'); keyHandler = null; res(); };
+        modal.querySelector('[data-yes]').onclick = close;
+        keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
+      });
+    },
+    /** Conseil du tutoriel (une seule fois) */
+    tip({ title, text, icon: ic3 = 'help' }) {
+      return new Promise(res => {
+        modal.innerHTML = `<div class="tip-card"><div class="tip-ic">${icon(ic3)}</div><div><small>Tutoriel</small><h3>${title}</h3><p>${text}</p>
+          <div class="cm-btns"><button class="btn ghost" data-off>Ne plus afficher les conseils</button><button class="btn accent" data-yes>Compris</button></div></div></div>`;
+        modal.classList.add('open', 'tipm');
+        const close = off => { modal.classList.remove('open', 'tipm'); keyHandler = null; res(off); };
+        modal.querySelector('[data-yes]').onclick = () => close(false);
+        modal.querySelector('[data-off]').onclick = () => close(true);
+        keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(false); } };
+      });
+    },
+    /** Ténèbres : cartes tirées par type de monstre, triées par initiative (bouton OK pour lancer) */
+    monsterCards(list) {
+      return new Promise(res => {
+        modal.innerHTML = `<div class="mk-wrap"><h3>${icon('skull')} Les Ténèbres agissent</h3><small class="muted">Ordre d'initiative (plus petit = plus tôt)</small>
+          <div class="mk-row">${list.map(m => `<div class="mk-card"><div class="mk-top"><div class="pimg" style="--c:${m.color}">${figureSVG(m.kind, m.color, { portrait: true })}</div><em>${m.card.init}</em></div>
+            <small>${m.title}</small><b>${m.card.name}</b><ul>${m.lines.map(([ic2, t]) => `<li>${icon(ic2)} ${t}</li>`).join('')}</ul></div>`).join('')}</div>
+          <div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} OK</button></div></div>`;
+        modal.classList.add('open', 'wide'); sfx.ui();
+        const close = () => { modal.classList.remove('open', 'wide'); keyHandler = null; res(); };
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });

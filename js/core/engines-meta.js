@@ -1,6 +1,13 @@
 // Description des propositions (utilisée par le hub et la page de jeu).
 export const ENGINES = [
   {
+    id: 'hex', letter: 'C', title: 'Diorama hexagonal', subtitle: '★ Format retenu · hexagones en relief', chosen: true,
+    bg: 'assets/bg/painting3.jpg', tech: 'Three.js · post-process tilt-shift',
+    pitch: 'Une île de tuiles hexagonales à hauteurs variables flottant sur l\'eau. Le brouillard se lève quand une tuile émerge. Effet maquette (tilt-shift).',
+    pros: ['Le plus « wow » visuellement', '6 voisins = déplacements naturels', 'Relief = lecture du terrain immédiate'],
+    cons: ['Post-process coûteux sur vieux mobiles (désactivable)', 'Hex un peu plus dur à lire pour les néophytes'],
+  },
+  {
     id: 'tabletop', letter: 'A', title: 'Table de jeu', subtitle: 'Tuiles carrées · 3D réaliste',
     bg: 'assets/bg/painting1.jpg', tech: 'Three.js · WebGL · ombres dynamiques',
     pitch: 'Le plateau posé sur une vraie table en bois, éclairé à la bougie. Tuiles épaisses en carton qui se retournent, figurines peintes sur socle.',
@@ -13,13 +20,6 @@ export const ENGINES = [
     pitch: 'Grandes tuiles rectangulaires imprimées (nom, cartouche) révélées comme des cartes. Vue quasi zénithale, aimantation sur la carte la plus proche.',
     pros: ['Proche de la boucle Destinies (exploration de lieux)', 'Beaucoup de place pour les PNJ/POI par tuile', 'Lisible sur petit écran'],
     cons: ['Moins de liberté de caméra', 'Moins de cases → déplacements plus abstraits'],
-  },
-  {
-    id: 'hex', letter: 'C', title: 'Diorama hexagonal', subtitle: 'Hexagones en relief · tilt-shift',
-    bg: 'assets/bg/painting3.jpg', tech: 'Three.js · post-process tilt-shift',
-    pitch: 'Une île de tuiles hexagonales à hauteurs variables flottant sur l\'eau. Le brouillard se lève quand une tuile émerge. Effet maquette (tilt-shift).',
-    pros: ['Le plus « wow » visuellement', '6 voisins = déplacements naturels', 'Relief = lecture du terrain immédiate'],
-    cons: ['Post-process coûteux sur vieux mobiles (désactivable)', 'Hex un peu plus dur à lire pour les néophytes'],
   },
   {
     id: 'paper', letter: 'D', title: 'Carte illustrée', subtitle: 'DOM/CSS 3D · figurines pré-rendues',

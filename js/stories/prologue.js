@@ -8,6 +8,7 @@
 export const STORY = {
   id: 'prologue',
   title: 'Prologue — Le Pont de Brume',
+  tutorial: true,
   // limite de glas = base (difficulté) + bonus selon le nombre de héros (cf. scenario.js)
   glasBase: { facile: 13, normal: 11, difficile: 9 },
   boost: { start: 2, max: 5, perRound: 1 },
@@ -24,57 +25,71 @@ export const STORY = {
   ],
   skillNames: { combat: 'Combat', force: 'Force', savoir: 'Savoir', discretion: 'Discrétion' },
 
+  // Carte hexagonale de forme libre (moteur C). Lignes « odd-r » : les lignes impaires sont décalées d'une
+  // demi-case. 'o' = tuile, espace = rien (ici la rivière). Les lieux peuvent viser une case : cell: [colonne, ligne].
+  hexMap: [
+    '  ooooo          ',
+    ' ooooooo   oooo  ',
+    'oooooooo   ooooo ',
+    ' oooooooo oooooo ',
+    'ooooooooooooooo  ',
+    ' oooooooo oooooo ',
+    'oooooooo   oooo  ',
+    ' oooooo    ooo   ',
+    '  oooo           ',
+  ],
+
   // Zone verrouillée : tout ce qui est au-delà du pont reste invisible tant que le gardien n'a pas laissé passer.
   zones: [{ id: 'est', beyond: 'pont', until: 'pontOuvert' }],
 
   places: [
-    { id: 'hameau', name: 'Hameau de Vieille-Ronce', terrain: 'village', at: [0.12, 0.5], start: true, poi: { icon: 'place', label: 'Auberge' },
+    { id: 'hameau', teaser: "Quelques toits de chaume autour d'un puits.", name: 'Hameau de Vieille-Ronce', terrain: 'village', at: [0.12, 0.5], cell: [3, 4], start: true, poi: { icon: 'place', label: 'Auberge' },
       desc: 'Trois maisons, une auberge, un puits. Au loin, vers l\'est, on devine la Tour du Guet, éteinte.',
       activities: [
         { id: 'rest', icon: 'camp', label: 'Dormir à l\'auberge', desc: 'Héros présents : PV max et +1 boost.', run: g => g.restHere() },
         { id: 'well', icon: 'boost', label: 'Faire un vœu au puits', once: true, desc: '+1 boost à chaque héros présent.', run: g => { g.boost(1, 'here'); g.toast('Une pièce tinte au fond du puits…'); } },
         { id: 'oil', icon: 'flask', label: 'Prendre l\'huile de lampe', once: true, cond: g => g.flag('askedOil'), need: 'En parler à Berthe', desc: 'Il en faudra pour le fanal.', run: g => g.give('huile') },
       ] },
-    { id: 'forge', name: 'Forge de Mathilde', terrain: 'village', near: 'hameau', poi: { icon: 'attack', label: 'Forge' },
+    { id: 'forge', teaser: "Une colonne de fumée et le tintement d'une enclume.", name: 'Forge de Mathilde', terrain: 'village', near: 'hameau', poi: { icon: 'attack', label: 'Forge' },
       desc: 'L\'enclume résonne encore. Mathilde, la forgeronne, n\'a pas peur de la brume.',
       activities: [
         { id: 'aiguiser', icon: 'attack', label: 'Faire aiguiser les armes', once: true, desc: '+1 boost à chaque héros présent.', run: g => { g.boost(1, 'here'); g.toast('Les lames chantent sous la meule.'); } },
         { id: 'renfort', icon: 'shield', label: 'Aider à la forge', once: true, desc: 'Force : réussite = +2 PV et +1 boost au héros actif.', run: async g => { if (await g.test('force', 'Tenir l\'enclume')) { g.heal(2); g.boost(1); g.rep('mathilde', 1); } else g.toast('Le marteau vous échappe. Mathilde soupire.'); } },
       ] },
-    { id: 'moulin', name: 'Moulin abandonné', terrain: 'plains', near: 'hameau', poi: { icon: 'eye', label: 'Moulin' },
+    { id: 'moulin', teaser: "Les ailes immobiles d'un vieux moulin.", name: 'Moulin abandonné', terrain: 'plains', near: 'hameau', poi: { icon: 'eye', label: 'Moulin' },
       desc: 'Les ailes ne tournent plus. Quelque chose gratte derrière les sacs de farine.',
       activities: [{ id: 'fouilleMoulin', icon: 'eye', label: 'Fouiller le moulin', once: true, desc: 'Discrétion : sans réveiller ce qui gratte…', run: async g => {
         if (await g.test('discretion', 'Fouiller sans bruit')) { g.give('poupee'); g.give('herbes'); }
         else { g.toast('Des rats géants surgissent des sacs !', 2600); await g.spawnWave('rats'); g.give('poupee'); }
       } }] },
-    { id: 'verger', name: 'Verger de la Combe', terrain: 'forest', near: 'hameau',
+    { id: 'verger', teaser: "Des pommiers tordus, et des pleurs d'enfant.", name: 'Verger de la Combe', terrain: 'forest', near: 'hameau',
       desc: 'Des pommiers tordus. Une fillette pleure, assise contre un tronc.' },
-    { id: 'camp', name: 'Camp du chasseur', terrain: 'forest', at: [0.3, 0.18],
+    { id: 'camp', teaser: "Une fumée s'élève entre les arbres.", name: 'Camp du chasseur', terrain: 'forest', at: [0.3, 0.18], cell: [4, 1],
       desc: 'Un feu qui fume encore, des peaux qui sèchent. Un homme taille des flèches.' },
-    { id: 'taniere', name: 'Tanière des loups', terrain: 'forest', at: [0.05, 0.02], hiddenUntil: 'gaspardTold',
+    { id: 'taniere', teaser: "Une tanière sous les racines.", name: 'Tanière des loups', terrain: 'forest', at: [0.05, 0.02], cell: [2, 0], hiddenUntil: 'gaspardTold',
       desc: 'Des os rongés et une odeur de fauve.',
       activities: [{ id: 'loot', icon: 'herb', label: 'Fouiller la tanière', once: true, blockedByEnemies: true, desc: 'Le chasseur parlait d\'herbes rares.', run: g => { g.give('herbes', 2); g.boost(1); } }] },
-    { id: 'cache', name: 'Cache du contrebandier', terrain: 'rock', at: [0.42, 0.3],
+    { id: 'cache', teaser: "Un éboulis aux pierres trop bien rangées.", name: 'Cache du contrebandier', terrain: 'rock', at: [0.42, 0.3], cell: [6, 2],
       desc: 'Un éboulis où l\'on devine une trappe. Piégée, peut-être.',
       activities: [{ id: 'trap', icon: 'lock', label: 'Forcer la trappe', once: true, desc: 'Discrétion : réussite +2 boosts, échec −1 boost.', run: async g => {
         if (await g.test('discretion', 'Désamorcer le piège')) { g.boost(2); g.toast('Une bourse et un talisman : <b>+2 boosts</b>.'); }
         else { g.boost(-1); g.toast('Une aiguille empoisonnée ! <b>−1 boost</b>.'); }
       } }] },
-    { id: 'gue', name: 'Gué des Noyés', terrain: 'swamp', at: [0.36, 0.66],
+    { id: 'gue', teaser: "Un passage à gué dans l'eau noire.", name: 'Gué des Noyés', terrain: 'swamp', at: [0.36, 0.66], cell: [6, 4],
       desc: 'L\'eau est froide et noire. Quelque chose s\'y tient debout.' },
-    { id: 'chapelle', name: 'Chapelle de la Brume', terrain: 'ruins', at: [0.28, 0.95], poi: { icon: 'cross', label: 'Autel' },
+    { id: 'chapelle', teaser: "Un petit clocheton de pierre.", name: 'Chapelle de la Brume', terrain: 'ruins', at: [0.28, 0.95], cell: [3, 7], poi: { icon: 'cross', label: 'Autel' },
       desc: 'Une petite chapelle de pierre. L\'autel est intact.',
       activities: [{ id: 'pray', icon: 'cross', label: 'Prier à l\'autel', once: true, desc: 'Savoir : réussite −1 glas, échec −1 boost.', run: async g => {
         if (await g.test('savoir', 'Prière')) { g.glas(-1); g.toast('La cloche lointaine se tait un instant : <b>−1 glas</b>.'); }
         else { g.boost(-1); g.toast('Votre esprit s\'égare : <b>−1 boost</b>.'); }
         g.give('eau');
       } }] },
-    { id: 'pont', name: 'Pont de Brume', terrain: 'plains', at: [0.55, 0.5],
+    { id: 'pont', teaser: "Un pont de pierre moussue enjambe la rivière.", name: 'Pont de Brume', terrain: 'plains', at: [0.55, 0.5], cell: [9, 4],
       desc: 'Un pont de pierre moussue. Sur l\'autre rive, rien que du brouillard. Un gardien encapuchonné barre le passage.' },
-    { id: 'ruines', name: 'Ruines du Péage', terrain: 'ruins', at: [0.84, 0.15],
+    { id: 'ruines', teaser: "Les restes d'un ancien péage.", name: 'Ruines du Péage', terrain: 'ruins', at: [0.84, 0.15], cell: [13, 1],
       desc: 'Un ancien péage effondré.',
       activities: [{ id: 'coffre', icon: 'key', label: 'Ouvrir le coffre du péage', once: true, desc: 'Force : réussite +1 boost pour tous.', run: async g => { if (await g.test('force', 'Briser le cadenas')) { g.boost(1, 'all'); g.toast('Des fioles de courage : <b>+1 boost pour tous</b>.'); } } }] },
-    { id: 'tour', name: 'Tour du Guet', terrain: 'ruins', at: [0.92, 0.55], poi: { icon: 'flag', label: 'Fanal' },
+    { id: 'tour', teaser: "Une tour sombre domine la rive est.", name: 'Tour du Guet', terrain: 'ruins', at: [0.92, 0.55], cell: [13, 5], poi: { icon: 'flag', label: 'Fanal' },
       desc: 'Le fanal est éteint. Tant qu\'il ne brûle pas, la brume avance.',
       activities: [{ id: 'fanal', icon: 'glow', label: 'Rallumer le fanal', blockedByEnemies: true, cond: g => g.has('huile'), need: 'Huile de lampe',
         desc: 'Savoir : réussite = victoire.', run: async g => {
@@ -146,7 +161,7 @@ export const STORY = {
     { title: 'Prologue — Le Pont de Brume', image: 'assets/bg/painting1.jpg',
       text: 'Tutoriel. Chaque nuit, la brume du fleuve avance un peu plus sur Vieille-Ronce. Le fanal de la Tour du Guet, qui la tenait à distance, s\'est éteint. La cloche du hameau sonne l\'alarme à chaque heure : au dernier glas, la brume aura tout englouti.' },
     { title: 'Comment jouer', image: 'assets/bg/painting3.jpg',
-      text: 'À son tour, chaque héros peut : se déplacer (2 cases, 3 pour Sélène), faire UNE action (interagir avec un lieu, parler à un PNJ, talent) et UNE attaque. Avant un jet, dépensez des boosts (+10 % chacun). Vous en regagnez 1 par manche. Seules les cases voisines sont visibles : explorez. Et prenez des notes… les PNJ posent parfois des questions.' },
+      text: 'L\'application est votre maître du jeu : elle vous dit quoi poser sur la table, fait parler les personnages et joue les monstres. Vous déplacez vos figurines et lancez vos dés. À son tour, chaque héros peut se déplacer, faire une action et attaquer. Seules les tuiles voisines sont visibles, et leur contenu n\'apparaît qu\'en y entrant. Prenez des notes : les PNJ posent parfois des questions.' },
   ],
   victoryText: { title: 'Le fanal brûle', image: 'assets/bg/painting4.jpg', text: 'La flamme jaillit, et la brume recule jusqu\'au fleuve en sifflant. Le Gardien du pont lève sa lanterne en signe de salut. Le prologue est terminé — retenez ce que vous avez appris ici, la suite de la campagne s\'en souviendra.' },
   defeatText: { title: 'La brume', image: 'assets/bg/painting2.jpg', text: 'Le dernier glas résonne. La brume avale le hameau, puis vous. Recommencez : le chemin vous est maintenant familier.' },

@@ -56,7 +56,7 @@ export class Board3D {
       const r = 0.075 * this.o.poiScale, side = new THREE.MeshStandardMaterial({ color: 0x8a6d3b, metalness: 0.6, roughness: 0.35 });
       const tok = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.03, 24), [side, new THREE.MeshStandardMaterial({ map: iconTexture(data.poi.icon), roughness: 0.5 }), side]);
       tok.castShadow = true; tok.position.set(cell.x + t.poiPos.x, t.topY + 0.015, cell.z + t.poiPos.z);
-      tok.userData.poiKey = data.key; tok.visible = t.revealed; t.poi = tok; this.root.add(tok);
+      tok.userData.poiKey = data.key; t.poiHidden = !!data.poiHidden; tok.visible = t.revealed && !t.poiHidden; t.poi = tok; this.root.add(tok);
     }
     t.reveal(false, t.revealed);
     t.group.visible = t.revealed; // brouillard total : tuile invisible tant qu'elle n'est pas découverte
@@ -69,8 +69,9 @@ export class Board3D {
     t.group.visible = true; this.s.invalidate(4);
     await t.reveal(true, true);
     this.dust(new THREE.Vector3(t.cell.x, t.topY, t.cell.z), 8, this.grid.w * 0.5);
-    if (t.poi) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
+    if (t.poi && !t.poiHidden) this.popPoi(t);
   }
+  popPoi(t) { t.poi.visible = true; t.poi.scale.setScalar(0.01); tween({ duration: 0.45, ease: ease.outBack, update: k => t.poi.scale.setScalar(Math.max(0.01, k)) }); }
   highlight(reach, explore) {
     const R = new Set(reach), E = new Set(explore);
     for (const [k, t] of this.tiles) {
@@ -247,8 +248,10 @@ export class Board3D {
     g.position.set(t.cell.x, Math.max(t.topY, 0.1) + 0.85 * this.o.baseFigScale, t.cell.z); g.userData.base = g.position.y;
     this.root.add(g); this.marks.set(key, g); this.s.invalidate();
   }
+  /** poi : true = dévoiler le jeton, null/false = le retirer */
   setPoi(key, poi) {
-    const t = this.tiles.get(key); if (!t?.poi || poi) return;
+    const t = this.tiles.get(key); if (!t?.poi) return;
+    if (poi) { if (t.poiHidden) { t.poiHidden = false; if (t.revealed) this.popPoi(t); } return; }
     const tok = t.poi; t.poi = null;
     tween({ duration: 0.35, ease: ease.inQuad, update: k => tok.scale.setScalar(Math.max(0.01, 1 - k)) }).then(() => this.root.remove(tok));
   }

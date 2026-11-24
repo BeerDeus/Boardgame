@@ -380,3 +380,22 @@ body.narrating #viewport { visibility: hidden; }
 .sp-card.with-map .sp-list { max-height: calc(100vh - 150px); overflow: auto; margin: 0; }
 .sp-card.with-map .cm-btns { position: sticky; bottom: 0; }
 .sp-map .mc text.pl { display: none; }
+
+/* Cartes de monstres (Gloomhaven) */
+.mk-wrap { background: linear-gradient(180deg, #2a0a08, #0e0403); border: 1px solid #8a1c1c; border-radius: 14px; padding: 10px 14px; width: min(860px, 96vw); max-height: calc(100vh - 16px); overflow: auto; animation: pop .25s; }
+.mk-wrap h3 { margin: 0; font-family: var(--head); font-weight: 500; color: #ffb09a; display: flex; gap: 8px; align-items: center; }
+.mk-row { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; }
+.mk-card { flex: 0 0 190px; background: linear-gradient(180deg, #3a1410, #1a0806); border: 1px solid #c9a45c; border-radius: 10px; padding: 8px; }
+.mk-top { display: flex; justify-content: space-between; align-items: center; } .mk-top .pimg { width: 40px; height: 40px; }
+.mk-top em { font: 700 26px var(--head); font-style: normal; color: #fff; background: #5a1414; border: 2px solid #c9a45c; border-radius: 50%; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; }
+.mk-card small { color: #ff9a7a; display: block; margin-top: 4px; } .mk-card b { font-family: var(--head); color: var(--gold-hi); font-size: 15px; font-weight: 500; }
+.mk-card ul { list-style: none; padding: 0; margin: 6px 0 0; font-size: 13px; } .mk-card li { display: flex; gap: 6px; align-items: center; margin: 2px 0; } .mk-card li .ic { color: #ffd27a; }
+.pimg u.cd { position: absolute; top: -3px; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #000; }
+.pimg u.poison { left: -3px; background: #3f8a2a; color: #e6ffd0; } .pimg u.stun { right: -3px; background: #8a7a2a; color: #fff6c0; } .pimg u .ic { width: 11px; height: 11px; }
+.pimg { overflow: visible; } .pimg > svg, .pimg > img { border-radius: 50%; }
+
+.cmodal.tipm { background: rgba(0,0,0,.3); }
+.tip-card { display: flex; gap: 12px; width: min(560px, 94vw); background: linear-gradient(180deg, #14202e, #0a1018); border: 1px solid #6fb3ff; border-radius: 14px; padding: 12px 16px; box-shadow: 0 16px 50px rgba(0,0,0,.8); animation: pop .25s; max-height: calc(100vh - 16px); overflow: auto; }
+.tip-ic { color: #9ccbff; } .tip-ic .ic { width: 34px; height: 34px; }
+.tip-card small { color: #9ccbff; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-family: var(--head); }
+.tip-card h3 { margin: 2px 0 4px; font-family: var(--head); font-weight: 500; color: var(--gold-hi); } .tip-card p { margin: 0 0 10px; font-size: 16px; line-height: 1.35; }

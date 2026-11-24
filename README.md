@@ -29,11 +29,21 @@ L'app arbitre et raconte : elle dit quoi poser, gère PNJ, monstres, règles et 
   - **Embuscade** : traverser une case occupée par un monstre (sans s'y arrêter) = il frappe au passage (+10 %), puis on continue. Sélène peut esquiver (Discrétion).
   - Action : interagir avec le lieu (toutes ses activités), parler à un PNJ (confirmation), talent.
   - Attaque : séparée de l'action (combat provisoire = 1 jet D100, à remplacer par votre système).
-- **Brouillard total** : seules les cases voisines des héros sont visibles (terrain, PNJ, monstres, lieux). Un PNJ peut révéler un lieu lointain ; une **zone entière** peut rester invisible tant qu'un PNJ ne l'a pas débloquée (le pont).
+- **Brouillard total** : seules les tuiles voisines des cases explorées apparaissent, et on n'en voit que **l'illustration et une courte description**. Leur **contenu** (lieu, jeton, PNJ, monstres) n'apparaît qu'en **entrant** dans la case (ou si un PNJ vous y envoie). Une **zone entière** peut rester invisible tant qu'un PNJ ne l'a pas débloquée (le pont).
+- **Chaque déplacement demande confirmation**, avec la description de la destination (et l'alerte d'embuscade si le chemin traverse un ennemi connu).
 - **Boosts ✦** : par héros, 5 max, +10 % chacun, **dépensés avant le jet**. +1 par manche ; gagnés/perdus par certaines actions (puits, pièges, prière, mauvaise réponse…).
-- **Monstres** : règle simple (avancer de 1, attaquer au contact) + **une carte d'action tirée par type de monstre** à chaque phase des Ténèbres (Charge, Meute, Torpeur, Double attaque, Soin…).
+- **Monstres (façon Gloomhaven)** : un **paquet de cartes par type** (`js/core/monsters.js`). À chaque phase des Ténèbres, une carte par type est tirée et affichée ; les types agissent par **initiative**. Une carte = déplacement + attaque (dégâts 1-2, bonus, portée 0/1/2, zone) + parfois bouclier, soin, glas, **poison** (−1 PV par tour jusqu'à un soin) ou **étourdissement** (perd l'attaque suivante). Certaines cartes ne servent à rien selon la situation (« Coup de taille » : ne bouge pas, frappe fort → rien si le héros n'est pas sur la case). Équilibrage : jamais de mort en un coup.
 - **Difficulté** : limite de glas = base (facile 13 / normal 11 / difficile 9) + bonus selon le nombre de héros (solo +3, duo +2, trio +1). PV des monstres +1 à 3-4 héros, −1 en solo ; certains monstres n'apparaissent qu'à partir de 2 ou 3 héros (façon Gloomhaven). Les compétences de base sont plus basses pour compenser la générosité des boosts.
 - **Questions des PNJ** : choix multiples avec pièges ; les réponses sont dans les dialogues précédents → **prenez des notes sur papier**.
+
+## Tutoriel
+Le prologue affiche des **conseils contextuels** une seule fois chacun (mise en place, tour, exploration, PNJ, lieu, combat, dés et boosts, Ténèbres, fin du tour). Menu → Table physique → « Conseils du tutoriel » / « Revoir les conseils ».
+
+## Carte hexagonale (format retenu)
+Le moteur **C (hexagonal)** est le format choisi. La carte est une **forme libre** décrite dans le scénario (`hexMap`), ici avec une rivière et un seul pont. Les lieux visent des cases précises (`cell: [colonne, ligne]`).
+
+## Écrire un niveau
+Voir **`docs/SCENARIO.md`** : modèle `js/stories/_modele.js`, validateur `node tools/validate-story.mjs js/stories/<niveau>.js` (vérifie lieux, cases, PNJ, modèles 3D, dialogues, quêtes, objets…).
 
 ## Campagne
 

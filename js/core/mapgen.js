@@ -18,7 +18,8 @@ export function buildMap(grid, story, seed = 1) {
 
   for (const p of story.places) {
     let cell;
-    if (p.near) {
+    if (p.cell && grid.offsetKey && grid.has(grid.offsetKey(...p.cell))) cell = grid.get(grid.offsetKey(...p.cell)); // case précise de la carte
+    else if (p.near) {
       const base = grid.get(placeKey[p.near]), away = grid.get(placeKey[p.away] || placeKey[p.near]);
       const opts = grid.neighbors(base.key).filter(k => !used.has(k)).map(k => grid.get(k));
       cell = opts.sort((a, b) => Math.hypot(b.x - away.x, b.z - away.z) - Math.hypot(a.x - away.x, a.z - away.z))[0];

@@ -48,7 +48,7 @@
     setBg(ENGINES[0].bg);
     for (const e of ENGINES) {
       const a = document.createElement('a');
-      a.className = 'card'; a.href = `play.html?e=${e.id}`;
+      a.className = 'card' + (e.chosen ? ' chosen' : ''); a.href = `play.html?e=${e.id}`;
       a.innerHTML = `
         <div class="thumb" style="background-image:url('${e.bg}')"><b>${e.letter}</b></div>
         <div class="body">

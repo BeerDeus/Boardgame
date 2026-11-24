@@ -47,8 +47,19 @@ export function rectGrid({ cols = 5, rows = 4, w = 2.1, h = 1.4, gap = 0.1 } = {
 }
 
 /** Hex "pointy-top", coordonnées axiales, carte en forme d'hexagone de rayon R */
-export function hexGrid({ radius = 3, size = 0.62, gap = 0.03 } = {}) {
+export function hexGrid({ radius = 3, size = 0.62, gap = 0.03, mask = null } = {}) {
   const cells = [], s = size + gap;
+  if (mask) {
+    // Carte de forme libre : lignes "odd-r" (les lignes impaires sont décalées d'une demi-case à droite).
+    // Tout caractère autre que l'espace et '.' est une case. Coordonnées physiques = [colonne, ligne].
+    mask.forEach((row, rr) => [...row].forEach((ch, col) => {
+      if (ch === ' ' || ch === '.') return;
+      const q = col - (rr - (rr & 1)) / 2, r = rr;
+      cells.push({ q, r, col, row: rr, key: K(q, r), x: s * Math.sqrt(3) * (q + r / 2), z: s * 1.5 * r });
+    }));
+    const cx = cells.reduce((a, c) => a + c.x, 0) / cells.length, cz = cells.reduce((a, c) => a + c.z, 0) / cells.length;
+    for (const c of cells) { c.x -= cx; c.z -= cz; }
+  } else
   for (let q = -radius; q <= radius; q++)
     for (let r = Math.max(-radius, -q - radius); r <= Math.min(radius, -q + radius); r++)
       cells.push({ q, r, key: K(q, r), x: s * Math.sqrt(3) * (q + r / 2), z: s * 1.5 * r });
@@ -56,6 +67,8 @@ export function hexGrid({ radius = 3, size = 0.62, gap = 0.03 } = {}) {
   const D = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
   g.neighbors = k => { const c = g.get(k); return D.map(([a, b]) => K(c.q + a, c.r + b)).filter(g.has); };
   g.slots = n => slotsFor(n, size * 0.36, size * 0.36);
+  /** case par coordonnées de la carte (colonne, ligne) */
+  g.offsetKey = (col, row) => K(col - (row - (row & 1)) / 2, row);
   return finalize(g);
 }
 

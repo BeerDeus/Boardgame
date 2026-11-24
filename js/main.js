@@ -20,7 +20,9 @@ const ui = createUI({ title: `${meta.letter} · ${meta.title}`, subtitle: meta.s
   try {
     ui.progress(0.05, 'Moteur…');
     const mod = await LOADERS[meta.id]();
-    const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l) });
+    const { CAMPAIGN } = await import('./core/campaign.js');
+    const story0 = (await CAMPAIGN.steps[0].load()).STORY;
+    const engine = await mod.createEngine(document.getElementById('viewport'), { onProgress: (p, l) => ui.progress(p, l), story: story0 });
     ui.progress(0.85, 'Portraits…');
     try {
       const [{ createBaker }, { STORY }, { setPortrait }] = await Promise.all([import('./three/impostor.js'), import('./stories/prologue.js'), import('./core/portraits.js')]);
