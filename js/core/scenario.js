@@ -760,6 +760,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
         ...(seed !== 1 ? [{ label: 'Revenir à la carte du scénario', action: () => { const u = new URL(location.href); u.searchParams.delete('seed'); location.href = u; } }] : []),
       ] },
       { title: 'Application', items: [
+        { label: 'Débloquer l\'interface (si plus rien ne répond)', action: () => { R.busy = false; ui.setBusy(false); ui.root.querySelectorAll('.cmodal.open').forEach(m => m.classList.remove('open')); dialogue.uncover?.(); engine.endCinematic?.(); ui.vignette(false); save(); if (S.figs[active()]?.alive) select(active()); refreshHUD(); ui.toast('Interface débloquée.'); } },
         { label: 'Forcer la mise à jour', action: async () => { ui.toast('Mise à jour de tous les fichiers…', 4000); const { hardRefresh } = await import('./pwa.js'); await hardRefresh(); } },
       ] },
       { title: 'Caméra', items: [

@@ -81,10 +81,14 @@ export function createDialogue(root) {
           choices.forEach((c, i) => {
             const ok = !c.cond || c.cond(g);
             const b = document.createElement('button'); b.className = 'choice' + (ok ? '' : ' locked');
-            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i>${c.badge || ''}<span>${g?.fill ? g.fill(val(c.t, g)) : val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>Requiert : ${c.need || '?'}</small>`}</span>`;
+            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i>${c.badge || ''}<span>${g?.fill ? g.fill(val(c.t, g)) : val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>${c.need ? `Requiert : ${c.need}` : 'Sous condition…'}</small>`}</span>`;
             if (ok) { b.onclick = e => { e.stopPropagation(); res(c); }; btns[i] = c; }
             $('.d-choices').append(b);
           });
+          // liste plus haute que l'écran : elle défile (ombre en bas tant qu'il reste des choix cachés)
+          const dc = $('.d-choices'); dc.scrollTop = 0;
+          const shade = () => dc.classList.toggle('more', dc.scrollHeight - dc.scrollTop - dc.clientHeight > 4);
+          dc.onscroll = shade; requestAnimationFrame(shade);
           keyHandler = e => { const c = btns[+e.key - 1]; if (c) { e.preventDefault(); res(c); } };
         });
         keyHandler = null; sfx.ui();
