@@ -126,7 +126,7 @@
      "id": "renfort",
      "icon": "shield",
      "label": "Aider à la forge",
-     "desc": "Force : réussite = +2 PV et +1 boost au héros actif.",
+     "desc": "Force : réussite = +2 PV et +1 boost ; échec : −1 PV.",
      "once": true,
      "effects": [
       {
@@ -154,8 +154,14 @@
        ],
        "fail": [
         {
+         "type": "damage",
+         "n": 1,
+         "who": "active",
+         "lethal": false
+        },
+        {
          "type": "toast",
-         "text": "Le marteau vous échappe. Mathilde soupire."
+         "text": "Le marteau vous échappe et vous écrase les doigts : <b>−1 PV</b>. Mathilde soupire."
         }
        ]
       }
@@ -296,7 +302,7 @@
      "id": "trap",
      "icon": "lock",
      "label": "Forcer la trappe",
-     "desc": "Agilité : un silex noir dans tous les cas ; réussite +2 boosts, échec −1 boost.",
+     "desc": "Agilité : un silex noir dans tous les cas ; réussite +2 boosts, échec −1 boost et poison.",
      "once": true,
      "effects": [
       {
@@ -328,8 +334,13 @@
          "who": "active"
         },
         {
+         "type": "status",
+         "status": "poison",
+         "who": "active"
+        },
+        {
          "type": "toast",
-         "text": "Une aiguille empoisonnée ! <b>−1 boost</b>."
+         "text": "Une aiguille empoisonnée ! <b>−1 boost</b>, et le venin brûle déjà."
         },
         {
          "type": "give",
@@ -420,7 +431,11 @@
         }
        ]
       }
-     ]
+     ],
+     "hideIf": {
+      "type": "flag",
+      "flag": "pontOuvert"
+     }
     }
    ]
   },
@@ -510,7 +525,7 @@
      "id": "coffre",
      "icon": "key",
      "label": "Ouvrir le coffre du péage",
-     "desc": "Force : réussite +1 boost pour tous.",
+     "desc": "Force : réussite +1 boost pour tous ; échec : −1 PV.",
      "once": true,
      "effects": [
       {
@@ -530,7 +545,18 @@
          "text": "Des fioles de courage : <b>+1 boost pour tous</b>."
         }
        ],
-       "fail": []
+       "fail": [
+        {
+         "type": "damage",
+         "n": 1,
+         "who": "active",
+         "lethal": false
+        },
+        {
+         "type": "toast",
+         "text": "Le levier ripe et vous entaille la main : <b>−1 PV</b>. Le coffre reste clos."
+        }
+       ]
       }
      ]
     }
@@ -557,17 +583,8 @@
      "label": "Ouvrir la porte avec la clé",
      "desc": "Sans jet de dés.",
      "cond": {
-      "type": "all",
-      "conds": [
-       {
-        "type": "has",
-        "item": "cle"
-       },
-       {
-        "type": "notFlag",
-        "flag": "porteOuverte"
-       }
-      ]
+      "type": "has",
+      "item": "cle"
      },
      "need": "la clé de la Tour",
      "effects": [
@@ -584,27 +601,17 @@
        "type": "toast",
        "text": "La clé tourne en grinçant : la <b>porte de la Tour</b> est ouverte."
       }
-     ]
+     ],
+     "hideIf": {
+      "type": "flag",
+      "flag": "porteOuverte"
+     }
     },
     {
      "id": "porte_force",
      "icon": "attack",
      "label": "Enfoncer la porte",
      "desc": "Force difficile ; échec : +1 glas.",
-     "cond": {
-      "type": "all",
-      "conds": [
-       {
-        "type": "notHas",
-        "item": "cle"
-       },
-       {
-        "type": "notFlag",
-        "flag": "porteOuverte"
-       }
-      ]
-     },
-     "need": "porte déjà ouverte",
      "effects": [
       {
        "type": "test",
@@ -639,27 +646,26 @@
         }
        ]
       }
-     ]
+     ],
+     "hideIf": {
+      "type": "any",
+      "conds": [
+       {
+        "type": "flag",
+        "flag": "porteOuverte"
+       },
+       {
+        "type": "has",
+        "item": "cle"
+       }
+      ]
+     }
     },
     {
      "id": "porte_crochet",
      "icon": "lock",
      "label": "Crocheter la serrure",
-     "desc": "Agilité.",
-     "cond": {
-      "type": "all",
-      "conds": [
-       {
-        "type": "notHas",
-        "item": "cle"
-       },
-       {
-        "type": "notFlag",
-        "flag": "porteOuverte"
-       }
-      ]
-     },
-     "need": "porte déjà ouverte",
+     "desc": "Agilité ; échec : −1 boost.",
      "effects": [
       {
        "type": "test",
@@ -685,12 +691,30 @@
        ],
        "fail": [
         {
+         "type": "boost",
+         "n": -1,
+         "who": "active"
+        },
+        {
          "type": "toast",
-         "text": "La vieille serrure résiste. Réessayez plus tard."
+         "text": "Le crochet se brise dans la vieille serrure : <b>−1 boost</b>. Réessayez plus tard."
         }
        ]
       }
-     ]
+     ],
+     "hideIf": {
+      "type": "any",
+      "conds": [
+       {
+        "type": "flag",
+        "flag": "porteOuverte"
+       },
+       {
+        "type": "has",
+        "item": "cle"
+       }
+      ]
+     }
     },
     {
      "id": "fanal",
@@ -787,7 +811,8 @@
    "spawnOn": "rats",
    "hp": 1,
    "atk": 30,
-   "def": 0
+   "def": 0,
+   "desc": "Des rats gros comme des chiens, réveillés dans les sacs de grain du moulin."
   },
   {
    "id": "rat2",
@@ -801,7 +826,8 @@
    "hp": 1,
    "atk": 30,
    "def": 0,
-   "minParty": 2
+   "minParty": 2,
+   "desc": "Des rats gros comme des chiens, réveillés dans les sacs de grain du moulin."
   },
   {
    "id": "gaspard",
@@ -836,7 +862,8 @@
    "hidden": true,
    "hp": 2,
    "atk": 40,
-   "def": 5
+   "def": 5,
+   "desc": "Affamés par la brume, les loups de la tanière rôdent en meute autour du camp du chasseur."
   },
   {
    "id": "loup2",
@@ -849,7 +876,8 @@
    "hidden": true,
    "hp": 2,
    "atk": 40,
-   "def": 5
+   "def": 5,
+   "desc": "Affamés par la brume, les loups de la tanière rôdent en meute autour du camp du chasseur."
   },
   {
    "id": "loup3",
@@ -863,7 +891,8 @@
    "hp": 2,
    "atk": 40,
    "def": 5,
-   "minParty": 3
+   "minParty": 3,
+   "desc": "Affamés par la brume, les loups de la tanière rôdent en meute autour du camp du chasseur."
   },
   {
    "id": "noye",
@@ -877,7 +906,8 @@
    "hp": 2,
    "atk": 45,
    "def": 5,
-   "undead": true
+   "undead": true,
+   "desc": "Un noyé du gué, revenu des eaux froides. Il traîne ceux qui passent vers le fond."
   },
   {
    "id": "garde1",
@@ -891,7 +921,8 @@
    "hp": 3,
    "atk": 50,
    "def": 10,
-   "undead": true
+   "undead": true,
+   "desc": "Un soldat de l'ancienne Garde, mort à son poste. Il défend encore la Tour du Guet."
   },
   {
    "id": "garde2",
@@ -906,7 +937,8 @@
    "atk": 50,
    "def": 10,
    "undead": true,
-   "minParty": 2
+   "minParty": 2,
+   "desc": "Un soldat de l'ancienne Garde, mort à son poste. Il défend encore la Tour du Guet."
   },
   {
    "id": "sentinelle",
@@ -921,7 +953,8 @@
    "atk": 55,
    "def": 15,
    "undead": true,
-   "static": true
+   "static": true,
+   "desc": "Ce qui reste du capitaine Odon : une ombre qui sonne le glas du haut de la Tour. L'eau bénite la fait chanceler."
   },
   {
    "id": "rodeur",
@@ -935,7 +968,8 @@
    "hp": 2,
    "atk": 45,
    "def": 10,
-   "undead": true
+   "undead": true,
+   "desc": "Une silhouette d'os et de brume, rapide et silencieuse. Elle frappe ceux qui s'attardent."
   },
   {
    "id": "rodeur2",
@@ -950,7 +984,8 @@
    "atk": 45,
    "def": 10,
    "undead": true,
-   "minParty": 3
+   "minParty": 3,
+   "desc": "Une silhouette d'os et de brume, rapide et silencieuse. Elle frappe ceux qui s'attardent."
   }
  ],
  "items": {
@@ -1093,7 +1128,7 @@
      "id": "fouillerCh",
      "icon": "eye",
      "label": "Fouiller la charrette",
-     "desc": "Agilité : trouver quelque chose d'utile.",
+     "desc": "Agilité : trouver quelque chose d'utile… sans se blesser.",
      "once": true,
      "effects": [
       {
@@ -1111,8 +1146,26 @@
        ],
        "fail": [
         {
-         "type": "toast",
-         "text": "Rien que des débris et des toiles moisies."
+         "type": "random",
+         "chance": 50,
+         "then": [
+          {
+           "type": "damage",
+           "n": 1,
+           "who": "active",
+           "lethal": false
+          },
+          {
+           "type": "toast",
+           "text": "Une planche pourrie cède sous votre main, un clou rouillé vous écorche : <b>−1 PV</b>."
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Rien que des débris et des toiles moisies."
+          }
+         ]
         }
        ]
       }
@@ -1221,7 +1274,7 @@
      "id": "pister",
      "icon": "eye",
      "label": "Suivre les traces",
-     "desc": "Intelligence : révèle le lieu le plus proche.",
+     "desc": "Intelligence : révèle le lieu le plus proche ; échec : −1 boost.",
      "once": true,
      "effects": [
       {
@@ -1237,8 +1290,13 @@
        ],
        "fail": [
         {
+         "type": "boost",
+         "n": -1,
+         "who": "active"
+        },
+        {
          "type": "toast",
-         "text": "Les traces se perdent dans la boue."
+         "text": "Les traces se perdent dans la boue, vous tournez en rond dans la brume : <b>−1 boost</b>."
         }
        ]
       }
@@ -2044,7 +2102,7 @@
       },
       {
        "t": "Voici un silex noir.",
-       "next": "pierre_brann",
+       "next": "silex",
        "cond": {
         "type": "all",
         "conds": [
@@ -2055,34 +2113,6 @@
          {
           "type": "notFlag",
           "flag": "pierreForgee"
-         },
-         {
-          "type": "heroIs",
-          "hero": "brann"
-         }
-        ]
-       }
-      },
-      {
-       "t": "Voici un silex noir.",
-       "next": "pierre_forge",
-       "cond": {
-        "type": "all",
-        "conds": [
-         {
-          "type": "has",
-          "item": "silex"
-         },
-         {
-          "type": "notFlag",
-          "flag": "pierreForgee"
-         },
-         {
-          "type": "not",
-          "cond": {
-           "type": "heroIs",
-           "hero": "brann"
-          }
          }
         ]
        }
@@ -2510,6 +2540,20 @@
        "type": "rep",
        "npc": "mathilde",
        "n": 1
+      }
+     ]
+    },
+    "silex": {
+     "s": "mathilde",
+     "t": "Montrez voir… Il est noir comme une nuit sans lune. Écoutez-le chanter sous l'acier.",
+     "next": "pierre_forge",
+     "branches": [
+      {
+       "cond": {
+        "type": "heroIs",
+        "hero": "brann"
+       },
+       "next": "pierre_brann"
       }
      ]
     }

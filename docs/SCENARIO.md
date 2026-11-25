@@ -43,6 +43,8 @@ Le travail est enregistré automatiquement dans le navigateur. Exporter réguli�
 
 ## Combat
 Toucher si D100 ≤ Combat du héros − défense de l'ennemi. **Dégâts = dégâts de base + 1 par tranche de 20 sous la chance, ×2 sur critique.** Exemple : chance 55, jet 12 → 43 de marge → +2 dégâts.
+- **Fiche monstre** (toucher un monstre) : modèle 3D qui tourne, PV en barre, description (champ « Description » du personnage), stats, traits (tirés de son paquet de cartes) et prévision d'attaque. Hors de portée mais atteignable : « S'approcher et attaquer » (déplacement + attaque). Sinon la fiche s'ouvre avec « Attaquer » grisé.
+- **Maladresse du héros** (≥ 96) : le monstre riposte aussitôt, −1 PV sans jet. **Maladresse d'un monstre** : le héros visé riposte gratuitement s'il est à portée (jet normal, n'utilise pas son attaque).
 Les monstres jouent des cartes (`js/core/monsters.js`). Ils visent le héros atteignable le plus blessé, sinon le plus proche. **Garde N** : le monstre ne s'éloigne pas à plus de N cases de son lieu.
 
 ## Briques du format
@@ -84,7 +86,10 @@ Toutes les briques se choisissent dans des menus de l'éditeur (`js/core/level.j
 - Le joueur voit seulement **quelle stat** est testée (« 🎲 Force ») et devine la difficulté à la formulation.
 - Les **variantes** changent le texte selon une condition, les **embranchements** changent la suite.
 
-**Objets** : on peut les rendre **utilisables depuis la besace**, avec une condition, des effets, et le choix d'être consommés ou non.
+**Lieux et points d'intérêt** : toute case dont le lieu (ou la rencontre mineure) a des activités porte un **point d'intérêt**. Il n'apparaît qu'une fois la case visitée et s'ouvre en boîte façon dialogue (activités en choix, résultat affiché dans la boîte). Il disparaît (consigne « retirez le jeton ») quand plus rien n'est proposé : activités « une fois » faites, ou **« Disparaît si »** vrai (ex. passage du gué quand le pont est ouvert). Une activité dont la condition n'est pas remplie est masquée, sauf si elle a un **indice** (« Requiert : … »). Toucher le point d'intérêt d'une case atteignable : le héros s'y rend puis interagit. Prévoir des **malus en cas d'échec** (PV, poison, boost, glas, monstres…).
+**Dialogues** : un choix dont la condition n'est pas remplie est masqué, sauf s'il a un texte « si verrouillé » (alors visible avec 🔒 et l'indice).
+
+**Objets** : on peut les rendre **utilisables depuis l'inventaire** (bouton « bourse commune » en bas à droite : cartes possédées, visuel, « Utiliser »), avec une condition, des effets, et le choix d'être consommés ou non. **Carte unique** (par défaut objets de quête et reliques) : un 2ᵉ exemplaire obtenu alors que le groupe l'a déjà ou l'a utilisé affiche « Ne prenez pas la carte ».
 Chaque objet a une **carte physique** (format poker 63 × 88 mm) : code (O-01…), type (consommable, objet de quête, équipement, relique), illustration, texte imprimé. La planche d'impression est `cards.html` (recto de tous les objets de la campagne + verso commun, export SVG). En jeu : « **Prenez la carte** » à l'obtention, « **Défaussez la carte** » à l'usage ou à la perte. Les messages restent 5-6 s et sont repris dans le journal (« Derniers événements »).
 
 **Quêtes** : jamais affichées aux joueurs (ni panneau, ni fenêtre, ni marqueur) : ils prennent des notes. Elles restent suivies en interne (conditions « état d'une quête », XP de fin d'étape). Pour guider, utiliser des messages d'avancement (ex. un compteur + « Plus qu'un objet… » en italique).

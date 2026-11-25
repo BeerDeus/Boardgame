@@ -49,9 +49,20 @@ export async function createEngine(container, { onProgress, story }) {
   const side = new THREE.MeshStandardMaterial({ map: sideTex, color: 0x6a5a4c, roughness: 0.95 });
   const fogTop = new THREE.MeshStandardMaterial({ map: tileBackTexture(1, true), color: 0x8a8a96, roughness: 0.7 });
   const mats = {};
-  const matFor = t => { if (!mats[t]) { mats[t] = new THREE.MeshStandardMaterial({ roughness: 0.95 }); terrainTex(t).then(x => { mats[t].map = x; mats[t].needsUpdate = true; }); } return mats[t]; };
+  const matFor = t => { if (!mats[t]) { mats[t] = new THREE.MeshStandardMaterial({ roughness: 0.95 }); terrainTex(t).then(x => { mats[t].map = x; mats[t].needsUpdate = true; const gm = greys.get(mats[t]); if (gm) { gm.map = x; gm.needsUpdate = true; } }); } return mats[t]; };
   const overlayGeo = new THREE.CircleGeometry(R * 0.97, 6).rotateX(-Math.PI / 2).rotateY(Math.PI / 6);
   const fogTex = radialTexture('rgba(190,195,210,0.9)', 'rgba(140,145,160,0.45)');
+  // Case visible mais jamais visitée : en noir et blanc (même matériau, couleurs désaturées dans le shader) ;
+  // les cases visitées sont en pleines couleurs.
+  const greys = new Map();
+  const greyOf = m => {
+    if (!greys.has(m)) {
+      const gm = m.clone();
+      gm.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = vec3(dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114))) * 1.04;\n#include <dithering_fragment>'); };
+      gm.customProgramCacheKey = () => 'grey'; greys.set(m, gm);
+    }
+    return greys.get(m);
+  };
 
   // Tuiles peintes : une grande illustration (plan de référence) plaquée sur le dessus des tuiles.
   // Même calcul que le plan : grille sans espacement, centrée, ajustée à l'image avec une marge.
@@ -88,8 +99,10 @@ export async function createEngine(container, { onProgress, story }) {
         for (let i = cap.start; i < cap.start + cap.count; i++) { const v = idx.getX(i); uv.setXY(v, ...art.uv(data.key, pos.getX(v), pos.getZ(v))); }
         uv.needsUpdate = true;
       }
-      const topMat = painted ? art.mat : matFor(data.terrain);
-      const mesh = new THREE.Mesh(geo, [side, topMat, side]);
+      const topCol = painted ? art.mat : matFor(data.terrain), topGrey = greyOf(topCol);
+      let seen = false, up = false; // case visitée · tuile posée
+      const topNow = () => (seen ? topCol : topGrey);
+      const mesh = new THREE.Mesh(geo, [side, topNow(), side]);
       mesh.position.y = h - depth / 2; mesh.castShadow = true; mesh.receiveShadow = true; col.add(mesh);
       const props = painted ? null : buildProps(data.terrain, rng(hashStr(data.key)), hexSampler(R, R * 0.42), 0.95, settings.gfx.props);
       if (props) { props.position.y = h; col.add(props); }
@@ -101,12 +114,13 @@ export async function createEngine(container, { onProgress, story }) {
       const hidden = FOGY - h; // le sommet affleure juste au-dessus de l'eau
       const tile = {
         group: g, top: col, hit: mesh, overlay, topY: h, poiPos: { x: R * 0.5, z: -R * 0.32 },
+        setExplored(v) { seen = v; if (up) mesh.material = [side, topNow(), side]; },
         async reveal(animate, state = true, { onLand } = {}) {
           if (!animate) {
-            col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; mesh.material = [side, state ? topMat : fogTop, side];
+            col.position.y = state ? 0 : hidden; col.rotation.set(0, 0, 0); fog.visible = !state; up = state; mesh.material = [side, state ? topNow() : fogTop, side];
             if (props) props.visible = state; if (state) queueMicrotask(lightTorch); return;
           }
-          mesh.material = [side, topMat, side]; fog.visible = false;
+          up = true; mesh.material = [side, topNow(), side]; fog.visible = false;
           if (props) { props.visible = true; props.scale.set(1, 0.01, 1); }
           // chute depuis le ciel (gravité), en tournoyant légèrement, puis impact, rebond et écrasement
           const r = rng(hashStr(data.key + ':drop')), H0 = 5 + r() * 1.5, spin = (r() - 0.5) * 1.4, tx = (r() - 0.5) * 0.35, tz = (r() - 0.5) * 0.35;

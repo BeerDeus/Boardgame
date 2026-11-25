@@ -6,6 +6,7 @@ import { icon, ICON_NAMES } from './icons.js';
 const ic = n => (ICON_NAMES.includes(n) ? icon(n) : (n ?? ''));
 import { sfx } from './sfx.js';
 import { itemCardSVG } from './cards.js';
+import { poiFaceSVG } from './poi-art.js';
 import { settings } from './settings.js';
 
 const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -39,6 +40,9 @@ export function createUI({ title, subtitle }) {
   const journal = h('div', 'journal'); journal.hidden = true; root.append(journal); // panneau d'objectifs (plus utilisé : quêtes non affichées)
   journal.onclick = () => journal.classList.toggle('collapsed');
   const inv = h('div', 'inventory'); root.append(inv);
+  // Inventaire : un seul bouton (bourse commune), qui ouvre la liste des cartes possédées
+  const bagBtn = h('button', 'item bagbtn', `<span>${icon('bag')}</span><i hidden></i>`); bagBtn.title = 'Inventaire (I)'; bagBtn.setAttribute('aria-label', 'Inventaire');
+  bagBtn.onclick = () => ui.openInventory(); inv.append(bagBtn);
   const actions = h('div', 'actions'); root.append(actions);
   const dice = h('div', 'd100');
   dice.innerHTML = `<div class="d100-card">
@@ -64,8 +68,12 @@ export function createUI({ title, subtitle }) {
   const turnHud = h('div', 'turnhud'); turnHud.hidden = true; root.append(turnHud);
   const banner = h('div', 'turn-banner'); root.append(banner);
   const modal = h('div', 'cmodal'); root.append(modal);
+  // Boîte de lieu (même présentation que les dialogues)
+  const placeBox = h('div', 'dialogue placebox has-choices', `<div class="d-portrait"></div><div class="d-main"><div class="d-name"></div><div class="d-text"></div></div><div class="d-choices"></div>`);
+  root.append(placeBox);
+  let capture = null;
   journalFull.addEventListener('click', e => { if (e.target === journalFull || e.target.dataset.close != null) journalFull.classList.remove('open'); });
-  let journalData = [], invData = [], events = [];
+  let journalData = [], invData = [], events = [], invUse = null;
   // Une seule fenêtre à la fois : si une autre doit s'ouvrir par-dessus, la précédente est d'abord
   // fermée proprement (confirmation = « Annuler ») au lieu de rester à jamais sans réponse.
   let modalClose = null;
@@ -125,6 +133,7 @@ export function createUI({ title, subtitle }) {
     toast(msg, ms = 5500) {
       ms = Math.max(5000, Math.min(6000, ms)); // les messages restent lisibles 5-6 s
       logEvent(msg);
+      if (capture) { capture.push(msg); return; } // activité de lieu en cours : le résultat s'affiche dans la boîte du lieu
       const t = h('div', 'toast', msg); toasts.append(t);
       requestAnimationFrame(() => t.classList.add('in'));
       setTimeout(() => { t.classList.remove('in'); setTimeout(() => t.remove(), 300); }, ms);
@@ -154,20 +163,79 @@ export function createUI({ title, subtitle }) {
       journal.hidden = !list.length;
     },
     setInventory(items, onUse) {
-      invData = items;
-      inv.innerHTML = '';
-      for (const it of items) {
-        const b = h('button', 'item' + (it.usable ? ' usable' : ''), `<span>${ic(it.icon)}</span>${it.n > 1 ? `<i>${it.n}</i>` : ''}`);
-        b.title = `${it.name} — ${it.desc}`; b.onclick = () => onUse(it.id); inv.append(b);
-      }
+      invData = items; invUse = onUse;
+      const n = items.reduce((a, i) => a + (i.n || 1), 0), badge = bagBtn.querySelector('i');
+      badge.hidden = !n; badge.textContent = n;
+      bagBtn.classList.toggle('usable', items.some(i => i.usable));
+      if (modal.classList.contains('invm')) invRender?.();
+    },
+    /** Bourse commune : toutes les cartes d'objets possédées ; toucher une carte = grand visuel (+ « Utiliser ») */
+    openInventory(sel = null) {
+      closePrev();
+      const close = () => { if (modalClose === close) modalClose = null; invRender = null; modal.onclick = null; modal.classList.remove('open', 'invm'); keyHandler = null; };
+      invRender = () => {
+        const it = sel && invData.find(i => i.id === sel); if (!it) sel = null;
+        const total = invData.reduce((a, i) => a + (i.n || 1), 0);
+        modal.innerHTML = it ? `<div class="inv-card inv-detail"><div class="cp-img">${itemCardSVG(it, { width: '100%', height: '100%', cls: 'item-card' })}</div>
+            <div class="cp-body"><small>${it.code ? it.code + ' · ' : ''}Bourse commune${it.n > 1 ? ` · ×${it.n}` : ''}</small><h3>${ic(it.icon)} ${it.name}</h3><p>${it.effect || it.desc || ''}</p>
+            ${it.usable ? '' : '<p class="muted">Cet objet ne s\'utilise pas depuis la bourse : il servira le moment venu.</p>'}
+            <div class="cm-btns"><button class="btn" data-back>${icon('back')} Toutes les cartes</button>${it.usable ? `<button class="btn accent" data-use>${icon('check')} Utiliser</button>` : ''}</div></div></div>`
+          : `<div class="inv-card"><div class="inv-head"><h3>${icon('bag')} Bourse commune</h3><small>${total ? `${total} carte${total > 1 ? 's' : ''} · touchez une carte pour la voir` : ''}</small><button class="btn round small" data-x aria-label="Fermer">${icon('close')}</button></div>
+            ${invData.length ? `<div class="inv-grid">${invData.map(i => `<button class="inv-it ${i.usable ? 'usable' : ''}" data-id="${i.id}"><div class="inv-c">${itemCardSVG(i, { width: '100%', height: '100%', cls: 'item-card' })}</div>${i.n > 1 ? `<em>×${i.n}</em>` : ''}<span>${i.name}</span></button>`).join('')}</div>`
+              : '<p class="muted inv-empty">La bourse est vide. Les cartes d\'objets trouvées s\'ajoutent ici.</p>'}</div>`;
+        modal.querySelectorAll('[data-id]').forEach(b => b.onclick = e => { e.stopPropagation(); sel = b.dataset.id; sfx.ui(); invRender(); });
+        modal.querySelector('[data-back]')?.addEventListener('click', e => { e.stopPropagation(); sel = null; invRender(); });
+        modal.querySelector('[data-x]')?.addEventListener('click', close);
+        modal.querySelector('[data-use]')?.addEventListener('click', e => { e.stopPropagation(); const id = sel; close(); invUse?.(id); });
+      };
+      modalClose = close;
+      modal.onclick = e => { if (e.target === modal) close(); };
+      keyHandler = e => { if (e.key === 'Escape' || e.key.toLowerCase() === 'i') { e.preventDefault(); close(); } };
+      invRender(); modal.classList.add('open', 'invm'); sfx.ui();
+    },
+    /**
+     * Fiche monstre : modèle 3D qui tourne, PV en barre, description, stats, prévision d'attaque.
+     * mode : 'attack' | 'approach' (se déplacer puis attaquer) | null (bouton grisé, reason). Renvoie true si on attaque.
+     */
+    monsterSheet({ name, tag = 'Monstre', color = '#8a1c1c', kind, hp, max, desc = '', stats = [], traits = [], forecast = [], chance = null, mode = null, reason = '', model = null }) {
+      return new Promise(res => {
+        closePrev();
+        let spin = null;
+        const okLabel = mode === 'approach' ? `${icon('move')} S'approcher et attaquer` : `${icon('attack')} Attaquer`;
+        modal.onclick = null; modal.innerHTML = `<div class="ms-card" style="--mc:${color}">
+          <div class="ms-model"><div class="ms-fig"><div class="pimg big" style="--c:${color}">${figureSVG(kind, color, { portrait: true })}</div></div></div>
+          <div class="ms-body"><div class="ms-head"><small>${tag}</small><h3>${name}</h3></div>
+            <div class="ms-hp"><div class="ms-bar">${Array.from({ length: max }, (_, i) => `<i class="${i < hp ? 'on' : ''}"></i>`).join('')}</div><b>${hp} / ${max} PV</b></div>
+            ${desc ? `<p class="ms-desc">${desc}</p>` : ''}
+            <div class="ms-stats">${stats.map(([ic2, l, v]) => `<span>${icon(ic2)}<small>${l}</small><b>${v}</b></span>`).join('')}</div>
+            ${traits.length ? `<div class="ms-traits">${traits.map(t => `<em>${t}</em>`).join('')}</div>` : ''}
+            <div class="ms-fc ${mode ? '' : 'off'}"><div class="ms-fc-h">${statBadge('combat', 22)}<span>Votre attaque</span>${chance != null ? `<b>${chance} %</b>` : ''}</div><ul>${forecast.map(l => `<li>${l}</li>`).join('')}</ul></div>
+            ${reason ? `<p class="ms-why">${icon('lock')} ${reason}</p>` : ''}
+            <div class="cm-btns"><button class="btn" data-no>${mode ? 'Annuler' : 'Fermer'}</button><button class="btn accent danger" data-yes ${mode ? '' : 'disabled'}>${okLabel}</button></div></div></div>`;
+        modal.classList.add('open', 'msm'); sfx.ui();
+        // modèle 3D pré-rendu sous plusieurs angles : la figurine tourne lentement
+        Promise.resolve(model?.()).then(sh => {
+          if (!sh || !modal.classList.contains('msm')) return;
+          const fig = modal.querySelector('.ms-fig'); if (!fig) return;
+          fig.innerHTML = ''; fig.classList.add('sprite');
+          fig.style.cssText = `background-image:url('${sh.url}');background-size:${sh.N * 100}% 100%;aspect-ratio:${sh.W}/${sh.H}`;
+          let i = 0; const show = () => { fig.style.backgroundPositionX = `${(i % sh.N) / (sh.N - 1) * 100}%`; i++; };
+          show(); spin = setInterval(show, 260);
+        }).catch(() => {});
+        const close = v => { if (modalClose === close) modalClose = null; clearInterval(spin); modal.onclick = null; modal.classList.remove('open', 'msm'); keyHandler = null; res(v); };
+        modalClose = () => close(false);
+        modal.querySelector('[data-yes]').onclick = () => close(true);
+        modal.querySelector('[data-no]').onclick = () => close(false);
+        modal.onclick = e => { if (e.target === modal) close(false); };
+        keyHandler = e => { if (e.key === 'Enter' && mode) close(true); if (e.key === 'Escape') close(false); };
+      });
     },
     /** Restaure le fil des événements (partie reprise) */
     setEvents(list) { events = [...(list || [])]; },
     openJournal() {
       let lastR = null;
       const evHtml = events.slice().reverse().slice(0, 40).map(e => { const head = e.r !== lastR ? `<div class="ev-r">Manche ${e.r || 0}</div>` : ''; lastR = e.r; return `${head}<div class="ev ${(e.k || '').split(' ').filter(Boolean).map(x => 'k-' + x).join(' ')}">${e.t}</div>`; }).join('');
-      journalFull.innerHTML = `<div class="help-card"><h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b>${i.code ? `<em class="jcode">${i.code}</em>` : ''}<span>${i.effect || i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
-        <h2>Derniers événements</h2><div class="ev-list">${evHtml || '<p class="muted">Rien pour l\'instant.</p>'}</div>
+      journalFull.innerHTML = `<div class="help-card"><h2>Derniers événements</h2><div class="ev-list">${evHtml || '<p class="muted">Rien pour l\'instant.</p>'}</div>
         <button class="btn wide" data-close>Fermer</button></div>`;
       journalFull.classList.add('open');
     },
@@ -300,16 +368,18 @@ export function createUI({ title, subtitle }) {
     cardPrompt({ item, mode = 'take', n = 1, note = '' }) {
       return new Promise(res => {
         closePrev();
-        const take = mode === 'take', code = item.code || '';
-        const title = take ? (n > 1 ? `Prenez ${n} cartes` : 'Prenez la carte') : 'Défaussez la carte';
-        const text = take ? `Prenez la carte <b>${code ? code + ' · ' : ''}${item.name}</b>${n > 1 ? ` (×${n})` : ''} dans la pioche d'objets et posez-la dans la besace commune.`
+        const take = mode === 'take' || mode === 'already', dup = mode === 'already', code = item.code || '';
+        const title = dup ? 'Ne prenez pas la carte' : take ? (n > 1 ? `Prenez ${n} cartes` : 'Prenez la carte') : 'Défaussez la carte';
+        const text = dup ? (note || `Le groupe a déjà <b>${item.name}</b> (ou l'a déjà utilisé) : la carte <b>${code ? code + ' · ' : ''}${item.name}</b> reste dans la boîte.`)
+          : take ? `Prenez la carte <b>${code ? code + ' · ' : ''}${item.name}</b>${n > 1 ? ` (×${n})` : ''} dans la pioche d'objets et posez-la dans la bourse commune.`
           : `Remettez la carte <b>${code ? code + ' · ' : ''}${item.name}</b> dans la boîte.`;
-        logEvent(`${take ? 'Objet obtenu' : 'Objet défaussé'} : <b>${item.name}</b>${n > 1 ? ' ×' + n : ''}`, take ? 'item' : 'item lost');
-        modal.onclick = null; modal.innerHTML = `<div class="cp-card ${take ? 'take' : 'discard'}"><div class="cp-img">${itemCardSVG(item, { width: '100%', height: '100%', cls: 'item-card' })}</div>
-          <div class="cp-body"><small>${take ? 'Nouvel objet' : 'Objet utilisé ou perdu'}</small><h3>${icon(take ? 'check' : 'close')} ${title}</h3><p>${text}</p>
+        if (dup) note = '';
+        logEvent(`${dup ? 'Objet déjà possédé ou utilisé' : take ? 'Objet obtenu' : 'Objet défaussé'} : <b>${item.name}</b>${n > 1 ? ' ×' + n : ''}`, take ? 'item' : 'item lost');
+        modal.onclick = null; modal.innerHTML = `<div class="cp-card ${dup ? 'dup' : take ? 'take' : 'discard'}"><div class="cp-img">${itemCardSVG(item, { width: '100%', height: '100%', cls: 'item-card' })}</div>
+          <div class="cp-body"><small>${dup ? 'Déjà possédé ou utilisé' : take ? 'Nouvel objet' : 'Objet utilisé ou perdu'}</small><h3>${icon(take && !dup ? 'check' : 'close')} ${title}</h3><p>${text}</p>
           <p class="cp-eff">${item.effect || item.desc || ''}</p>${note ? `<p class="muted">${note}</p>` : ''}
           <div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div></div>`;
-        modal.classList.add('open', 'cardm'); take ? sfx.success() : sfx.ui();
+        modal.classList.add('open', 'cardm'); take && !dup ? sfx.success() : sfx.ui();
         const close = () => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'cardm'); keyHandler = null; res(); };
         modalClose = close;
         modal.querySelector('[data-yes]').onclick = close;
@@ -395,25 +465,43 @@ export function createUI({ title, subtitle }) {
         keyHandler = e => { const i = +e.key - 1; if (options[i] && !options[i].disabled) { modal.classList.remove('open'); keyHandler = null; res(i); } };
       });
     },
-    /** Panneau de lieu : toutes les activités disponibles, faisables dans la même interaction */
-    locationPanel({ title, desc, hero, list, run }) {
+    /**
+     * Lieu (point d'intérêt) : boîte façon dialogue — médaillon du lieu, description par le narrateur,
+     * activités en choix numérotés (emblème de la stat si jet). Le résultat de chaque activité s'affiche
+     * dans la boîte, puis on revient aux choix. Plusieurs activités possibles dans la même interaction.
+     */
+    locationPanel({ title, desc, hero, icon: pic = 'place', list, run }) {
       return new Promise(res => {
         closePrev();
-        let count = 0, busy = false; const doneHere = new Set();
+        let count = 0, busy = false, text = desc || '', textCls = '';
+        const doneHere = new Set();
+        root.classList.add('cinematic');
+        const $ = q => placeBox.querySelector(q);
+        $('.d-portrait').innerHTML = `<div class="pb-medal">${poiFaceSVG(pic)}</div>`;
+        $('.d-name').innerHTML = `${title}<small>Interaction de ${hero.name}</small>`;
         const render = () => {
           const acts = list().map(a => (doneHere.has(a.id) && !a.disabled ? { ...a, disabled: 'Déjà fait pendant cette interaction' } : a));
-          modal.onclick = null; modal.innerHTML = `<div class="lp-card"><div class="lp-head"><h3>${title}</h3><small>Interaction de ${hero.name} · faites tout ce qui est possible ici</small></div><p class="lp-desc">${desc || ''}</p>
-            <div class="lp-list">${acts.map((a, i) => `<button class="lp-act" data-i="${i}" ${a.disabled ? 'disabled' : ''}><span class="lp-ic">${ic(a.icon)}</span><span><b>${a.label}</b><small>${a.disabled || a.desc || ''}</small></span></button>`).join('') || '<p class="muted">Plus rien à faire ici.</p>'}</div>
-            <div class="cm-btns"><button class="btn ${count ? 'accent' : ''}" data-close>${count ? 'Terminer l\'interaction' : 'Annuler'}</button></div></div>`;
-          modal.querySelectorAll('[data-i]').forEach(b => b.onclick = async () => {
-            if (busy) return; busy = true; modal.classList.add('running');
-            modal.classList.remove('open');
-            const a = acts[+b.dataset.i]; await run(a); count++; doneHere.add(a.id);
-            busy = false; modal.classList.remove('running'); render(); modal.classList.add('open');
+          $('.d-text').className = 'd-text ' + textCls; $('.d-text').innerHTML = text;
+          const box = $('.d-choices');
+          box.innerHTML = acts.map((a, i) => `<button class="choice ${a.disabled ? 'locked' : ''}" data-i="${i}" ${a.disabled ? 'disabled' : ''}><i>${a.disabled ? icon('lock') : i + 1}</i>${a.stat && STAT_COLORS[a.stat] ? statBadge(a.stat, 26) : `<u class="pb-ic">${ic(a.icon)}</u>`}<span>${a.label}${a.disabled ? `<small>${a.disabled}</small>` : a.desc ? `<small>${a.desc}</small>` : ''}</span></button>`).join('')
+            + `<button class="choice leave" data-close><i>${icon(count ? 'check' : 'back')}</i><span>${count ? 'Terminer l\'interaction' : 'Partir'}</span></button>`;
+          box.scrollTop = 0; const shade = () => box.classList.toggle('more', box.scrollHeight - box.scrollTop - box.clientHeight > 4); box.onscroll = shade; requestAnimationFrame(shade);
+          box.querySelectorAll('[data-i]').forEach(b => b.onclick = async e => {
+            e.stopPropagation(); if (busy) return; busy = true;
+            const a = acts[+b.dataset.i]; sfx.ui();
+            placeBox.classList.remove('open'); capture = [];
+            try { await run(a); } catch (err) { console.error(err); }
+            const got = capture; capture = null; count++; doneHere.add(a.id);
+            text = got.length ? got.map(m => `<p>${m}</p>`).join('') : `<p>${a.label} : c'est fait.</p>`; textCls = 'result';
+            busy = false; render(); placeBox.classList.add('open'); swap();
           });
-          modal.querySelector('[data-close]').onclick = () => { modal.classList.remove('open'); res(count); };
+          $('[data-close]').onclick = e => { e.stopPropagation(); finish(); };
+          keyHandler = e => { if (busy) return; const i = +e.key - 1; if (acts[i] && !acts[i].disabled) box.querySelector(`[data-i="${i}"]`).click(); if (e.key === 'Escape') finish(); };
         };
-        render(); modal.classList.add('open');
+        const swap = () => { placeBox.classList.remove('swap'); void placeBox.offsetWidth; placeBox.classList.add('swap'); };
+        const finish = () => { if (modalClose === finishRef) modalClose = null; keyHandler = null; placeBox.classList.remove('open'); root.classList.remove('cinematic'); res(count); };
+        const finishRef = () => finish(); modalClose = finishRef;
+        render(); placeBox.classList.add('open'); swap(); sfx.ui();
       });
     },
     /** Montée de niveau : +5 % à une compétence ou un avantage de classe */
@@ -511,7 +599,7 @@ export function createUI({ title, subtitle }) {
       import('../version.js').then(m => { foot.querySelector('.ver').textContent = 'Version ' + m.VERSION; }).catch(() => {});
     },
   };
-  let keyHandler = null;
+  let keyHandler = null, invRender = null;
   // ---- Clavier (PC) : flèches/ZQSD pan, A/E rotation, +/- zoom, 1-2 héros, Espace centrer, Échap menu
   const held = new Set();
   window.addEventListener('keydown', e => {
@@ -524,6 +612,7 @@ export function createUI({ title, subtitle }) {
     if (k === 'm') openMenu(!drawer.classList.contains('open'));
     if (k === 'h' || k === '?') help.classList.toggle('open');
     if (k === 'j') ui.openJournal();
+    if (k === 'i' && !root.classList.contains('busy') && !modal.classList.contains('open')) ui.openInventory();
     if (k === 'f') toggleFullscreen();
     if (k === ' ') { e.preventDefault(); ui.onKey?.focus(); }
     if (k === 't') ui.onKey?.endTurn?.();

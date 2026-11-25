@@ -41,7 +41,9 @@ tools/        build-sw.py (cache hors-ligne + version), validate-level.mjs, aper
 ## 2. Ce qui marche bien
 - Boucle complète du Prologue : intro, mise en place, manches, exploration, PNJ et dialogues, quêtes, combat, Ténèbres, glas, victoire/défaite, XP.
 - Tuiles qui tombent une par une avec leur numéro, illustration peinte plaquée sur les tuiles.
-- Héros, PNJ et ennemis distincts : plaques, bulle, halo, tenue civile.
+- Héros, PNJ et ennemis distincts : plaques, bulle, halo, tenue civile. Héros à 75 % de la taille des PNJ/monstres, qui occupent les emplacements les plus au sud de la case (plus faciles à toucher). Barre de PV sous la plaque des héros et monstres.
+- Cases visibles mais jamais visitées en noir et blanc ; bords de carte sans voisine possible en rideau de brume.
+- Lieux : points d'intérêt (apparaissent à la visite, disparaissent quand ils deviennent inutiles), boîte façon dialogue ; inventaire en un bouton ; fiche monstre.
 - PWA hors-ligne, mise à jour fiable malgré le CDN (version dans les URL).
 - Réglages graphiques complets, rendu à la demande économe sur mobile.
 

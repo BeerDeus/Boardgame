@@ -27,7 +27,7 @@ export function walk(L, visit) {
     for (const [k, t] of def?.fields || []) { if (t === 'effects') eff(e[k], `${where} › ${def.label}`); if (t === 'cond') cnd(e[k], where);
       if (t === 'options') for (const o of e[k] || []) { cnd(o.cond, where); eff(o.effects, `${where} › ${o.label || 'option'}`); } } } };
   const cnd = (c, where) => { if (!c?.type) return; visit('cond', c, where); for (const x of c.conds || []) cnd(x, where); if (c.cond) cnd(c.cond, where); };
-  const acts = (list, where) => { for (const a of list || []) { cnd(a.cond, `${where} › ${a.label || a.id}`); eff(a.effects, `${where} › ${a.label || a.id}`); } };
+  const acts = (list, where) => { for (const a of list || []) { cnd(a.cond, `${where} › ${a.label || a.id}`); cnd(a.hideIf, `${where} › ${a.label || a.id}`); eff(a.effects, `${where} › ${a.label || a.id}`); } };
   for (const p of L.places || []) acts(p.activities, `Lieu « ${p.name || p.id} »`);
   for (const [k, it] of Object.entries(L.items || {})) { cnd(it.useCond, `Objet « ${it.name || k} »`); eff(it.useEffects, `Objet « ${it.name || k} »`); }
   for (const m of L.minors || []) acts(m.activities, `Rencontre « ${m.name || m.id} »`);

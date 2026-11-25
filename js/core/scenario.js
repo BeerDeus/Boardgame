@@ -8,7 +8,7 @@ import { TERRAINS } from './terrains.js';
 import { sfx } from './sfx.js';
 import { settings, PRESETS } from './settings.js';
 import { loadCampaignDef, loadCampaign, completeStep, heroProgress, pointsAvailable, applyProgress, perksOf, saveCampaign, levelOf } from './campaign.js';
-import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
+import { draw as drawMonster, describeCard, cardLines, DECKS } from './monsters.js';
 import { SKILL_NAMES, DIFFICULTIES, statKey, testChance } from './stats.js';
 import { evalCond } from './level.js';
 import { tweensActive } from './tween.js';
@@ -110,14 +110,16 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   const explored = new Set(S.explored);
   const revealed = new Set(S.revealed);
   const save = () => { S.revealed = [...revealed]; S.explored = [...explored]; S.savedAt = Date.now(); try { localStorage.setItem(saveKey, JSON.stringify(S)); } catch {} };
-  const R = { reach: new Map(), busy: false, marks: new Set(), setupTiles: [], setupFigs: [], setupTokens: [] };
+  const R = { reach: new Map(), busy: false, marks: new Set(), setupTiles: [], setupFigs: [], setupTokens: [], poiShown: new Set() };
   S.log ||= []; ui.setEvents?.(S.log);
   ui.onEvent = e => { S.log.push(e); if (S.log.length > 60) S.log.shift(); };
 
   // ------------------------------------------------------------------ plateau
-  const poiFor = t => { if (!t.poi || !t.place) return null; const acts = placeDef(t.place).activities || []; return acts.some(a => !(a.once && S.done.includes(a.id))) ? t.poi : null; };
+  // Point d'intérêt : toute case dont le site a des activités porte un jeton (toutes les interactions de lieu passent par lui).
+  // Il n'apparaît qu'une fois la case visitée, et disparaît quand plus rien n'y est proposé (fait, contourné…).
+  const poiDefOf = t => { const sd = siteOf(t.key); if (!sd?.activities?.length) return null; return t.poi || { icon: sd.poi?.icon || sd.activities[0].icon || 'place', label: sd.name }; };
   // nouvelle partie : plateau vide, les premières tuiles tomberont du ciel après l'introduction
-  for (const t of map.tiles.values()) engine.addTile({ ...t, label: TERRAINS[t.terrain].label, revealed: resumed && revealed.has(t.key), poi: poiFor(t) });
+  for (const t of map.tiles.values()) { t.poiDef = poiDefOf(t); engine.addTile({ ...t, label: TERRAINS[t.terrain].label, revealed: resumed && revealed.has(t.key), explored: resumed && explored.has(t.key), poi: t.poiDef, poiHidden: true }); }
   engine.resetCamera(true);
   if (resumed) {
     ready?.();
@@ -147,25 +149,40 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     ui.setActive(a);
     ui.setTurnHUD({ round: S.round, hero: ad, used: S.used, glas: S.glas, glasMax: S.glasMax, night: S.tod === 'night', boost: S.boost[ad.id] ?? 0, boostMax: boostMaxOf(ad.id),
       order: S.order.map((o, i) => (o === 'dark' ? { dark: true, done: i < S.turn } : { name: def(o).name, color: def(o).color, active: i === S.turn, done: i < S.turn })) });
-    ui.setInventory(Object.entries(S.inv).filter(([, n]) => n > 0).map(([k, n]) => ({ id: k, n, ...st.items[k] })), useItem);
+    ui.setInventory(Object.entries(S.inv).filter(([k, n]) => n > 0 && st.items[k]).map(([k, n]) => ({ ...st.items[k], id: k, n, usable: !!st.items[k].use || k === 'herbes' })), useItem);
+    // barre de PV sous la plaque de nom (héros et monstres)
+    for (const [id, f] of Object.entries(S.figs)) { if (!f.alive) continue; const d = def(id), tm = d?.team || 'hero'; if (tm === 'hero') engine.setHp?.(id, f.hp, d.hp); else if (tm === 'enemy' || tm === 'boss') engine.setHp?.(id, f.hp, scaledHp(d)); }
     // Les quêtes ne sont jamais affichées (ni panneau, ni marqueurs) : les joueurs prennent des notes.
     // Elles restent suivies en interne (conditions, XP de fin d'étape).
     refreshActions();
   }
+  /** Activités proposées sur une case : sans celles déjà faites (« une fois ») ni devenues inutiles (« disparaît si ») ;
+   *  une activité dont la condition n'est pas remplie n'est montrée (grisée) que si elle a un indice « Requiert ». */
   function placeActivities(key) {
     const pd = siteOf(key); if (!pd?.activities) return [];
-    return pd.activities.filter(a => !(a.once && S.done.includes(a.id))).map(a => {
+    return pd.activities.filter(a => !(a.once && S.done.includes(a.id)) && !a.hideIf?.(g)).map(a => {
       let disabled = null;
-      if (a.cond && !a.cond(g)) disabled = `Requiert : ${a.need || '?'}`;
+      if (a.cond && !a.cond(g)) { if (!a.need) return null; disabled = `Requiert : ${a.need}`; }
       else if (a.blockedByEnemies && enemiesOn(key).length) disabled = 'Des ennemis bloquent l\'accès';
       return { ...a, disabled };
-    });
+    }).filter(Boolean);
+  }
+  const poiWanted = k => !!tileOf(k)?.poiDef && explored.has(k) && placeActivities(k).length > 0;
+  /** Affiche / retire les jetons d'intérêt selon l'état ; consignes pour la table (poser / retirer le jeton) */
+  function syncPois({ silent = false } = {}) {
+    for (const k of explored) {
+      const t = tileOf(k); if (!t?.poiDef) continue;
+      const want = poiWanted(k), shown = R.poiShown.has(k);
+      if (want === shown) continue;
+      engine.setPoi?.(k, want);
+      if (want) { R.poiShown.add(k); if (!silent) R.setupTokens.push(k); }
+      else { R.poiShown.delete(k); if (!silent) ui.toast(`Plus rien à faire à <b>${siteOf(k)?.name || t.name}</b> : retirez son jeton d'intérêt (${t.code}).`, 5000); }
+    }
   }
   function refreshActions() {
     const id = active(), f = S.figs[id];
     if (!f?.alive || S.ended) { ui.setActions([]); return; }
     const acts = [];
-    if (placeActivities(f.tile).length) acts.push({ icon: 'place', label: 'Lieu', disabled: S.used.action, action: () => act(() => interactPlace()) });
     if (def(id).healAura) acts.push({ icon: 'glow', label: def(id).healAura.name, disabled: S.used.action, action: () => act(() => glow(id)) });
     if (rider()?.id === id && S.figs[mountId()]?.alive && S.figs[mountId()].tile === f.tile) acts.push({ icon: 'horse', label: S.mounted ? 'Pied à terre' : 'En selle', action: () => act(() => toggleMount()) });
     if (R.undo?.id === id) acts.push({ icon: 'back', label: 'Annuler le déplacement', action: () => act(() => undoMove(), { keepUndo: true }) });
@@ -173,6 +190,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     ui.setActions(acts);
   }
 
+  /** Objet à carte unique : coché dans l'éditeur, ou par défaut les objets de quête et les reliques */
+  const uniqueItem = it => it.unique ?? ['quete', 'relique'].includes(it.type);
   // ------------------------------------------------------------------ API exposée aux scénarios
   /** Héros visés par un effet : active | here | all | id */
   const whoIds = who => { const a = active(); return who === 'all' ? heroes().map(h => h.id) : who === 'here' ? heroes().filter(h => S.figs[h.id].tile === S.figs[a].tile).map(h => h.id) : [who === 'active' || !who ? a : who].filter(id => S.figs[id]?.alive); };
@@ -244,9 +263,16 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     choose: o => ui.choose(o),
     has: k => (S.inv[k] || 0) > 0,
     /** Objet obtenu : la carte physique est prise dans la pioche d'objets */
-    async give(k, n = 1) { if (!st.items[k]) return; S.inv[k] = (S.inv[k] || 0) + n; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'take', n }); },
+    async give(k, n = 1) {
+      const it = st.items[k]; if (!it) return;
+      if (uniqueItem(it)) { // une seule carte physique : un 2e exemplaire (déjà possédé ou déjà utilisé) n'est pas pris
+        if ((S.inv[k] || 0) > 0 || S.gone?.[k]) { await ui.cardPrompt({ item: it, mode: 'already' }); return; }
+        n = 1;
+      }
+      S.inv[k] = (S.inv[k] || 0) + n; refreshHUD(); save(); await ui.cardPrompt({ item: it, mode: 'take', n });
+    },
     /** Objet utilisé ou perdu : la carte est défaussée */
-    async take(k) { if (!(S.inv[k] > 0)) return; S.inv[k]--; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'discard' }); },
+    async take(k) { if (!(S.inv[k] > 0)) return; S.inv[k]--; (S.gone ||= {})[k] = true; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'discard' }); },
     questActive: id => S.quests[id] === 'active',
     questDoneQ: id => S.quests[id] === 'done',
     questStart(id) { if (S.quests[id] || !st.quests[id]) return; S.quests[id] = 'active'; save(); },
@@ -326,7 +352,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     turn: ['move', 'Votre tour', 'Chaque héros a <b>1 déplacement</b> (cases dorées, 2 cases), <b>1 action</b> (lieu, PNJ ou talent) et <b>1 attaque</b>, dans l\'ordre que vous voulez. Touchez une case dorée pour bouger : l\'app demande confirmation. Bougez votre vraie figurine en même temps.'],
     explore: ['eye', 'Explorer', 'Une nouvelle tuile ne montre que son illustration. Ce qu\'elle contient (lieu, personnages, monstres) n\'apparaît que lorsqu\'un héros y entre.'],
     npc: ['person', 'Parler', 'Touchez un PNJ (socle doré) pour lui parler : cela utilise l\'action du tour. Écoutez bien… et <b>prenez des notes sur papier</b> : certains PNJ vous interrogeront plus tard.'],
-    place: ['place', 'Interagir avec un lieu', 'Le bouton <b>Lieu</b> (ou toucher la case du héros) ouvre tout ce qu\'on peut faire ici. Vous pouvez tout faire en une seule action.'],
+    place: ['place', 'Interagir avec un lieu', 'Un <b>point d\'intérêt</b> (médaillon sur la case) marque ce qu\'on peut faire ici : touchez-le pour tout voir. Vous pouvez tout faire en une seule action. S\'il est sur une case voisine, le héros s\'y rend d\'abord (déplacement). Quand il n\'y a plus rien à faire, le jeton disparaît.'],
     enemy: ['attack', 'Combat', 'Un monstre ! Touchez-le pour l\'attaquer (l\'attaque du tour, séparée de l\'action). Portée : même case ou case voisine (2 pour Ysolde). Traverser sa case sans s\'arrêter provoque une <b>embuscade</b>.'],
     dice: ['dice', 'Les dés', 'Lancez <b>deux d10</b> : celui des dizaines et celui des unités (00 + 0 = 100). Saisissez le résultat : réussite s\'il est <b>inférieur ou égal</b> à la chance affichée. Avant de lancer, dépensez des <b>boosts</b> ✦ : +10 % chacun. Vous en regagnez 1 par manche.'],
     dark: ['skull', 'Les Ténèbres', 'Après les héros, chaque type de monstre tire une <b>carte d\'action</b> (initiative, déplacement, attaque…). Certaines cartes peuvent ne rien faire si vous êtes loin ! Puis la cloche sonne : <b>+1 glas</b>. Au dernier glas, c\'est perdu.'],
@@ -429,9 +455,10 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (!revealed.has(key)) await reveal(key, { focus: false });
     explored.add(key);
     const t = tileOf(key), pl = t.place, site = siteOf(key);
-    if (poiFor(t)) { engine.setPoi?.(key, true); R.setupTokens.push(key); }
+    engine.setExplored?.(key, true);
+    if (poiWanted(key)) { engine.setPoi?.(key, true); R.poiShown.add(key); R.setupTokens.push(key); }
     if (pl) for (const c of st.cast) if (c.place === pl && !c.spawnOn && !S.figs[c.id] && inParty(c)) await spawn(c.id);
-    if (site?.desc) ui.toast(`<b>${site.name}</b> — ${site.desc}${placeActivities(key).length ? '<br><small>Touchez la case ou « Lieu » pour interagir.</small>' : ''}`, 4500);
+    if (site?.desc) ui.toast(`<b>${site.name}</b> — ${site.desc}${R.poiShown.has(key) ? '<br><small>Touchez le point d\'intérêt pour interagir.</small>' : ''}`, 4500);
     if (pl && st.onReveal?.[pl]) await st.onReveal[pl](g);
     save(); return true;
   }
@@ -525,9 +552,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (S.used.action) { ui.toast('Action déjà utilisée ce tour.'); return; }
     const k = S.figs[active()].tile, pd = siteOf(k);
     const n = await ui.locationPanel({
-      title: pd.name, desc: pd.desc, hero: activeDef(),
+      title: pd.name, desc: pd.desc, hero: activeDef(), icon: tileOf(k).poiDef?.icon || 'place',
       list: () => placeActivities(k),
-      run: async a => { await a.run(g); if (a.once) { S.done.push(a.id); if (!poiFor(tileOf(k))) engine.setPoi?.(k, null); } save(); },
+      run: async a => { await a.run(g); if (a.once) S.done.push(a.id); save(); },
     });
     if (n > 0) S.used.action = true;
   }
@@ -557,16 +584,27 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
 
   // ------------------------------------------------------------------ combat (provisoire : un jet D100)
   const distTo = (from, to, max) => bfs(grid, from, k => revealed.has(k), max).dist.get(to);
-  async function attack(heroId, enemyId) {
+  /** riposte = contre-attaque gratuite (maladresse d'un monstre) : n'utilise pas l'attaque du tour */
+  async function attack(heroId, enemyId, { riposte = false } = {}) {
     await tip('dice');
     const h = def(heroId), e = def(enemyId), ef = S.figs[enemyId];
     S.stats.dice++;
     const chance = Math.max(5, Math.min(95, skillOf(heroId, 'combat') - e.def));
-    const r = await ui.rollD100({ chance, label: `${h.name} attaque ${dispName(enemyId)}`, detail: `${h.combatName} ${skillOf(heroId, 'combat')} % − défense ${e.def} %`, color: h.color, boosts: S.boost[heroId] || 0, stat: 'combat' });
+    const r = await ui.rollD100({ chance, label: `${h.name} ${riposte ? 'riposte contre' : 'attaque'} ${dispName(enemyId)}`, detail: `${h.combatName} ${skillOf(heroId, 'combat')} % − défense ${e.def} %`, color: h.color, boosts: S.boost[heroId] || 0, stat: 'combat' });
     spendBoost(heroId, r.spent);
     if (h.range > 1 && S.figs[heroId].tile !== ef.tile) { sfx.magic(); engine.animate?.(heroId, 'cast'); await sleep(500); } else await engine.bump(heroId, enemyId);
-    S.used.attack = true;
-    if (!r.ok) { ui.floatText(engine.screenPos(enemyId), 'Raté', '#cfc6b0'); return; }
+    if (!riposte) S.used.attack = true;
+    if (!r.ok) {
+      ui.floatText(engine.screenPos(enemyId), r.fumble ? 'Maladresse !' : 'Raté', '#cfc6b0');
+      // maladresse : le monstre riposte aussitôt (1 PV, sans jet)
+      if (r.fumble && S.figs[heroId]?.alive) {
+        await sleep(350); await engine.bump(enemyId, heroId);
+        const hf = S.figs[heroId]; hf.hp -= 1; sfx.hit(); ui.floatText(engine.screenPos(heroId), '-1', '#ff6a4a');
+        ui.toast(`<b>Maladresse !</b> ${dispName(enemyId)} profite de l'ouverture et riposte : <b>${h.name} −1 PV</b>.`, 3200);
+        refreshHUD(); if (hf.hp <= 0) await knockOut(heroId);
+      }
+      return;
+    }
     // dégâts = base + 1 par tranche de 20 sous la chance (marge de réussite), ×2 sur critique
     const bonus = Math.max(0, Math.floor((r.chance - r.roll) / 20));
     let dmg = (h.dmg + (S.dmgMods?.[heroId] || 0) + bonus) * (r.crit ? 2 : 1); if (e.undead && g.has('eau')) dmg++;
@@ -613,9 +651,17 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     engine.focusFigure(hid, { soft: true });
     S.stats.dice++;
     const chance = Math.max(5, Math.min(95, ed.atk - h.armor + (ambushHit ? 10 : 0) + bonus));
-    const { ok } = await ui.rollD100({ chance, label: `${dispName(eid)} attaque ${h.name}${ambushHit ? ' (embuscade)' : ''} — ${dmg} dégât${dmg > 1 ? 's' : ''}`, detail: `Attaque ${ed.atk} % − armure ${h.armor} %${bonus ? ` ${bonus > 0 ? '+' : '−'} ${Math.abs(bonus)} carte` : ''}${ambushHit ? ' + 10 embuscade' : ''} · lancez pour l'ennemi`, color: '#8a1c1c', enemy: true });
+    const { ok, fumble } = await ui.rollD100({ chance, label: `${dispName(eid)} attaque ${h.name}${ambushHit ? ' (embuscade)' : ''} — ${dmg} dégât${dmg > 1 ? 's' : ''}`, detail: `Attaque ${ed.atk} % − armure ${h.armor} %${bonus ? ` ${bonus > 0 ? '+' : '−'} ${Math.abs(bonus)} carte` : ''}${ambushHit ? ' + 10 embuscade' : ''} · lancez pour l'ennemi`, color: '#8a1c1c', enemy: true });
     await engine.bump(eid, hid);
-    if (!ok) { ui.floatText(engine.screenPos(hid), 'Paré', '#cfc6b0'); return; }
+    if (!ok) {
+      ui.floatText(engine.screenPos(hid), fumble ? 'Maladresse !' : 'Paré', '#cfc6b0');
+      // maladresse du monstre : le héros visé riposte gratuitement s'il est à portée
+      if (fumble && hf.alive && S.figs[eid]?.alive && !S.ended && distTo(hf.tile, S.figs[eid].tile, h.range) != null) {
+        ui.toast(`<b>Maladresse de ${dispName(eid)} !</b> ${h.name} riposte (attaque gratuite).`, 3200);
+        await sleep(400); await attack(hid, eid, { riposte: true }); refreshHUD();
+      }
+      return;
+    }
     sfx.hit(); hf.hp -= dmg; ui.floatText(engine.screenPos(hid), `-${dmg}`, '#ff6a4a');
     const c = S.cond[hid] ||= {};
     if (atk.poison && hf.hp > 0 && !c.poison) { c.poison = true; ui.toast(`${h.name} est <b>empoisonné</b> (−1 PV par tour, jusqu'à un soin).`, 2800); }
@@ -661,11 +707,11 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (!keepUndo) R.undo = null; // le héros fait autre chose : le déplacement n'est plus annulable
     let changedTurn = false;
     try {
-      changedTurn = (await fn()) === false; await flushSetup();
+      changedTurn = (await fn()) === false; if (!S.ended) syncPois(); await flushSetup();
       if (!changedTurn && !S.ended) {
         if (enemies().length) await tip('enemy');
         const af = S.figs[active()];
-        if (af?.alive && placeActivities(af.tile).length && !S.used.action) await tip('place');
+        if (af?.alive && R.poiShown.has(af.tile) && !S.used.action) await tip('place');
         if (S.used.move && S.used.action && S.used.attack) await tip('end');
       }
     }
@@ -683,21 +729,13 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
       const id = hit.id, tm = def(id)?.team; if (!S.figs[id]?.alive) return;
       if (tm === 'hero' || !tm) { engine.focusFigure(id, { soft: true }); if (id !== a) ui.toast(`C'est au tour de <b>${def(a).name}</b>.`); return; }
       if (tm === 'npc') return act(() => talk(id));
-      if (tm === 'enemy' || tm === 'boss') {
-        if (S.used.attack) { ui.toast('Attaque déjà utilisée ce tour.'); return; }
-        const h = def(a), d = distTo(af.tile, S.figs[id].tile, h.range);
-        if (d == null) { ui.toast(`Hors de portée (portée ${h.range === 1 ? 'même case ou voisine' : h.range + ' cases'}).`); engine.focusFigure(id, { soft: true }); return; }
-        return act(async () => {
-          const e = def(id), chance = Math.max(5, Math.min(95, skillOf(a, 'combat') - e.def));
-          const ok = await ui.confirm({ title: `Attaquer ${e.name} ?`, text: `PV ${S.figs[id].hp} · chance de toucher <b>${chance} %</b> (+10 par boost)<br>Dégâts <b>${h.dmg + (S.dmgMods?.[a] || 0)}</b>, <b>+1</b> par tranche de 20 sous la chance, <b>×2</b> sur critique<br><small>Utilise l'attaque du tour.</small>`, portrait: { kind: e.kind, color: e.color }, ok: 'Attaquer', cancel: 'Annuler', danger: true });
-          if (ok) await attack(a, id);
-        });
-      }
+      if (tm === 'enemy' || tm === 'boss') return act(() => monsterSheet(id));
       if (tm === 'mount') { const r = rider(); if (r && a === r.id && id === mountId() && af.tile === S.figs[id].tile) return act(() => toggleMount()); ui.toast(`${def(id).name} n'obéit qu'à ${r && id === mountId() ? r.name : 'son cavalier'}.`); return; }
     }
     if (hit.type === 'poi' || hit.type === 'tile') {
       const k = hit.key, t = tileOf(k);
-      if (k === af.tile && placeActivities(k).length) return act(() => interactPlace());
+      if (k === af.tile && R.poiShown.has(k)) return act(() => interactPlace());
+      if (hit.type === 'poi' && R.poiShown.has(k)) return poiTap(k);
       if (R.reach.has(k)) {
         const p = pathFor(af.tile, k, moveOf(a));
         const danger = p.slice(1, -1).filter(x => enemiesOn(x).length).length;
@@ -716,6 +754,63 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
       engine.focusTile(k);
     }
   };
+  /** Point d'intérêt d'une autre case : s'y rendre (déplacement) puis interagir (action) */
+  function poiTap(k) {
+    const a = active(), af = S.figs[a], site = siteOf(k);
+    if (S.used.action) { ui.toast('Action déjà utilisée ce tour.'); engine.focusTile(k); return; }
+    if (!R.reach.has(k)) { ui.toast(`<b>${site?.name || tileOf(k).name}</b> est trop loin (${S.used.move ? 'déplacement déjà utilisé' : 'hors de portée'}).`); engine.focusTile(k); return; }
+    const p = pathFor(af.tile, k, moveOf(a)), danger = p.slice(1, -1).filter(x => enemiesOn(x).length).length;
+    return act(async () => {
+      const ok = await ui.confirm({ title: `Aller : ${site?.name || tileOf(k).name} ?`, text: `<i>${site?.desc || teaserOf(k)}</i><br>${p.length - 1} case(s), puis interaction avec le lieu.${danger ? `<br><b>⚠ Embuscade</b> : le chemin traverse ${danger} case(s) ennemie(s).` : ''}<br><small>Utilise le déplacement et l'action du tour.</small>`, ok: 'Y aller', cancel: 'Annuler', danger: !!danger });
+      if (!ok) return;
+      await moveHero(a, p); S.used.move = true;
+      if (!S.figs[a]?.alive || S.ended || S.figs[a].tile !== k) return;
+      if (R.poiShown.has(k) || placeActivities(k).length) await interactPlace();
+    });
+  }
+  /** Fiche monstre (tap) : attaquer, s'approcher puis attaquer, ou seulement consulter */
+  function approachPath(a, target, range) {
+    const af = S.figs[a], { dist, pathTo } = bfs(grid, af.tile, k => revealed.has(k), moveOf(a));
+    let best = null;
+    for (const [k, d] of dist) {
+      if (d === 0 || distTo(k, target, range) == null) continue;
+      const p = pathTo(k), danger = p.slice(1, -1).filter(x => enemiesOn(x).length).length;
+      if (!best || danger < best.danger || (danger === best.danger && d < best.d)) best = { p, d, danger };
+    }
+    return best;
+  }
+  async function monsterSheet(id) {
+    const a = active(), af = S.figs[a], h = def(a), e = def(id), ef = S.figs[id];
+    const reachTxt = h.range === 1 ? 'même case ou voisine' : `${h.range} cases`;
+    let mode = null, reason = '', ap = null;
+    if (S.used.attack) reason = 'Attaque déjà utilisée ce tour.';
+    else if (distTo(af.tile, ef.tile, h.range) != null) mode = 'attack';
+    else if (!S.used.move && (ap = approachPath(a, ef.tile, h.range))) mode = 'approach';
+    else reason = `Hors de portée (portée ${reachTxt})${S.used.move ? ' et déplacement déjà utilisé' : ', même en se déplaçant'}.`;
+    const chance = Math.max(5, Math.min(95, skillOf(a, 'combat') - e.def)), crit = Math.max(1, Math.floor(chance / 5));
+    const base = (h.dmg || 1) + (S.dmgMods?.[a] || 0), holy = e.undead && g.has('eau');
+    const deck = DECKS[e.kind] || DECKS.default, atks = deck.filter(c => c.atk);
+    const dmgs = atks.map(c => c.atk.dmg || 1), rng0 = Math.max(0, ...atks.map(c => c.atk.range ?? 0));
+    const traits = [e.team === 'boss' ? 'Boss' : null, e.undead ? 'Mort-vivant' : null, e.static ? 'Immobile' : null, e.guard != null ? `Garde son lieu (≤ ${e.guard} case${e.guard > 1 ? 's' : ''})` : null,
+      atks.some(c => c.atk.poison) ? 'Peut empoisonner' : null, atks.some(c => c.atk.stun) ? 'Peut étourdir' : null, atks.some(c => c.atk.aoe) ? 'Frappe toute la case' : null, deck.some(c => c.shield) ? 'Se protège (bouclier)' : null, deck.some(c => c.heal) ? 'Se soigne' : null, ef.shield ? `Bouclier actif : −${ef.shield} dégât(s)` : null].filter(Boolean);
+    const forecast = [
+      `Touche si D100 ≤ <b>${chance}</b> : ${h.combatName || 'Combat'} ${skillOf(a, 'combat')} % − défense ${e.def} % · <b>+10</b> par boost (${S.boost[a] || 0} dispo)`,
+      `Dégâts <b>${base}</b>${holy ? ' <b>+1</b> (eau bénite)' : ''}, <b>+1</b> par tranche de 20 sous la chance, <b>×2</b> sur critique (≤ ${crit})`,
+      mode === 'approach' ? `Se déplace d'abord de ${ap.d} case(s)${ap.danger ? ` · <b>⚠ embuscade</b> sur ${ap.danger} case(s)` : ''} (utilise le déplacement)` : null,
+      `Utilise l'attaque du tour.`].filter(Boolean);
+    const go = await ui.monsterSheet({
+      name: dispName(id), tag: e.team === 'boss' ? 'Boss' : 'Monstre', color: e.color, kind: e.kind, hp: Math.max(0, ef.hp), max: scaledHp(e), desc: e.desc || '',
+      stats: [['shield', 'Défense', `${e.def} %`], ['attack', 'Attaque', `${e.atk} %`], ['heart', 'Dégâts', dmgs.length ? (Math.min(...dmgs) === Math.max(...dmgs) ? `${dmgs[0]}` : `${Math.min(...dmgs)}–${Math.max(...dmgs)}`) : '—'], ['move', 'Portée', rng0 ? `${rng0} cases` : 'contact']],
+      traits, forecast, chance: mode ? chance : null, mode, reason, model: () => engine.figureSheet?.(figData(id)),
+    });
+    if (!go) return;
+    if (mode === 'approach') {
+      await moveHero(a, ap.p); S.used.move = true;
+      if (!S.figs[a]?.alive || !S.figs[id]?.alive || S.ended) return;
+      if (distTo(S.figs[a].tile, S.figs[id].tile, h.range) == null) { ui.toast('La cible est hors de portée.'); return; }
+    }
+    await attack(a, id);
+  }
   engine.onLongPress = k => {
     const t = tileOf(k); if (!t || !revealed.has(k)) return;
     const who = Object.entries(S.figs).filter(([, f]) => f.alive && f.tile === k).map(([id]) => def(id).name).join(', ');
@@ -753,7 +848,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     const setG = patch => { if (settings.set({ gfx: patch })) ui.reloadPrompt(); };
     ui.buildMenu([
       { title: 'Partie', items: [
-        { label: 'Journal & besace', action: () => ui.openJournal() },
+        { label: 'Inventaire (bourse commune)', action: () => ui.openInventory() },
+        { label: 'Journal', action: () => ui.openJournal() },
         { type: 'seg', label: 'Ordre des tours', value: S.turnMode, options: [{ label: 'Fixe', value: 'fixed' }, { label: 'Aléatoire', value: 'deck' }], onChange: v => { S.turnMode = v; save(); ui.toast(v === 'deck' ? 'Dès la prochaine manche : ordre tiré au sort, les Ténèbres peuvent frapper au milieu.' : 'Dès la prochaine manche : ordre fixe.', 3200); } },
         { label: 'Relire l\'introduction', action: async () => { for (const p of st.intro) await dialogue.narrate(p); } },
         { label: 'Nouvelle partie (choix des héros)', action: () => { if (confirm('Effacer la partie en cours sur ce moteur ?')) { localStorage.removeItem(saveKey); location.reload(); } } },
@@ -843,16 +939,17 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     for (const p of st.intro || []) await dialogue.narrate(p);
     dialogue.uncover?.(); await sleep(500); // fin du fondu de la narration
     // les premières tuiles tombent du ciel une par une (case de départ d'abord), puis les figurines apparaissent
+    engine.setExplored?.(map.start, true); syncPois({ silent: true }); // jeton du départ : apparaît avec sa tuile
     const first = [map.start, ...[...revealed].filter(k => k !== map.start)];
     await Promise.all(first.map((k, i) => sleep(i * DROP_GAP).then(() => { sfx.reveal(); return engine.revealTile(k, { focus: false }); })));
     for (const [id, f] of Object.entries(S.figs)) if (f.alive) await engine.addFigure(figData(id), f.tile, { spawn: true });
     R.setupTiles.push(...first); R.setupFigs.push(...Object.keys(S.figs));
-    if (poiFor(tileOf(map.start))) R.setupTokens.push(map.start);
+    for (const k of R.poiShown) R.setupTokens.push(k);
     await flushSetup();
     await g.questStart(Object.keys(st.quests)[0]);
     await startRound();
   } else {
-    ui.round = S.round; ui.toast(`Partie reprise · Manche ${S.round}`, 2200);
+    ui.round = S.round; ui.toast(`Partie reprise · Manche ${S.round}`, 2200); syncPois({ silent: true });
     const h = activeDef(); engine.setRingColor?.(parseInt(h.color.slice(1), 16)); select(h.id); engine.focusFigure(h.id); refreshHUD();
     if (resetup) await fullSetup();
   }
@@ -861,7 +958,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   /** Remettre toute la table en place (reprise de partie, table rangée…) */
   async function fullSetup() {
     R.setupTiles.push(...revealed);
-    R.setupTokens.push(...[...explored].filter(k => poiFor(tileOf(k))));
+    R.setupTokens.push(...R.poiShown);
     R.setupFigs.push(...Object.keys(S.figs).filter(id => S.figs[id].alive));
     const was = settings.setup; settings.setup = true; await flushSetup(); settings.setup = was;
   }

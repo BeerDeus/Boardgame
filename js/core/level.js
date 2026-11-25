@@ -164,7 +164,7 @@ const cond = c => (c?.type ? g => evalCond(c, g) : undefined);
 
 function activity(a) {
   return { id: a.id, icon: a.icon || 'place', label: a.label || a.id, desc: a.desc || '', once: !!a.once, blockedByEnemies: !!a.blockedByEnemies,
-    need: a.need, cond: cond(a.cond), run: g => runEffects(a.effects, g) };
+    need: a.need, cond: cond(a.cond), hideIf: cond(a.hideIf), stat: (a.effects || []).find(e => e.type === 'test')?.stat, run: g => runEffects(a.effects, g) };
 }
 /** Étiquette d'un choix à dés : seulement la stat testée (« 🎲 Force ») — la difficulté se devine à la formulation */
 const testBadge = t => statBadge(t.stat, 26); // emblème seul, à gauche du choix (le nom reste en info-bulle)

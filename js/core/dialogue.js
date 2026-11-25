@@ -73,7 +73,9 @@ export function createDialogue(root) {
       box.addEventListener('pointerup', skip);
       keyHandler = e => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); skip(); } };
       await typed; box.removeEventListener('pointerup', skip); keyHandler = null;
-      const choices = (n.choices || []).map((c, i) => ({ ...c, k: `${hooks.dlgId}.${id}.${i}` })).filter(c => !(c.once && hooks.isSeen(c.k)));
+      // choix déjà faits (« une fois ») retirés ; un choix dont la condition n'est pas remplie est masqué,
+      // sauf s'il porte un indice (« Requiert : … ») : il reste alors visible, verrouillé
+      const choices = (n.choices || []).map((c, i) => ({ ...c, k: `${hooks.dlgId}.${id}.${i}` })).filter(c => !(c.once && hooks.isSeen(c.k)) && (!c.cond || c.need || c.cond(g)));
       if (choices.length) {
         box.classList.add('has-choices');
         const pick = await new Promise(res => {
@@ -81,7 +83,7 @@ export function createDialogue(root) {
           choices.forEach((c, i) => {
             const ok = !c.cond || c.cond(g);
             const b = document.createElement('button'); b.className = 'choice' + (ok ? '' : ' locked');
-            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i>${c.badge || ''}<span>${g?.fill ? g.fill(val(c.t, g)) : val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>${c.need ? `Requiert : ${c.need}` : 'Sous condition…'}</small>`}</span>`;
+            b.innerHTML = `<i>${ok ? i + 1 : '🔒'}</i>${c.badge || ''}<span>${g?.fill ? g.fill(val(c.t, g)) : val(c.t, g)}${ok ? (c.hint ? `<small>${val(c.hint, g)}</small>` : '') : `<small>Requiert : ${c.need}</small>`}</span>`;
             if (ok) { b.onclick = e => { e.stopPropagation(); res(c); }; btns[i] = c; }
             $('.d-choices').append(b);
           });

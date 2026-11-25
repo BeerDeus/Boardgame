@@ -108,8 +108,9 @@ function activitiesEditor(list) {
     h('summary', {}, h('b', {}, a.label || a.id), h('small', {}, ` · ${a.effects?.length || 0} effet(s)${a.once ? ' · une fois' : ''}`), icoBtn('✕', 'Supprimer', () => { list.splice(i, 1); changed(); render(); }, 'del')),
     row(fieldFor('text', a, 'label', ctx, 'Intitulé'), h('label', { class: 'fld' }, h('span', {}, 'Icône'), iconSelect(a.icon, v => { a.icon = v; changed(); }))),
     fieldFor('text', a, 'desc', ctx, 'Description (sous le bouton)'),
-    row(fieldFor('bool', a, 'once', ctx, 'Une seule fois'), fieldFor('bool', a, 'blockedByEnemies', ctx, 'Bloqué si ennemis'), fieldFor('text', a, 'need', ctx, 'Texte si condition non remplie')),
+    row(fieldFor('bool', a, 'once', ctx, 'Une seule fois'), fieldFor('bool', a, 'blockedByEnemies', ctx, 'Bloqué si ennemis'), fieldFor('text', a, 'need', ctx, 'Indice si condition non remplie (sinon activité masquée)')),
     fieldFor('cond', a, 'cond', ctx, 'Disponible si'),
+    fieldFor('cond', a, 'hideIf', ctx, 'Disparaît si (devenue inutile, contournée…)'),
     fieldFor('effects', a, 'effects', ctx, 'Effets'))));
   box.append(btn('+ Activité', () => { list.push({ id: uniqueId('activite', new Set(list.map(x => x.id))), label: 'Nouvelle activité', icon: 'eye', once: true, effects: [] }); changed(); render(); }, 'small'));
   return box;
@@ -140,10 +141,10 @@ function panelPlaces() {
         field('Départ', checkbox(p.start, v => { for (const x of L.places) delete x.start; if (v) p.start = true; changed(); render(); }, 'Case de départ des héros'))),
       fieldFor('text', p, 'teaser', ctx, 'Aperçu (visible quand la tuile apparaît, avant d\'y entrer)'),
       fieldFor('longtext', p, 'desc', ctx, 'Description (en entrant)'),
-      row(field('Jeton d\'intérêt', checkbox(!!p.poi, v => { if (v) p.poi = { icon: 'place', label: p.name }; else delete p.poi; changed(); render(); }, 'Marqueur 3D sur la case')),
+      row(field('Jeton d\'intérêt', checkbox(!!p.poi, v => { if (v) p.poi = { icon: 'place', label: p.name }; else delete p.poi; changed(); render(); }, 'Icône personnalisée'), 'Automatique dès que le lieu a des activités : il apparaît à la visite et disparaît quand plus rien n\'est proposé.'),
         p.poi ? h('label', { class: 'fld' }, h('span', {}, 'Icône du jeton'), iconSelect(p.poi.icon, v => { p.poi.icon = v; changed(); })) : null,
         fieldFor('flag', p, 'hiddenUntil', ctx, 'Caché tant que ce drapeau n\'est pas posé')),
-      h('h3', {}, 'Activités (bouton « Lieu »)'), activitiesEditor(p.activities ||= []),
+      h('h3', {}, 'Activités (point d\'intérêt de la case)'), activitiesEditor(p.activities ||= []),
       h('h3', {}, 'Événements'),
       h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Quand la tuile est découverte'), effectsEditor(L.onReveal[p.id] ||= [], ctx)),
       h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Quand un héros y entre'), effectsEditor(L.onEnter[p.id] ||= [], ctx)));
@@ -173,6 +174,7 @@ function panelCast() {
     form.append(h('h3', {}, 'Combat'),
       row(fieldFor('number', c, 'hp', ctx, 'PV'), fieldFor('number', c, 'atk', ctx, 'Attaque %'), fieldFor('number', c, 'def', ctx, 'Défense %'), fieldFor('number', c, 'guard', ctx, 'Garde : reste à ≤ N cases de son lieu')),
       row(fieldFor('bool', c, 'undead', ctx, 'Mort-vivant'), fieldFor('bool', c, 'static', ctx, 'Immobile')),
+      fieldFor('text', c, 'desc', ctx, 'Description (fiche monstre)'),
       h('div', { class: 'nested' }, h('div', { class: 'nested-l' }, 'Quand il est vaincu'), effectsEditor(L.onDefeat[c.id] ||= [], ctx)));
   } else {
     L.talk ||= {}; L.idleLine ||= {};
@@ -227,14 +229,15 @@ function panelQuests() {
     h('div', { class: 'card-h' }, h('b', {}, it.name || id), icoBtn('✕', 'Supprimer', () => { delete L.items[id]; changed(); render(); }, 'del')),
     idField('item', id, () => {}, new Set(Object.keys(L.items))),
     row(fieldFor('text', it, 'name', ctx, 'Nom'), h('label', { class: 'fld' }, h('span', {}, 'Icône'), iconSelect(it.icon, v => { it.icon = v; changed(); }))),
-    fieldFor('text', it, 'desc', ctx, 'Description'), row(fieldFor('bool', it, 'keep', ctx, 'Conservé dans la campagne')),
+    fieldFor('text', it, 'desc', ctx, 'Description'), row(fieldFor('bool', it, 'keep', ctx, 'Conservé dans la campagne'),
+      field('Carte unique', checkbox(it.unique ?? ['quete', 'relique'].includes(it.type), v => { it.unique = v; changed(); }, 'Un seul exemplaire'), 'Un 2ᵉ exemplaire obtenu (déjà possédé ou utilisé) : « Ne prenez pas la carte ». Par défaut : objets de quête et reliques.')),
     h('details', { class: 'card-phys' }, h('summary', {}, `Carte physique ${it.code || '(sans code)'}`),
       h('div', { class: 'cardrow' }, h('div', { class: 'cardprev', html: itemCardSVG(it, { width: '126px', height: '176px' }) }),
         h('div', {}, row(field('Code', input(it.code, v => { it.code = v; changed(); }, { placeholder: 'O-05' })),
           field('Type', select(it.type || '', Object.entries(ITEM_TYPES), v => { it.type = v || undefined; changed(); render(); }, { empty: '(auto)' }))),
           field('Illustration', select(it.art || '', Object.entries(ART_NAMES), v => { it.art = v || undefined; changed(); render(); }, { empty: '(selon l\'icône)' })),
           field('Texte de la carte', textarea(it.effect, v => { it.effect = v; changed(); }, { rows: 2, placeholder: it.desc || 'Effet imprimé sur la carte' }), 'Vide = la description.')))),
-    h('details', { open: it.useEffects?.length ? true : undefined }, h('summary', {}, `Utilisable depuis la besace (${it.useEffects?.length || 0} effet(s))`),
+    h('details', { open: it.useEffects?.length ? true : undefined }, h('summary', {}, `Utilisable depuis l'inventaire (${it.useEffects?.length || 0} effet(s))`),
       row(field('Consommé à l\'usage', checkbox(it.consume !== false, v => { if (v) delete it.consume; else it.consume = false; changed(); }))),
       fieldFor('cond', it, 'useCond', ctx, 'Utilisable si'), fieldFor('text', it, 'useNeed', ctx, 'Message si pas utilisable'), fieldFor('effects', it, 'useEffects', ctx, 'Effets quand on l\'utilise'))));
   return h('div', { class: 'panel' }, h('h2', {}, 'Quêtes'), h('p', { class: 'muted' }, 'Démarrées / terminées par des effets. La première quête démarre automatiquement au début du niveau. Les quêtes ne sont pas affichées aux joueurs (ils prennent des notes) : elles servent aux conditions et à l\'XP de fin d\'étape.'), qs,
@@ -275,7 +278,7 @@ function panelCheck() {
 function panelHelp() {
   return h('div', { class: 'panel help', html: `<h2>Aide</h2>
   <ol><li><b>Carte</b> : ajoutez des cases, peignez les terrains, placez les lieux (un lieu = une case).</li>
-  <li><b>Lieux</b> : texte d'aperçu, description, jeton, <b>activités</b> (bouton « Lieu » en jeu) faites d'<b>effets</b>.</li>
+  <li><b>Lieux</b> : texte d'aperçu, description, <b>activités</b> faites d'<b>effets</b>, proposées par le <b>point d'intérêt</b> de la case (« Disparaît si » le retire quand il devient inutile).</li>
   <li><b>Personnages</b> : PNJ (avec « Quand on lui parle »), ennemis (PV, attaque, défense), apparition en entrant dans le lieu ou par <b>vague</b>.</li>
   <li><b>Dialogues</b> : nœuds de texte reliés entre eux ; un nœud se termine par une suite simple, des <b>choix</b>, ou un <b>test de stat</b> qui mène à deux nœuds (réussite / échec). Un choix peut aussi lancer les dés.</li>
   <li><b>Tester ▸</b> ouvre le niveau dans le jeu (onglet séparé, sans toucher à la campagne).</li>
