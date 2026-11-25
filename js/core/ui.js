@@ -36,7 +36,7 @@ export function createUI({ title, subtitle }) {
   // Barre de groupe (héros)
   const party = h('div', 'party'); root.append(party);
   // Journal (objectifs), inventaire, actions, dés, textes flottants
-  const journal = h('div', 'journal'); root.append(journal);
+  const journal = h('div', 'journal'); journal.hidden = true; root.append(journal); // panneau d'objectifs (plus utilisé : quêtes non affichées)
   journal.onclick = () => journal.classList.toggle('collapsed');
   const inv = h('div', 'inventory'); root.append(inv);
   const actions = h('div', 'actions'); root.append(actions);
@@ -162,8 +162,7 @@ export function createUI({ title, subtitle }) {
     openJournal() {
       let lastR = null;
       const evHtml = events.slice().reverse().slice(0, 40).map(e => { const head = e.r !== lastR ? `<div class="ev-r">Manche ${e.r || 0}</div>` : ''; lastR = e.r; return `${head}<div class="ev ${(e.k || '').split(' ').filter(Boolean).map(x => 'k-' + x).join(' ')}">${e.t}</div>`; }).join('');
-      journalFull.innerHTML = `<div class="help-card"><h2>Journal</h2>${journalData.map(q => `<div class="jq ${q.done ? 'done' : ''}"><b>${icon(q.done ? 'check' : 'flag')} ${q.title}</b><span>${q.hint}</span></div>`).join('')}
-        <h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b>${i.code ? `<em class="jcode">${i.code}</em>` : ''}<span>${i.effect || i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
+      journalFull.innerHTML = `<div class="help-card"><h2>Besace commune</h2>${invData.length ? invData.map(i => `<div class="jq"><b>${ic(i.icon)} ${i.name}${i.n > 1 ? ' ×' + i.n : ''}</b>${i.code ? `<em class="jcode">${i.code}</em>` : ''}<span>${i.effect || i.desc}</span></div>`).join('') : '<p class="muted">Vide.</p>'}
         <h2>Derniers événements</h2><div class="ev-list">${evHtml || '<p class="muted">Rien pour l\'instant.</p>'}</div>
         <button class="btn wide" data-close>Fermer</button></div>`;
       journalFull.classList.add('open');

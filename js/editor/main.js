@@ -236,7 +236,7 @@ function panelQuests() {
     h('details', { open: it.useEffects?.length ? true : undefined }, h('summary', {}, `Utilisable depuis la besace (${it.useEffects?.length || 0} effet(s))`),
       row(field('Consommé à l\'usage', checkbox(it.consume !== false, v => { if (v) delete it.consume; else it.consume = false; changed(); }))),
       fieldFor('cond', it, 'useCond', ctx, 'Utilisable si'), fieldFor('text', it, 'useNeed', ctx, 'Message si pas utilisable'), fieldFor('effects', it, 'useEffects', ctx, 'Effets quand on l\'utilise'))));
-  return h('div', { class: 'panel' }, h('h2', {}, 'Quêtes'), h('p', { class: 'muted' }, 'Démarrées / terminées par des effets. La première quête démarre automatiquement au début du niveau.'), qs,
+  return h('div', { class: 'panel' }, h('h2', {}, 'Quêtes'), h('p', { class: 'muted' }, 'Démarrées / terminées par des effets. La première quête démarre automatiquement au début du niveau. Les quêtes ne sont pas affichées aux joueurs (ils prennent des notes) : elles servent aux conditions et à l\'XP de fin d\'étape.'), qs,
     btn('+ Quête', () => { const id = uniqueId('quete', new Set(Object.keys(L.quests))); L.quests[id] = { title: 'Nouvelle quête', hint: '' }; changed(); render(); }, 'small'),
     h('h2', {}, 'Objets'), its,
     btn('+ Objet', () => { const id = uniqueId('objet', new Set(Object.keys(L.items))); const nums = Object.values(L.items).map(x => +String(x.code || '').replace(/\D/g, '') || 0); L.items[id] = { name: 'Nouvel objet', icon: 'coin', desc: '', code: `O-${String(Math.max(0, ...nums) + 1).padStart(2, '0')}`, type: 'quete' }; changed(); render(); }, 'small'));

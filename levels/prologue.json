@@ -621,6 +621,11 @@
         {
          "type": "toast",
          "text": "La porte cède dans un fracas de bois pourri."
+        },
+        {
+         "type": "counter",
+         "key": "fanal",
+         "n": 1
         }
        ],
        "fail": [
@@ -671,6 +676,11 @@
         {
          "type": "toast",
          "text": "Un déclic : la serrure cède."
+        },
+        {
+         "type": "counter",
+         "key": "fanal",
+         "n": 1
         }
        ],
        "fail": [
@@ -1308,12 +1318,17 @@
   {
    "title": "Prologue — Le Pont de Brume",
    "image": "assets/bg/painting1.jpg",
-   "text": "Tutoriel. Chaque nuit, la brume du fleuve avance un peu plus sur Vieille-Ronce. Le fanal de la Tour du Guet, qui la tenait à distance, s'est éteint. La cloche du hameau sonne l'alarme à chaque heure : au dernier glas, la brume aura tout englouti."
+   "text": "Il y a trois nuits, le fanal de la Tour du Guet s'est éteint. Le capitaine de la Garde est monté le rallumer ; on ne l'a jamais revu. Depuis, la brume du fleuve gagne un champ à chaque coup de cloche, et l'on murmure que les morts marchent dans les marais.<br><br>Vous arrivez à <b>Vieille-Ronce</b>, le dernier hameau avant le pont. Si personne ne rend sa lumière au fanal avant le dernier glas, la brume engloutira tout."
   },
   {
    "title": "Comment jouer",
    "image": "assets/bg/painting3.jpg",
-   "text": "L'application est votre maître du jeu : elle vous dit quoi poser sur la table, fait parler les personnages et joue les monstres. Vous déplacez vos figurines et lancez vos dés. À son tour, chaque héros peut se déplacer, faire une action et attaquer. Seules les tuiles voisines sont visibles, et leur contenu n'apparaît qu'en y entrant. Prenez des notes : les PNJ posent parfois des questions."
+   "text": "L'application est votre maître du jeu : elle vous dit quoi poser sur la table, fait parler les personnages et joue les monstres. Vous déplacez vos figurines et lancez vos dés. À son tour, chaque héros peut se déplacer, faire une action et attaquer. Seules les tuiles voisines sont visibles, et leur contenu n'apparaît qu'en y entrant."
+  },
+  {
+   "title": "Vieille-Ronce",
+   "image": "assets/bg/painting2.jpg",
+   "text": "Berthe, l'aubergiste, sait tout ce qui se passe dans son village : elle sera de bon conseil. Mais personne ne tiendra le compte de vos découvertes à votre place.<br><br><b>Vous devriez en prendre note.</b> Un nom, un objet, une promesse : ce qui semble un détail aujourd'hui pourrait vous sauver demain."
   }
  ],
  "victoryText": {
@@ -1397,8 +1412,7 @@
       },
       {
        "t": "Qui d'autre pourrait nous aider ?",
-       "next": "aide",
-       "once": true
+       "next": "aide"
       },
       {
        "t": "Qu'est-ce qui vous fait si peur, Berthe ?",
@@ -1470,7 +1484,7 @@
     },
     "fanal": {
      "s": "berthe",
-     "t": "Il faut trois choses. L'<b>huile</b>, d'abord : tenez, prenez celle de ma réserve. Ensuite une <b>pierre à feu</b> pour la mèche : voyez Mathilde, à la forge. Et la porte de la Tour est fermée à <b>clé</b>… la Garde avait la clé. <b>Gaspard</b> en était, de la Garde. Puis le chemin de l'<b>est</b> : le Gué des Noyés, le Pont de Brume. Et là… le Gardien.",
+     "t": "Un fanal, mes agneaux, ça se <b>nourrit</b>, ça s'<b>allume</b>… et d'abord il faut pouvoir <b>monter jusqu'à lui</b>. Pour le nourrir, j'ai ce qu'il faut : tenez, de l'huile de ma réserve. Pour le reste, je ne suis qu'une aubergiste : demandez autour de vous. Et le chemin de l'<b>est</b> passe par le Gué des Noyés, puis le Pont de Brume. Et là… le Gardien.",
      "next": null,
      "effects": [
       {
@@ -1488,12 +1502,45 @@
        "n": 1
       },
       {
-       "type": "questStart",
-       "quest": "pierre"
+       "type": "counter",
+       "key": "fanal",
+       "n": 1
       },
       {
-       "type": "questStart",
-       "quest": "cle"
+       "type": "if",
+       "cond": {
+        "type": "counter",
+        "key": "fanal",
+        "n": 3
+       },
+       "then": [
+        {
+         "type": "toast",
+         "text": "Cette huile devrait nourrir la flamme du fanal.<br><i>Tout y est : il ne reste qu'à atteindre le sommet de la Tour du Guet.</i>"
+        }
+       ],
+       "else": [
+        {
+         "type": "if",
+         "cond": {
+          "type": "counter",
+          "key": "fanal",
+          "n": 2
+         },
+         "then": [
+          {
+           "type": "toast",
+           "text": "Cette huile devrait nourrir la flamme du fanal.<br><i>Plus qu'un objet pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Cette huile devrait nourrir la flamme du fanal.<br><i>Plus que 2 objets pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ]
+        }
+       ]
       },
       {
        "type": "questStart",
@@ -1501,6 +1548,10 @@
       }
      ],
      "choices": [
+      {
+       "t": "Demander autour de nous… mais à qui ?",
+       "next": "aide"
+      },
       {
        "t": "Le Gardien ? Qui est-ce ?",
        "next": "gardien_info"
@@ -1598,7 +1649,7 @@
     },
     "aide": {
      "s": "berthe",
-     "t": "Mathilde, à la forge juste à l'<b>ouest</b> : bourrue, mais une lame de chez elle vaut trois soldats. Gaspard, le chasseur, campe au <b>nord-est</b>, à l'orée du bois. Et la petite Lise pleure au verger depuis ce matin… elle dit qu'elle a vu une dame dans la brume.",
+     "t": "Pour allumer quoi que ce soit, voyez <b>Mathilde</b>, à la forge juste à l'<b>ouest</b> : bourrue, mais il ne sort pas une étincelle de ce hameau qui ne vienne de chez elle. Pour la Tour… <b>Gaspard</b>, le chasseur, campe au <b>nord-est</b>, à l'orée du bois. Il en sait plus long sur cette tour qu'il ne veut bien le dire. Et la petite Lise pleure au verger depuis ce matin… elle dit qu'elle a vu une dame dans la brume.",
      "next": null,
      "effects": [
       {
@@ -1981,7 +2032,7 @@
        }
       },
       {
-       "t": "Il nous faut une pierre à feu, pour le fanal.",
+       "t": "Il nous faut de quoi rallumer le fanal de la Tour.",
        "next": "pierre",
        "cond": {
         "type": "all",
@@ -2281,7 +2332,7 @@
     },
     "tour": {
      "s": "mathilde",
-     "t": "Mon père y montait la garde. Il disait qu'un mort qui garde ne dort jamais. Les morts n'aiment pas l'eau bénite : la chapelle au <b>sud</b> en garde encore, si le prêtre ne l'a pas bue.",
+     "t": "Mon père y montait la garde. Il disait qu'un mort qui garde ne dort jamais. Les morts n'aiment pas l'eau bénite : la chapelle au <b>sud</b> en garde encore, si le prêtre ne l'a pas bue. Et la porte est bardée de fer, fermée à <b>clé</b>. C'est la Garde qui avait la clé, évidemment.",
      "next": "menu"
     },
     "pont": {
@@ -2296,7 +2347,7 @@
     },
     "pierre": {
      "s": "mathilde",
-     "t": "Une pierre à feu ? Mon dernier silex a éclaté hier sur l'enclume. Rapportez-m'en un <b>noir</b>, de ceux qui chantent sous l'acier, et je vous forge une pierre à feu qui allumerait de la glace. La petite <b>Lise</b> en ramasse partout, ces cailloux-là. Et les contrebandiers en planquaient dans leur <b>cache</b>, au sud-est.",
+     "t": "Rallumer le fanal ? De l'huile, vous en avez ? Bon. Mais une mèche qui a bu trois nuits de brume, ça ne s'allume pas avec un briquet de colporteur : il vous faut une vraie <b>pierre à feu</b>. Mon dernier silex a éclaté hier sur l'enclume. Rapportez-m'en un <b>noir</b>, de ceux qui chantent sous l'acier, et je vous en forge une qui allumerait de la glace. La petite <b>Lise</b> en ramasse partout, ces cailloux-là. Et les contrebandiers en planquaient dans leur <b>cache</b>, au sud-est.",
      "next": "menu",
      "effects": [
       {
@@ -2345,6 +2396,47 @@
        "n": 1
       },
       {
+       "type": "counter",
+       "key": "fanal",
+       "n": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "type": "counter",
+        "key": "fanal",
+        "n": 3
+       },
+       "then": [
+        {
+         "type": "toast",
+         "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Tout y est : il ne reste qu'à atteindre le sommet de la Tour du Guet.</i>"
+        }
+       ],
+       "else": [
+        {
+         "type": "if",
+         "cond": {
+          "type": "counter",
+          "key": "fanal",
+          "n": 2
+         },
+         "then": [
+          {
+           "type": "toast",
+           "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Plus qu'un objet pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Plus que 2 objets pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ]
+        }
+       ]
+      },
+      {
        "type": "questDone",
        "quest": "pierre"
       },
@@ -2373,6 +2465,47 @@
        "type": "give",
        "item": "pierre",
        "n": 1
+      },
+      {
+       "type": "counter",
+       "key": "fanal",
+       "n": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "type": "counter",
+        "key": "fanal",
+        "n": 3
+       },
+       "then": [
+        {
+         "type": "toast",
+         "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Tout y est : il ne reste qu'à atteindre le sommet de la Tour du Guet.</i>"
+        }
+       ],
+       "else": [
+        {
+         "type": "if",
+         "cond": {
+          "type": "counter",
+          "key": "fanal",
+          "n": 2
+         },
+         "then": [
+          {
+           "type": "toast",
+           "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Plus qu'un objet pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Avec cette pierre à feu, la mèche du fanal devrait prendre.<br><i>Plus que 2 objets pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ]
+        }
+       ]
       },
       {
        "type": "questDone",
@@ -2700,7 +2833,7 @@
        "once": true
       },
       {
-       "t": "La clé de la Tour, Gaspard. Vous l'avez gardée.",
+       "t": "Vous connaissez la Tour du Guet. Comment y entre-t-on ?",
        "next": "cle_lettre",
        "once": true,
        "cond": {
@@ -3017,7 +3150,7 @@
     },
     "cle_lettre": {
      "s": "gaspard",
-     "t": "…Oui. Je l'ai emportée en fuyant, comme un voleur. Elle est à vous. Mais avant… Berthe. Je ne peux pas la regarder en face. Portez-lui ça. Et revenez me dire ce qu'elle en a fait.",
+     "t": "Par la porte, comme tout le monde. Fermée à clé. Et la clé… c'est moi qui l'ai. Je l'ai emportée en fuyant, comme un voleur. Elle est à vous. Mais avant… Berthe. Je ne peux pas la regarder en face. Portez-lui ça. Et revenez me dire ce qu'elle en a fait.",
      "next": "menu",
      "effects": [
       {
@@ -3054,6 +3187,47 @@
        "type": "give",
        "item": "cle",
        "n": 1
+      },
+      {
+       "type": "counter",
+       "key": "fanal",
+       "n": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "type": "counter",
+        "key": "fanal",
+        "n": 3
+       },
+       "then": [
+        {
+         "type": "toast",
+         "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Tout y est : il ne reste qu'à atteindre le sommet de la Tour du Guet.</i>"
+        }
+       ],
+       "else": [
+        {
+         "type": "if",
+         "cond": {
+          "type": "counter",
+          "key": "fanal",
+          "n": 2
+         },
+         "then": [
+          {
+           "type": "toast",
+           "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Plus qu'un objet pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Plus que 2 objets pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ]
+        }
+       ]
       },
       {
        "type": "questDone",
@@ -3112,6 +3286,47 @@
        "type": "give",
        "item": "cle",
        "n": 1
+      },
+      {
+       "type": "counter",
+       "key": "fanal",
+       "n": 1
+      },
+      {
+       "type": "if",
+       "cond": {
+        "type": "counter",
+        "key": "fanal",
+        "n": 3
+       },
+       "then": [
+        {
+         "type": "toast",
+         "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Tout y est : il ne reste qu'à atteindre le sommet de la Tour du Guet.</i>"
+        }
+       ],
+       "else": [
+        {
+         "type": "if",
+         "cond": {
+          "type": "counter",
+          "key": "fanal",
+          "n": 2
+         },
+         "then": [
+          {
+           "type": "toast",
+           "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Plus qu'un objet pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ],
+         "else": [
+          {
+           "type": "toast",
+           "text": "Cette clé devrait ouvrir la porte de la Tour du Guet.<br><i>Plus que 2 objets pour être sûr de pouvoir rallumer le fanal.</i>"
+          }
+         ]
+        }
+       ]
       },
       {
        "type": "questDone",

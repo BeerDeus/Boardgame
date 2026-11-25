@@ -47,3 +47,9 @@ O-01 Herbes de soin · O-02 Huile de lampe · O-03 Eau bénite · O-04 Poupée d
 Parler à Berthe → Rallumer le fanal (indice : huile, pierre à feu, clé) → sous-quêtes : « Un silex pour Mathilde », « La clé de Gaspard », « La lettre de Gaspard », « Retrouver la poupée de Lise », « Chasser les loups », « Atteindre la Tour du Guet », « Retrouver Odon ».
 
 Durée : ~8 à 11 manches à 2 héros, dans les 22 glas (Normal).
+
+## 6. Indices et suivi (révision)
+- Aucune quête affichée : l'introduction raconte l'extinction du fanal et la disparition du capitaine, fixe le but (rendre sa lumière au fanal avant le dernier glas), présente Berthe comme bonne conseillère et invite à prendre des notes.
+- Berthe reste vague (« un fanal, ça se nourrit, ça s'allume, et d'abord il faut monter jusqu'à lui »), donne l'huile, puis oriente nettement vers Mathilde (« pas une étincelle qui ne vienne de chez elle ») et Gaspard (« il en sait plus long sur cette tour »).
+- Mathilde explique la pierre à feu quand on lui demande « de quoi rallumer le fanal » ; sa réplique sur la Tour mentionne la porte fermée à clé ; Gaspard révèle la clé quand on lui demande comment entrer.
+- À chaque composant obtenu : message d'avancement (« Cette huile devrait nourrir la flamme du fanal. » + en italique « Plus que 2 objets pour être sûr de pouvoir rallumer le fanal. »).

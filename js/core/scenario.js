@@ -147,14 +147,9 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     ui.setTurnHUD({ round: S.round, hero: ad, used: S.used, glas: S.glas, glasMax: S.glasMax, night: S.tod === 'night', boost: S.boost[ad.id] ?? 0, boostMax: boostMaxOf(ad.id),
       order: S.order.map((o, i) => (o === 'dark' ? { dark: true, done: i < S.turn } : { name: def(o).name, color: def(o).color, active: i === S.turn, done: i < S.turn })) });
     ui.setInventory(Object.entries(S.inv).filter(([, n]) => n > 0).map(([k, n]) => ({ id: k, n, ...st.items[k] })), useItem);
-    ui.setJournal(Object.entries(S.quests).map(([id, s]) => ({ id, ...st.quests[id], done: s === 'done' })), `${st.title.split('—').pop().trim()} · glas ${S.glas}/${S.glasMax}`);
-    refreshMarks(); refreshActions();
-  }
-  function refreshMarks() {
-    const want = new Set(Object.entries(S.quests).filter(([, s]) => s === 'active').map(([id]) => map.placeKey[st.quests[id].target]).filter(k => k && revealed.has(k)));
-    for (const k of R.marks) if (!want.has(k)) engine.mark?.(k, false);
-    for (const k of want) if (!R.marks.has(k)) engine.mark?.(k, true);
-    R.marks = want;
+    // Les quêtes ne sont jamais affichées (ni panneau, ni marqueurs) : les joueurs prennent des notes.
+    // Elles restent suivies en interne (conditions, XP de fin d'étape).
+    refreshActions();
   }
   function placeActivities(key) {
     const pd = siteOf(key); if (!pd?.activities) return [];
@@ -253,8 +248,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     async take(k) { if (!(S.inv[k] > 0)) return; S.inv[k]--; refreshHUD(); save(); await ui.cardPrompt({ item: st.items[k], mode: 'discard' }); },
     questActive: id => S.quests[id] === 'active',
     questDoneQ: id => S.quests[id] === 'done',
-    async questStart(id) { if (S.quests[id] || !st.quests[id]) return; S.quests[id] = 'active'; refreshHUD(); save(); await ui.notice({ kind: 'quest', title: st.quests[id].title, text: st.quests[id].hint }); },
-    async questDone(id) { if (S.quests[id] === 'done' || !st.quests[id]) return; S.quests[id] = 'done'; refreshHUD(); save(); await ui.notice({ kind: 'quest-done', title: st.quests[id].title }); },
+    questStart(id) { if (S.quests[id] || !st.quests[id]) return; S.quests[id] = 'active'; save(); },
+    questDone(id) { if (S.quests[id] === 'done' || !st.quests[id]) return; S.quests[id] = 'done'; save(); },
     toast: (m, ms) => ui.toast(m, ms),
     narrate: o => dialogue.narrate(o),
     bell() { sfx.bell(); engine.shake?.(0.03); },
