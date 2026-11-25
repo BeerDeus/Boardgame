@@ -4,7 +4,12 @@ Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (
 
 ## Démarche
 0. **🧭 Guide** (barre du haut de l'éditeur) : un pas-à-pas qui fait créer une petite étape complète, « La bague de Margot » (carte, 2 lieux, 2 PNJ, dialogue, échange d'objets entre les PNJ, victoire, jet de dés, test). Chaque étape se coche toute seule ; « Montre-moi ▸ » ouvre le bon onglet et fait clignoter l'endroit où cliquer.
-1. Hub → **Éditeur de niveaux** (sur PC de préférence). « Exemple : Prologue » ouvre le tutoriel comme modèle.
+1. Hub → **Éditeur de niveaux** (sur PC de préférence). Le panneau **☰ Étapes** (flèche à gauche) liste toutes les étapes, rangées par acte dans des dossiers **Idée / En cours / À tester / Live** :
+   - cliquer une étape ouvre son niveau (le Prologue sert de modèle) ; sous l'étape ouverte, sa **structure** (cases, lieux, PNJ, monstres, dialogues, quêtes, objets ; chaque lieu avec ses personnages), cliquable ;
+   - chaque niveau a sa **copie de travail** dans le navigateur : on peut avancer plusieurs étapes à la fois sans rien perdre. « modifié » / « non publié » = pas encore envoyé par « ⇪ Publier » ; ↺ reprend la version du jeu. Si la version du jeu a changé entre-temps, l'éditeur demande laquelle garder ;
+   - **glisser-déposer** une étape vers un autre dossier, un autre acte ou une autre position, ou menu **⋯** (statut, monter/descendre, autre acte, renommer, retirer de la campagne) ;
+   - étape sans niveau : un clic crée son niveau (`levels/<id de l'étape>.json`, statut En cours) ; un brouillon « Hors campagne » se glisse dans un dossier (ou sur une étape Idée) pour devenir une étape ;
+   - **seules les étapes Live sont jouables** depuis l'accueil ; les autres y apparaissent « À venir », même publiées.
 2. Construire : **Carte** → **Lieux** → **Personnages** → **Dialogues** → **Quêtes & objets** → **Événements**.
 3. **Tester ▸** ouvre le niveau dans le jeu, dans un onglet séparé. Ni la campagne ni la partie en cours ne sont touchées.
 4. **Campagne** (onglet) : placer le niveau dans un Acte (« + Étape : niveau en cours »), régler l'ordre, le déblocage (« Débloquée après »), le titre et l'illustration.

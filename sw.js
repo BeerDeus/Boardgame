@@ -3,7 +3,7 @@
 //  • Assets lourds (modèles, textures, HDRI, polices) : cache d'abord + rafraîchissement en arrière-plan.
 //  • Le navigateur vérifie sw.js à chaque visite (updateViaCache: 'none') ; nouvelle version = activée
 //    immédiatement et la page se recharge toute seule. Aucune réinstallation nécessaire.
-const VERSION = 'grimoire-1795629525';
+const VERSION = 'grimoire-1795631952';
 const PRECACHE = [
 "./",
 "assets/bg/painting1.jpg",
@@ -86,6 +86,7 @@ const PRECACHE = [
 "js/editor/github.js",
 "js/editor/guide.js",
 "js/editor/heroes-panel.js",
+"js/editor/levels-drawer.js",
 "js/editor/main.js",
 "js/editor/map.js",
 "js/engines/hex.js",

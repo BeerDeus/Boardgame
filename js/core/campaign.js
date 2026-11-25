@@ -15,7 +15,7 @@ export function loadCampaignDef(url = CAMPAIGN_URL) {
 export function normalizeCampaign(d) {
   const def = { title: d.title || 'Campagne', subtitle: d.subtitle || '', acts: (d.acts || []).map(a => ({ ...a, steps: (a.steps || []).map(s => ({ ...s, act: a.id })) })) };
   def.steps = def.acts.flatMap(a => a.steps);
-  for (const s of def.steps) { s.soon = s.soon || !s.level; if (s.level) { s.url = s.level; s.load = () => loadLevel(s.level); } }
+  for (const s of def.steps) { s.soon = s.soon || !s.level || (!!s.status && s.status !== 'live'); /* seules les étapes « Live » sont jouables */ if (s.level) { s.url = s.level; s.load = () => loadLevel(s.level); } }
   return def;
 }
 /**

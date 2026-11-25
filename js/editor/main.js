@@ -8,16 +8,66 @@ import { DRAFT_KEY } from '../core/campaign.js';
 import { h, input, textarea, checkbox, select, field, row, btn, icoBtn, fieldFor, effectsEditor, condEditor, sideList, options, iconSelect, uniqueId, slug, IMAGES } from './fields.js';
 import { mapPanel } from './map.js';
 import { itemCardSVG, ITEM_TYPES, ART_NAMES } from '../core/cards.js';
-import { panelCampaign, publishDialog, loadEditorCampaign, campaignLevelFiles } from './campaign.js';
+import { panelCampaign, publishDialog } from './campaign.js';
 import { panelHeroes } from './heroes-panel.js';
 import { initGuide, toggleGuide, update as updateGuide, markTested } from './guide.js';
 import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
+import { initLevelsDrawer, refreshDrawer, toggleDrawer } from './levels-drawer.js';
 
 const STORE = 'grimoire.editor.level';
 const $ = s => document.querySelector(s);
 let L = load() || emptyLevel();
 const ui = { tab: 'general', sel: {}, collapsed: new Set() };
-const ctx = { get L() { return L; }, changed, refresh: render, check: () => checkLevel(L) };
+const ctx = { get L() { return L; }, changed, refresh: render, check: () => checkLevel(L), onPublished: () => { const w = WORK(); w[L.id] = { level: L, src: JSON.stringify(L) }; saveWork(w); refreshDrawer(); } };
+
+// ------------------------------------------------------------------ copies de travail par niveau
+// grimoire.editor.levels = { id: { level, src } } — src = version du jeu au moment du chargement
+// (null : niveau jamais publié ; absent : inconnue, ancienne sauvegarde). Modifié = level ≠ src.
+const WORK_KEY = 'grimoire.editor.levels';
+let work = null;
+const WORK = () => { if (!work) { try { work = JSON.parse(localStorage.getItem(WORK_KEY)) || {}; } catch { work = {}; } } return work; };
+const saveWork = w => { work = w; try { localStorage.setItem(WORK_KEY, JSON.stringify(w)); } catch { alert('Stockage du navigateur plein : exportez vos niveaux.'); } };
+let curKey = null; // identifiant sous lequel le niveau ouvert est rangé (suivi des renommages)
+function stashCurrent() {
+  if (!L?.id) return;
+  const w = WORK(), prev = w[curKey] || w[L.id];
+  if (curKey && curKey !== L.id) delete w[curKey];
+  w[L.id] = { level: L, ...(prev && 'src' in prev ? { src: prev.src } : {}) };
+  curKey = L.id; saveWork(w);
+}
+function isModified(id) {
+  const e = id === L.id ? { level: L, src: WORK()[id]?.src } : WORK()[id];
+  if (!e) return false;
+  return e.src === undefined ? true : JSON.stringify(e.level) !== e.src;
+}
+async function fetchLevel(file) { const d = normalize(await (await fetch(file, { cache: 'no-cache' })).json()); return { d, src: JSON.stringify(d) }; }
+/** Ouvre un niveau : copie de travail si elle existe, sinon la version du jeu. Si la version du jeu a changé
+ *  depuis et que la copie locale est modifiée, on demande laquelle garder. */
+async function openLevel(id, file) {
+  stashCurrent();
+  const w = WORK(), local = w[id];
+  let game = null;
+  if (file) { try { game = await fetchLevel(file); } catch (e) { if (!local) { alert('Niveau illisible : ' + e.message); return; } } }
+  let pick, src;
+  if (!local) { pick = game.d; src = game.src; }
+  else if (!game) { pick = local.level; src = local.src; }
+  else {
+    const loc = JSON.stringify(local.level), unchanged = local.src !== undefined && loc === local.src;
+    if (loc === game.src || unchanged) { pick = game.d; src = game.src; } // pas de modification locale : on prend la dernière version du jeu
+    else if (local.src === game.src) { pick = local.level; src = local.src; } // modifié localement, jeu inchangé
+    else if (confirm(`« ${local.level.title || id} » a des modifications locales non publiées, mais la version du jeu a changé depuis.\n\nOK = garder mes modifications locales\nAnnuler = prendre la version actuelle du jeu`)) { pick = local.level; src = game.src; }
+    else { pick = game.d; src = game.src; }
+  }
+  w[id] = { level: pick, src }; saveWork(w);
+  replaceLevel(pick, id);
+}
+async function revertLevel(id, file) {
+  if (!confirm('Abandonner les modifications locales de ce niveau et reprendre la version du jeu ?')) return;
+  try { const g = await fetchLevel(file); const w = WORK(); w[id] = { level: g.d, src: g.src }; saveWork(w); if (id === L.id) replaceLevel(g.d, id); else refreshDrawer(); }
+  catch (e) { alert('Niveau illisible : ' + e.message); }
+}
+/** Remplace le niveau ouvert sans le ranger (déjà fait) */
+function replaceLevel(d, key) { undo = []; L = normalize(d); curKey = key ?? L.id; lastSnap = JSON.stringify(L); ui.sel = {}; try { localStorage.setItem(STORE, lastSnap); } catch {} updateBadge(); render(); }
 
 // ------------------------------------------------------------------ sauvegarde auto + annuler
 let undo = [], lastSnap = JSON.stringify(L), snapT = null, checkT = null;
@@ -25,12 +75,19 @@ function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch 
 function changed() {
   try { localStorage.setItem(STORE, JSON.stringify(L)); } catch {}
   $('#saved').textContent = 'Enregistré (navigateur)';
-  clearTimeout(snapT); snapT = setTimeout(() => { const s = JSON.stringify(L); if (s !== lastSnap) { undo.push(lastSnap); if (undo.length > 80) undo.shift(); lastSnap = s; } }, 500);
+  clearTimeout(snapT); snapT = setTimeout(() => { const s = JSON.stringify(L); if (s !== lastSnap) { undo.push(lastSnap); if (undo.length > 80) undo.shift(); lastSnap = s; } stashCurrent(); refreshDrawer(); }, 500);
   clearTimeout(checkT); checkT = setTimeout(() => { updateBadge(); updateGuide(); }, 400);
   refreshLists();
 }
 function doUndo() { const s = undo.pop(); if (!s) return; L = JSON.parse(s); lastSnap = s; try { localStorage.setItem(STORE, s); } catch {} render(); }
-function setLevel(d) { undo.push(JSON.stringify(L)); L = normalize(d); lastSnap = JSON.stringify(L); ui.sel = {}; changed(); render(); }
+/** Nouveau niveau / fichier ouvert / guide : le niveau en cours est d'abord rangé dans sa copie de travail */
+function setLevel(d, { src = null } = {}) {
+  stashCurrent();
+  L = normalize(d); undo = []; lastSnap = JSON.stringify(L); ui.sel = {};
+  const w = WORK(); if (w[L.id] && !confirm(`Un niveau « ${L.id} » existe déjà dans ce navigateur (${w[L.id].level?.title || ''}). Le remplacer ?`)) { const keep = w[curKey]; if (keep) { L = normalize(keep.level); lastSnap = JSON.stringify(L); } render(); return; }
+  w[L.id] = { level: L, src }; curKey = L.id; saveWork(w);
+  changed(); render();
+}
 function normalize(d) { const e = emptyLevel(); for (const k of Object.keys(e)) if (d[k] === undefined) d[k] = e[k]; d.format = LEVEL_FORMAT; return d; }
 L = normalize(L);
 
@@ -300,20 +357,27 @@ function render() {
   main.innerHTML = '';
   const P = { campaign: () => panelCampaign(ctx), heroes: () => panelHeroes(ctx), general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
   main.append(P()); main.scrollTop = sc;
-  $('#title').textContent = L.title || L.id; refreshLists(); updateBadge(); updateGuide();
+  $('#title').textContent = L.title || L.id; refreshLists(); updateBadge(); updateGuide(); refreshDrawer();
 }
 
 // ------------------------------------------------------------------ barre d'outils
-$('#new').onclick = () => { if (confirm('Commencer un nouveau niveau ? (exportez d\'abord celui-ci si besoin)')) setLevel(emptyLevel()); };
-// Ouvrir un niveau du jeu (fichiers référencés par la campagne)
-$('#example').onclick = async () => {
-  await loadEditorCampaign().catch(() => {});
-  const files = [...new Map(campaignLevelFiles().map(x => [x.file, x])).values()];
-  const list = files.length ? files : [{ file: 'levels/prologue.json', step: { num: 'Prologue', title: '' } }];
-  const pick = prompt(`Ouvrir quel niveau du jeu ? (remplace le niveau en cours dans l'éditeur)\n${list.map((x, i) => `${i + 1}. ${x.step.num || ''} ${x.step.title || ''} — ${x.file}`).join('\n')}`, '1');
-  const f = list[+pick - 1]; if (!f) return;
-  try { setLevel(await (await fetch(f.file, { cache: 'no-cache' })).json()); } catch (e) { alert('Niveau illisible : ' + e.message); }
+$('#new').onclick = () => {
+  const id = prompt('Identifiant du nouveau niveau (nom du fichier levels/<id>.json) ?', uniqueId('nouveau', new Set(Object.keys(WORK()))));
+  if (!id) return; const d = emptyLevel(); d.id = slug(id) || 'nouveau'; setLevel(d);
 };
+// Étapes de la campagne : panneau à gauche
+$('#example').onclick = () => toggleDrawer();
+curKey = L.id;
+{ // première ouverture avec les copies par niveau : le niveau en cours y est rangé (version du jeu inconnue)
+  const w = WORK(); if (!w[L.id]) { w[L.id] = { level: L }; saveWork(w); }
+}
+initLevelsDrawer({
+  L: () => L, work: () => WORK(), isModified, openLevel, revert: revertLevel,
+  forget: id => { const w = WORK(); delete w[id]; saveWork(w); },
+  goTab: (t, sel) => { ui.tab = t; if (sel) ui.sel = { ...sel }; render(); },
+  newLevel: () => $('#new').onclick(),
+  newLevelFor: d => setLevel(d, { src: null }),
+});
 $('#publish').onclick = () => publishDialog(ctx);
 $('#guide').onclick = () => toggleGuide();
 initGuide({ get L() { return L; }, setLevel, goTab: t => { ui.tab = t; render(); }, check: () => checkLevel(L) });

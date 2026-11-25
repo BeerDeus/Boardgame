@@ -18,7 +18,13 @@ export async function loadEditorCampaign(force = false) {
   return C;
 }
 export const campaign = () => C;
+/** À appeler après une modification de la campagne faite hors de l'onglet Campagne */
+export const campaignChanged = () => saveC();
 export const campaignJSON = () => JSON.stringify(C, null, 1) + '\n';
+/** Statut d'une étape : Idée / En cours / À tester / Live. Seul « Live » est jouable (les autres : « À venir » sur l'accueil). */
+export const STATUSES = [['idea', 'Idée'], ['wip', 'En cours'], ['test', 'À tester'], ['live', 'Live']];
+export const stepStatus = s => s.status || (s.level && !s.soon ? 'live' : s.level ? 'wip' : 'idea');
+export function setStepStatus(s, st) { s.status = st; if (st === 'live') delete s.soon; else s.soon = true; }
 /** Fichiers de niveaux référencés par la campagne */
 export const campaignLevelFiles = () => (C?.acts || []).flatMap(a => (a.steps || []).filter(s => s.level).map(s => ({ act: a, step: s, file: s.level })));
 
@@ -30,7 +36,7 @@ export function checkCampaign(c = C) {
     if (!a.id) errors.push('Un acte n\'a pas d\'identifiant.'); else if (aids.has(a.id)) errors.push(`Identifiant d'acte en double : ${a.id}`); else aids.add(a.id);
     for (const s of a.steps || []) {
       if (!s.id) errors.push(`${a.num || a.id} : une étape n'a pas d'identifiant.`); else if (ids.has(s.id)) errors.push(`Identifiant d'étape en double : ${s.id}`); else ids.add(s.id);
-      if (!s.soon && !s.level) warnings.push(`${a.num || a.id} › ${s.num || s.id} : pas de fichier de niveau (affichée « À venir »).`);
+      if (stepStatus(s) === 'live' && !s.level) errors.push(`${a.num || a.id} › ${s.num || s.id} : « Live » sans fichier de niveau.`);
       if (s.level && !/^levels\/[\w.-]+\.json$/.test(s.level)) errors.push(`${s.num || s.id} : fichier « ${s.level} » invalide (attendu : levels/<id>.json).`);
     }
   }
@@ -93,13 +99,13 @@ export function panelCampaign(ctx) {
         icoBtn('✕', 'Supprimer l\'étape', () => { a.steps.splice(si, 1); changed(); redraw(); }, 'del')),
       row(field('Identifiant', input(s.id, v => { s.id = slug(v); changed(); })), field('Numéro', input(s.num, v => { s.num = v; changed(); }, { placeholder: 'Étape I' })),
         field('Titre', input(s.title, v => { s.title = v; changed(); })), field('Étiquette', input(s.tag, v => { s.tag = v || undefined; changed(); }, { placeholder: 'Tutoriel' }))),
-      row(field('Fichier du niveau', input(s.level, v => { s.level = v || undefined; if (v) delete s.soon; changed(); }, { list: 'dl-levels', placeholder: 'levels/etape1.json' })),
+      row(field('Fichier du niveau', input(s.level, v => { s.level = v || undefined; if (!v && stepStatus(s) === 'live') setStepStatus(s, 'idea'); changed(); }, { list: 'dl-levels', placeholder: 'levels/etape1.json' })),
         field('Illustration', imgInput(s, 'image', changed)), field('Débloquée après', requiresSelect(s, allSteps, '(étape précédente)', changed)),
-        field('À venir', checkbox(s.soon, v => { if (v) s.soon = true; else delete s.soon; changed(); }))),
+        field('Statut', select(stepStatus(s), STATUSES, v => { if (v === 'live' && !s.level) { alert('« Live » demande un fichier de niveau.'); redraw(); return; } setStepStatus(s, v); changed(); redraw(); }), 'Seul « Live » est jouable ; sinon « À venir » sur l\'accueil.')),
       field('Résumé (sous l\'étape)', input(s.desc, v => { s.desc = v || undefined; changed(); })))));
     card.append(steps, row(
-      btn('+ Étape', () => { const id = uniq('etape', allSteps); a.steps.push({ id, num: `Étape ${a.steps.length}`, title: 'Nouvelle étape', soon: true }); changed(); redraw(); }, 'small'),
-      inCampaign ? null : btn(`+ Étape : niveau en cours (${ctx.L.title || ctx.L.id})`, () => { const id = allSteps.some(x => x.id === ctx.L.id) ? uniq(ctx.L.id, allSteps) : ctx.L.id; a.steps.push({ id, num: `Étape ${a.steps.length}`, title: ctx.L.title || id, level: levelFile }); changed(); redraw(); }, 'small accent')));
+      btn('+ Étape', () => { const id = uniq('etape', allSteps); a.steps.push({ id, num: `Étape ${a.steps.length}`, title: 'Nouvelle étape', status: 'idea', soon: true }); changed(); redraw(); }, 'small'),
+      inCampaign ? null : btn(`+ Étape : niveau en cours (${ctx.L.title || ctx.L.id})`, () => { const id = allSteps.some(x => x.id === ctx.L.id) ? uniq(ctx.L.id, allSteps) : ctx.L.id; a.steps.push({ id, num: `Étape ${a.steps.length}`, title: ctx.L.title || id, level: levelFile, status: 'wip', soon: true }); changed(); redraw(); }, 'small accent')));
     p.append(card);
   });
   p.append(btn('+ Acte', () => { const n = C.acts.length + 1; C.acts.push({ id: uniq('acte', C.acts), num: `Acte ${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][n - 1] || n}`, title: 'Nouvel acte', desc: '', image: IMAGES[0], steps: [] }); changed(); redraw(); }, 'small'));
@@ -167,6 +173,7 @@ export async function publishDialog(ctx) {
               out.push(r.unchanged ? `= ${path} : inchangé` : `✓ ${path}${r.url ? ` — <a href="${r.url}" target="_blank" rel="noopener">commit</a>` : ''}`);
             }
             render(out.join('<br>') + '<br><b>Publié.</b> Le site se met à jour au prochain déploiement.');
+            if (withLevel.checked) ctx.onPublished?.();
           } catch (err) { render(`${out.join('<br>')}${out.length ? '<br>' : ''}✗ ${err.message}`); }
         } }, '⇪ Publier')));
     m.append(card); m.classList.add('open');

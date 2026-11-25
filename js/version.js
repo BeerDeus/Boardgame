@@ -1,2 +1,2 @@
 // Mis à jour par tools/build-sw.py à chaque préparation de déploiement
-export const VERSION = '2026-11-25 17:58';
+export const VERSION = '2026-11-25 18:39';
