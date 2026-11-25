@@ -66,6 +66,10 @@ export function createUI({ title, subtitle }) {
   const modal = h('div', 'cmodal'); root.append(modal);
   journalFull.addEventListener('click', e => { if (e.target === journalFull || e.target.dataset.close != null) journalFull.classList.remove('open'); });
   let journalData = [], invData = [], events = [];
+  // Une seule fenêtre à la fois : si une autre doit s'ouvrir par-dessus, la précédente est d'abord
+  // fermée proprement (confirmation = « Annuler ») au lieu de rester à jamais sans réponse.
+  let modalClose = null;
+  const closePrev = () => { const prev = modalClose; modalClose = null; if (prev && modal.classList.contains('open')) prev(); };
   /** Fil des derniers événements (journal) */
   const logEvent = (msg, kind = '') => { const e = { t: String(msg), k: kind, r: ui.round ?? 0 }; events.push(e); if (events.length > 60) events.shift(); ui.onEvent?.(e); };
 
@@ -279,13 +283,15 @@ export function createUI({ title, subtitle }) {
     /** Consigne de mise en place pour la table physique (façon Destinies) */
     setupPrompt({ title, items, note = '', mapView = null }) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="sp-card ${mapView ? 'with-map' : ''}"><div class="sp-head">${icon('map')}<h3>${title}</h3></div>
           ${mapView ? `<div class="sp-map">${mapSVG(mapView)}<div class="sp-legend"><span class="lg new"></span> à poser <span class="lg old"></span> déjà sur la table <span class="lg here"></span> héros ${icon('flag')} N en haut</div></div>` : ''}
           <div class="sp-list">${items.map(it => `<div class="sp-it">${it.portrait ? `<div class="pimg" style="--c:${it.portrait.color}">${figureSVG(it.portrait.kind, it.portrait.color, { portrait: true })}</div>` : `<span class="sp-ic">${ic(it.icon || 'map')}</span>`}
             <div><b>${it.title}</b><small>${it.sub || ''}</small></div>${it.code ? `<em class="sp-code">${it.code}</em>` : ''}</div>`).join('')}</div>
           ${note ? `<p class="muted">${note}</p>` : ''}<div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div>`;
         modal.classList.add('open', 'setup'); sfx.ui();
-        const close = () => { modal.classList.remove('open', 'setup'); keyHandler = null; res(); };
+        const close = () => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'setup'); keyHandler = null; res(); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });
@@ -293,6 +299,7 @@ export function createUI({ title, subtitle }) {
     /** Carte d'objet physique : « Prenez la carte » (take) ou « Défaussez la carte » (discard) */
     cardPrompt({ item, mode = 'take', n = 1, note = '' }) {
       return new Promise(res => {
+        closePrev();
         const take = mode === 'take', code = item.code || '';
         const title = take ? (n > 1 ? `Prenez ${n} cartes` : 'Prenez la carte') : 'Défaussez la carte';
         const text = take ? `Prenez la carte <b>${code ? code + ' · ' : ''}${item.name}</b>${n > 1 ? ` (×${n})` : ''} dans la pioche d'objets et posez-la dans la besace commune.`
@@ -303,7 +310,8 @@ export function createUI({ title, subtitle }) {
           <p class="cp-eff">${item.effect || item.desc || ''}</p>${note ? `<p class="muted">${note}</p>` : ''}
           <div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} C'est fait</button></div></div></div>`;
         modal.classList.add('open', 'cardm'); take ? sfx.success() : sfx.ui();
-        const close = () => { modal.classList.remove('open', 'cardm'); keyHandler = null; res(); };
+        const close = () => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'cardm'); keyHandler = null; res(); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });
@@ -311,12 +319,14 @@ export function createUI({ title, subtitle }) {
     /** Notification à valider (quête nouvelle / terminée…) */
     notice({ kind = 'quest', title, text = '', sub = '' }) {
       return new Promise(res => {
+        closePrev();
         const done = kind === 'quest-done';
         logEvent(`${done ? 'Quête terminée' : 'Nouvelle quête'} : <b>${title}</b>`, done ? 'quest done' : 'quest');
         modal.onclick = null; modal.innerHTML = `<div class="nt-card ${done ? 'done' : ''}"><div class="nt-ic">${icon(done ? 'check' : 'flag')}</div><div><small>${sub || (done ? 'Quête terminée' : 'Nouvelle quête')}</small><h3>${title}</h3>${text ? `<p>${text}</p>` : ''}
           <div class="cm-btns"><button class="btn accent" data-yes>OK</button></div></div></div>`;
         modal.classList.add('open', 'tipm'); done ? sfx.success() : sfx.ui();
-        const close = () => { modal.classList.remove('open', 'tipm'); keyHandler = null; res(); };
+        const close = () => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'tipm'); keyHandler = null; res(); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });
@@ -324,10 +334,12 @@ export function createUI({ title, subtitle }) {
     /** Conseil du tutoriel (une seule fois) */
     tip({ title, text, icon: ic3 = 'help' }) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="tip-card"><div class="tip-ic">${icon(ic3)}</div><div><small>Tutoriel</small><h3>${title}</h3><p>${text}</p>
           <div class="cm-btns"><button class="btn ghost" data-off>Ne plus afficher les conseils</button><button class="btn accent" data-yes>Compris</button></div></div></div>`;
         modal.classList.add('open', 'tipm');
-        const close = off => { modal.classList.remove('open', 'tipm'); keyHandler = null; res(off); };
+        const close = off => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'tipm'); keyHandler = null; res(off); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = () => close(false);
         modal.querySelector('[data-off]').onclick = () => close(true);
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(false); } };
@@ -336,12 +348,14 @@ export function createUI({ title, subtitle }) {
     /** Ténèbres : cartes tirées par type de monstre, triées par initiative (bouton OK pour lancer) */
     monsterCards(list) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="mk-wrap"><h3>${icon('skull')} Les Ténèbres agissent</h3><small class="muted">Ordre d'initiative (plus petit = plus tôt)</small>
           <div class="mk-row">${list.map(m => `<div class="mk-card"><div class="mk-top"><div class="pimg" style="--c:${m.color}">${figureSVG(m.kind, m.color, { portrait: true })}</div><em>${m.card.init}</em></div>
             <small>${m.title}</small><b>${m.card.name}</b><ul>${m.lines.map(([ic2, t]) => `<li>${icon(ic2)} ${t}</li>`).join('')}</ul></div>`).join('')}</div>
           <div class="cm-btns"><button class="btn accent" data-yes>${icon('check')} OK</button></div></div>`;
         modal.classList.add('open', 'wide'); sfx.ui();
-        const close = () => { modal.classList.remove('open', 'wide'); keyHandler = null; res(); };
+        const close = () => { if (modalClose === close) modalClose = null; modal.classList.remove('open', 'wide'); keyHandler = null; res(); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = close;
         keyHandler = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); close(); } };
       });
@@ -358,10 +372,12 @@ export function createUI({ title, subtitle }) {
     /** Fenêtre de confirmation (parler, attaquer…) */
     confirm({ title, text = '', portrait = null, ok = 'Oui', cancel = 'Annuler', danger = false }) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="cm-card ${danger ? 'danger' : ''}">${portrait ? `<div class="pimg big cm-p" style="--c:${portrait.color}">${figureSVG(portrait.kind, portrait.color, { portrait: true })}</div>` : ''}
           <div class="cm-body"><h3>${title}</h3><p>${text}</p><div class="cm-btns"><button class="btn" data-no>${cancel}</button><button class="btn accent" data-yes>${ok}</button></div></div></div>`;
         modal.classList.add('open');
-        const close = v => { modal.onclick = null; modal.classList.remove('open'); keyHandler = null; res(v); };
+        const close = v => { if (modalClose === close) modalClose = null; modal.onclick = null; modal.classList.remove('open'); keyHandler = null; res(v); };
+        modalClose = close;
         modal.querySelector('[data-yes]').onclick = () => close(true);
         modal.querySelector('[data-no]').onclick = () => close(false);
         modal.onclick = e => { if (e.target === modal) close(false); };
@@ -371,6 +387,7 @@ export function createUI({ title, subtitle }) {
     /** Choix des joueurs (effet « Choix ») : renvoie l'indice de l'option choisie */
     choose({ title = '', text = '', options = [] }) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="lp-card ch-card"><div class="lp-head"><h3>${title}</h3></div>${text ? `<p class="lp-desc">${text}</p>` : ''}
           <div class="lp-list">${options.map((o, i) => `<button class="lp-act" data-i="${i}" ${o.disabled ? 'disabled' : ''}><span class="lp-ic">${o.disabled ? icon('lock') : `<b>${i + 1}</b>`}</span><span><b>${o.label}</b>${o.disabled && o.need ? `<small>${o.need}</small>` : ''}</span></button>`).join('')}</div></div>`;
         modal.classList.add('open'); sfx.ui();
@@ -381,6 +398,7 @@ export function createUI({ title, subtitle }) {
     /** Panneau de lieu : toutes les activités disponibles, faisables dans la même interaction */
     locationPanel({ title, desc, hero, list, run }) {
       return new Promise(res => {
+        closePrev();
         let count = 0, busy = false; const doneHere = new Set();
         const render = () => {
           const acts = list().map(a => (doneHere.has(a.id) && !a.disabled ? { ...a, disabled: 'Déjà fait pendant cette interaction' } : a));
@@ -401,6 +419,7 @@ export function createUI({ title, subtitle }) {
     /** Montée de niveau : +5 % à une compétence ou un avantage de classe */
     levelUp({ hero, skills, perks }) {
       return new Promise(res => {
+        closePrev();
         modal.onclick = null; modal.innerHTML = `<div class="lp-card lu-card" style="--c:${hero.color}"><div class="lu-head"><div class="pimg" style="--c:${hero.color}">${figureSVG(hero.kind, hero.color, { portrait: true })}</div>
           <div><h3>${hero.name} — niveau supérieur !</h3><small>Choisissez 1 amélioration (définitive pour la campagne).</small></div></div>
           <h4>+5 % à une compétence</h4><div class="lu-row">${skills.map(k => `<button class="lp-act" data-k="${k.id}"><b>${STAT_COLORS[k.id] ? statBadge(k.id, 22) + ' ' : ''}${k.name}</b><small>${k.value} % → ${k.value + 5} %</small></button>`).join('')}</div>
@@ -413,6 +432,7 @@ export function createUI({ title, subtitle }) {
     /** Une partie est sauvegardée : reprendre, reprendre + mise en place, ou recommencer */
     resumePrompt({ title, round, glas, glasMax, party, when }) {
       return new Promise(res => {
+        closePrev();
         const d = when ? new Date(when).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '';
         modal.onclick = null; modal.innerHTML = `<div class="cm-card"><div class="cm-body"><h3>${icon('journal')} Partie en cours</h3>
           <p>${title}<br><small>Manche ${round} · glas ${glas}/${glasMax} · ${party.length} héros${d ? ` · ${d}` : ''}</small></p>

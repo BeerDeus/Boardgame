@@ -756,16 +756,6 @@
    "role": "Aubergiste du hameau"
   },
   {
-   "id": "destrier",
-   "name": "Destrier",
-   "kind": "horse",
-   "color": "#5a3d2a",
-   "base": "#8a6a44",
-   "team": "mount",
-   "place": "hameau",
-   "role": "Cheval de guerre (Aldric)"
-  },
-  {
    "id": "mathilde",
    "name": "Mathilde",
    "kind": "smith",

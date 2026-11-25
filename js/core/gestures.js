@@ -11,13 +11,14 @@ export class Gestures {
     el.addEventListener('pointermove', this._move = e => this.move(e));
     el.addEventListener('pointerup', this._up = e => this.up(e));
     el.addEventListener('pointercancel', this._up);
+    el.addEventListener('lostpointercapture', this._lost = e => { if (this.ptrs.has(e.pointerId)) this.up(e); });
     el.addEventListener('wheel', this._wheel = e => { e.preventDefault(); h.onWheel?.(e.deltaY * (e.deltaMode === 1 ? 30 : 1), e.clientX, e.clientY); }, { passive: false });
     el.addEventListener('contextmenu', this._ctx = e => e.preventDefault());
   }
   dispose() {
     const el = this.el;
     el.removeEventListener('pointerdown', this._down); el.removeEventListener('pointermove', this._move);
-    el.removeEventListener('pointerup', this._up); el.removeEventListener('pointercancel', this._up);
+    el.removeEventListener('pointerup', this._up); el.removeEventListener('pointercancel', this._up); el.removeEventListener('lostpointercapture', this._lost);
     el.removeEventListener('wheel', this._wheel); el.removeEventListener('contextmenu', this._ctx);
   }
   pinchState() {
@@ -25,6 +26,9 @@ export class Gestures {
     return { d: Math.hypot(b.x - a.x, b.y - a.y) || 1, a: Math.atan2(b.y - a.y, b.x - a.x), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
   }
   down(e) {
+    // Premier doigt d'un nouveau geste : on oublie les doigts « perdus » (fin de toucher jamais reçue
+    // pendant un spam de taps) — sinon chaque tap suivant serait pris pour un pincement.
+    if (e.isPrimary !== false) { this.ptrs.clear(); this.mode = null; }
     try { this.el.setPointerCapture(e.pointerId); } catch {}
     const now = performance.now();
     this.ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: now });

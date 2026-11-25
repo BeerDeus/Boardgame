@@ -37,7 +37,7 @@ const ui = createUI({ title: 'Grimoire', subtitle: 'Les Chroniques de Brumeval' 
     } catch (e) { console.warn('Portraits 3D indisponibles', e); }
     ui.progress(0.9, 'Scénario…');
     const dialogue = createDialogue(ui.root);
-    ui.engine = engine; window.__engine = engine;
+    ui.engine = engine; window.__engine = engine; window.__ui = ui;
     await runScenario({ engine, ui, dialogue, engineId: meta.id, draft, stepId: stepId || first.id, ready: () => { ui.progress(1, 'Prêt'); ui.loaded(); } });
     window.__engine = engine;
   } catch (e) {

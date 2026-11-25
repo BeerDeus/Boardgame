@@ -215,7 +215,8 @@ export class Board3D {
     const k = Math.max(1, Math.min(7, (minPx * wpp) / (0.092 * fs))); // facteur d'agrandissement des plaques
     const plateW = 0.525 * fs * k * 0.62; // largeur utile d'une plaque (monde)
     const spacing = this.grid.w * 0.21 * 1.4; // écart entre deux emplacements de figurines sur une case
-    const tight = plateW > spacing * 1.15;
+    // regroupement « ×N » seulement en vue très éloignée (case de moins de ~70 px à l'écran)
+    const tight = this.grid.w / wpp < 70 && plateW > spacing * 1.15;
     const show = this.labels !== false;
     const want = new Set();
     for (const [key, ids0] of this.occ) {

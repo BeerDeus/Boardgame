@@ -9,7 +9,7 @@ export const HERO_MODELS = { knight: 'Chevalier (Knight)', mage: 'Mage', barbari
  * Le moteur lit la fiche calculée par heroSheet() : h.mount, h.healAura, h.dodge, h.regen, h.dmg, h.range, h.boostStart…
  */
 export const TALENTS = {
-  mount:    { label: 'Monture', params: [['cast', 'text', 'destrier', 'Figurine de la monture (identifiant dans le niveau)'], ['bonus', 'number', 2, 'Déplacement en selle +']],
+  mount:    { label: 'Monture', params: [['cast', 'text', '', 'Figurine de la monture (identifiant dans le niveau)'], ['bonus', 'number', 2, 'Déplacement en selle +']],
               describe: t => `en selle, déplacement +${t.bonus}` },
   healAura: { label: 'Soin de zone (action)', params: [['heal', 'number', 2, 'PV soignés'], ['self', 'bool', true, 'Se soigne aussi']],
               describe: t => `action : soigne ${t.heal} PV aux héros de sa case` },

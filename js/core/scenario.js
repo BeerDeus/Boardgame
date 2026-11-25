@@ -11,6 +11,7 @@ import { loadCampaignDef, loadCampaign, completeStep, heroProgress, pointsAvaila
 import { draw as drawMonster, describeCard, cardLines } from './monsters.js';
 import { SKILL_NAMES, DIFFICULTIES, statKey, testChance } from './stats.js';
 import { evalCond } from './level.js';
+import { tweensActive } from './tween.js';
 
 const SAVE_V = 7;
 const TERRAIN_CODE = { village: 'V', forest: 'F', plains: 'P', rock: 'R', swamp: 'M', ruins: 'U', burned: 'C', snow: 'N', crypt: 'X' };
@@ -374,7 +375,7 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     if (c.stun) { c.stun = false; S.used.attack = true; ui.toast(`${h.name} est étourdi : pas d'attaque ce tour.`, 2600); }
     refreshHUD();
     await tip('turn');
-    if (Object.keys(S.figs).some(i => def(i).team === 'npc' && S.figs[i].alive && i !== 'destrier')) await tip('npc');
+    if (Object.keys(S.figs).some(i => def(i).team === 'npc' && S.figs[i].alive)) await tip('npc');
   }
   async function endTurn() { R.undo = null; engine.highlight([], []); S.turn++; await nextTurn(); return false; }
   async function darkPhase() {
@@ -819,10 +820,25 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
   }
   settings.subscribe(() => engine.applySettings?.(settings.gfx));
   buildMenu();
+  // Garde-fou : si le jeu reste « occupé » plusieurs secondes sans rien d'affiché ni d'animé
+  // (fenêtre fermée par erreur…), on rend la main aux joueurs au lieu de rester bloqué.
+  let idleBusy = 0;
+  setInterval(() => {
+    const shown = document.querySelector('.cmodal.open, .dialogue.open, .narration.open, .d100.open, .turn-banner.show, .endscreen.open, .mcard.in');
+    if (!R.busy || S.ended || shown || tweensActive()) { idleBusy = 0; return; }
+    if (++idleBusy < 12) return;
+    idleBusy = 0; console.warn('Garde-fou : interface débloquée');
+    R.busy = false; ui.setBusy(false); engine.endCinematic?.(); ui.vignette(false); save();
+    if (S.figs[active()]?.alive) select(active()); refreshHUD();
+  }, 1000);
   window.__game = { S, R, dialogue, g, map, moveOf, exploreTile, explored, act, talk, attack, reveal, teleport, interactPlace, endTurn, def, active, moveHero, pathFor };
 
   // ------------------------------------------------------------------ démarrage
   refreshHUD();
+  // Démarrage (intro, mise en place, 1re manche et ses conseils) : les taps sont bloqués jusqu'à la fin,
+  // sinon une confirmation ouverte pendant ce temps serait écrasée par un conseil et resterait sans réponse.
+  R.busy = true; ui.setBusy(true);
+  try {
   if (!resumed) {
     for (const p of st.intro || []) await dialogue.narrate(p);
     dialogue.uncover?.(); await sleep(500); // fin du fondu de la narration
@@ -840,6 +856,8 @@ export async function runScenario({ engine, ui, dialogue, engineId, ready, draft
     const h = activeDef(); engine.setRingColor?.(parseInt(h.color.slice(1), 16)); select(h.id); engine.focusFigure(h.id); refreshHUD();
     if (resetup) await fullSetup();
   }
+  } catch (e) { console.error(e); }
+  finally { R.busy = false; ui.setBusy(false); if (!S.ended && S.figs[active()]?.alive) select(active()); refreshHUD(); }
   /** Remettre toute la table en place (reprise de partie, table rangée…) */
   async function fullSetup() {
     R.setupTiles.push(...revealed);
