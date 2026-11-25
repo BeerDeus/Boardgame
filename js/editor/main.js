@@ -10,6 +10,7 @@ import { mapPanel } from './map.js';
 import { itemCardSVG, ITEM_TYPES, ART_NAMES } from '../core/cards.js';
 import { panelCampaign, publishDialog, loadEditorCampaign, campaignLevelFiles } from './campaign.js';
 import { panelHeroes } from './heroes-panel.js';
+import { initGuide, toggleGuide, update as updateGuide, markTested } from './guide.js';
 import { dialogueTree, previewDialogue, toMd, toHtml } from './dialogue-tree.js';
 
 const STORE = 'grimoire.editor.level';
@@ -25,7 +26,7 @@ function changed() {
   try { localStorage.setItem(STORE, JSON.stringify(L)); } catch {}
   $('#saved').textContent = 'Enregistré (navigateur)';
   clearTimeout(snapT); snapT = setTimeout(() => { const s = JSON.stringify(L); if (s !== lastSnap) { undo.push(lastSnap); if (undo.length > 80) undo.shift(); lastSnap = s; } }, 500);
-  clearTimeout(checkT); checkT = setTimeout(updateBadge, 400);
+  clearTimeout(checkT); checkT = setTimeout(() => { updateBadge(); updateGuide(); }, 400);
   refreshLists();
 }
 function doUndo() { const s = undo.pop(); if (!s) return; L = JSON.parse(s); lastSnap = s; try { localStorage.setItem(STORE, s); } catch {} render(); }
@@ -281,6 +282,7 @@ function panelHelp() {
   <li><b>Campagne</b> : Actes et étapes de l'accueil (ordre, déblocage, titres, illustrations) ; « + Étape : niveau en cours » ajoute ce niveau.</li>
   <li><b>⇪ Publier</b> envoie <code>levels/&lt;id&gt;.json</code> et <code>levels/campaign.json</code> sur GitHub (branche déployée par Hostinger). Refusé si le niveau ou la campagne ont des erreurs. Il faut un <b>jeton GitHub fine-grained</b> (ce dépôt seulement, <i>Contents : Read and write</i>), saisi une fois et gardé seulement dans ce navigateur : la fenêtre de publication explique comment le créer.</li>
   <li><b>Exporter</b> télécharge <code>&lt;id&gt;.json</code> (copie de sauvegarde, ou ajout manuel dans <code>levels/</code>).</li></ol>
+  <p><b>Première fois ?</b> Ouvrez le <b>🧭 Guide</b> (barre du haut) : il vous fait créer une petite étape complète, pas à pas.</p>
   <h3>Tests de stat</h3><p>Réussite si D100 ≤ stat du héros actif + difficulté (Facile +20, Normal 0, Difficile −20, Héroïque −40) + modificateur. Les boosts ✦ ajoutent +10 chacun. </p><div class="stat-legend">${statChip('combat')} attaques ; ${Object.entries(STATS).map(([k, s]) => `<span>${statChip(k)} ${s.desc}</span>`).join('')}</div>
   <h3>Ce qu'on peut faire</h3><p>Effets rangés par catégorie : récit, dés et logique (test, si/sinon, hasard, fenêtre de choix, compteur), héros (boosts, soins, blessure, <b>bonus/malus de stat</b> pour le niveau ou permanent, poison/étourdi, XP, déplacement), objets et quêtes, carte (révéler, <b>déverrouiller une zone</b>, apparitions, départ d'un PNJ), partie (glas, limite de glas, victoire/défaite). Dans les textes, <code>{héros}</code> est remplacé par le nom du héros actif.</p>
   <h3>Drapeaux</h3><p>Mémoire du niveau : « Poser un drapeau » puis condition « Drapeau posé ». Leur nom est libre (ex. <code>pontOuvert</code>).</p>
@@ -295,7 +297,7 @@ function render() {
   main.innerHTML = '';
   const P = { campaign: () => panelCampaign(ctx), heroes: () => panelHeroes(ctx), general: panelGeneral, map: () => mapPanel(ctx), places: panelPlaces, cast: panelCast, dialogues: panelDialogues, quests: panelQuests, events: panelEvents, check: panelCheck, help: panelHelp }[ui.tab];
   main.append(P()); main.scrollTop = sc;
-  $('#title').textContent = L.title || L.id; refreshLists(); updateBadge();
+  $('#title').textContent = L.title || L.id; refreshLists(); updateBadge(); updateGuide();
 }
 
 // ------------------------------------------------------------------ barre d'outils
@@ -310,6 +312,8 @@ $('#example').onclick = async () => {
   try { setLevel(await (await fetch(f.file, { cache: 'no-cache' })).json()); } catch (e) { alert('Niveau illisible : ' + e.message); }
 };
 $('#publish').onclick = () => publishDialog(ctx);
+$('#guide').onclick = () => toggleGuide();
+initGuide({ get L() { return L; }, setLevel, goTab: t => { ui.tab = t; render(); }, check: () => checkLevel(L) });
 $('#open').onclick = () => $('#file').click();
 $('#file').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { setLevel(JSON.parse(await f.text())); } catch (err) { alert('Fichier illisible : ' + err.message); } e.target.value = ''; };
 $('#export').onclick = () => {
@@ -322,6 +326,7 @@ $('#test').onclick = () => {
   const { errors } = checkLevel(L);
   if (errors.length) { ui.tab = 'check'; render(); if (!confirm(`${errors.length} erreur(s) : le niveau risque de ne pas fonctionner. Tester quand même ?`)) return; }
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(L)); localStorage.removeItem('grimoire.save.draft.v7'); } catch {}
+  markTested(); updateGuide();
   window.open('play.html?e=hex&level=draft', 'grimoire-test');
 };
 addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.target.closest('input, textarea')) { e.preventDefault(); doUndo(); } });

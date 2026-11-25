@@ -3,6 +3,7 @@
 Un niveau = **un fichier JSON** `levels/<id>.json`, créé avec l'**éditeur** (`editor.html`, accessible depuis le hub). Le jeu le lit via `js/core/level.js`. Aucune programmation n'est nécessaire.
 
 ## Démarche
+0. **🧭 Guide** (barre du haut de l'éditeur) : un pas-à-pas qui fait créer une petite étape complète, « La bague de Margot » (carte, 2 lieux, 2 PNJ, dialogue, échange d'objets entre les PNJ, victoire, jet de dés, test). Chaque étape se coche toute seule ; « Montre-moi ▸ » ouvre le bon onglet et fait clignoter l'endroit où cliquer.
 1. Hub → **Éditeur de niveaux** (sur PC de préférence). « Exemple : Prologue » ouvre le tutoriel comme modèle.
 2. Construire : **Carte** → **Lieux** → **Personnages** → **Dialogues** → **Quêtes & objets** → **Événements**.
 3. **Tester ▸** ouvre le niveau dans le jeu, dans un onglet séparé. Ni la campagne ni la partie en cours ne sont touchées.
